@@ -1,0 +1,33 @@
+# Reference
+
+Quick reference for pages and features.
+
+## Pages
+
+| Page | Purpose |
+|------|---------|
+| **Overview** | Main dashboard: vertical tabs for watchlist, active alert handling, ops-event history, integrated semantic search, and feed health |
+| **Telemetry** | Full source-scoped telemetry inventory with filtering, browsing, and watchlist actions |
+| **Planning** | Earth view, observation windows, position mapping, and orbit status |
+| **Sources** | Administrative source and simulator management |
+| **Channel detail** | Stats, trend chart, z-score, LLM explanation, and recent events under the Telemetry section |
+
+## Keyboard Shortcuts
+
+Open **Keybindings** from the bottom of the left navigation rail to view available keyboard shortcuts. In collapsed mode, hover the keyboard icon to see the label tooltip.
+
+## Logs and Debugging
+
+The platform emits structured JSON audit logs for auditing and debugging:
+
+- **Backend / Simulator:** Logs go to stdout. With Docker: `docker compose logs backend` or `docker compose logs simulator`. Each line is JSON with `audit: true`, `action`, `component`, and action-specific fields.
+- **Frontend:** In development, user actions (simulator, watchlist, ack/resolve, search) are logged to the browser console. In production, set `NEXT_PUBLIC_AUDIT_LOG=true` to enable.
+
+## Operator Mode
+
+For mission control environments, the platform supports:
+
+- **High-contrast mode** — higher contrast for visibility
+- **Large-type mode** — larger text for readability
+
+Use **Screen type** in the bottom utility section of the left navigation rail to switch modes. Preferences are stored in the browser.

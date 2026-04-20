@@ -1,0 +1,355 @@
+"use client";
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  RealtimeWsClient,
+  type RealtimeChannelUpdate,
+  type RealtimeMessage,
+} from "./realtime-ws-client";
+import {
+  fetchFeedStatus,
+  normalizeFeedStatus,
+  type FeedStatus,
+} from "./feed-status";
+
+/** Single channel state: value, timestamp, state, and rolling live points for sparklines. */
+export interface LiveChannelState {
+  name: string;
+  value: number | null;
+  lastTimestamp: string | null;
+  state: string;
+  stateReason: string | null;
+  zScore: number | null;
+  units?: string | null;
+  description?: string | null;
+  subsystem_tag: string;
+  /** Rolling list of recent points (from stream); cap at 100. */
+  liveData: { timestamp: string; value: number }[];
+  /** Sparkline from server snapshot; may be replaced by liveData as updates arrive. */
+  sparkline_data: { timestamp: string; value: number }[];
+}
+
+/** Initial channel shape (from API/snapshot) to seed state. */
+export interface InitialChannelInput {
+  name: string;
+  current_value: number | null;
+  last_timestamp: string | null;
+  state: string;
+  state_reason?: string | null;
+  z_score?: number | null;
+  units?: string | null;
+  description?: string | null;
+  subsystem_tag: string;
+  sparkline_data?: { timestamp: string; value: number }[];
+}
+
+function buildInitialChannelState(
+  initialChannels: InitialChannelInput[]
+): Record<string, LiveChannelState> {
+  const init: Record<string, LiveChannelState> = {};
+  for (const ch of initialChannels) {
+    init[ch.name] = toLiveState(ch, []);
+  }
+  return init;
+}
+
+function toLiveState(
+  ch: RealtimeChannelUpdate | InitialChannelInput,
+  liveData?: { timestamp: string; value: number }[]
+): LiveChannelState {
+  const lastTs = "generation_time" in ch ? ch.generation_time : ch.last_timestamp;
+  const value = "current_value" in ch ? ch.current_value : (ch as InitialChannelInput).current_value;
+  const state = ch.state;
+  const stateReason = "state_reason" in ch ? ch.state_reason ?? null : (ch as InitialChannelInput).state_reason ?? null;
+  const zScore = "z_score" in ch ? ch.z_score ?? null : (ch as InitialChannelInput).z_score ?? null;
+  const spark =
+    ("sparkline_data" in ch ? ch.sparkline_data : (ch as InitialChannelInput).sparkline_data) ?? [];
+  return {
+    name: ch.name,
+    value,
+    lastTimestamp: lastTs,
+    state,
+    stateReason,
+    zScore,
+    units: "units" in ch ? ch.units : (ch as InitialChannelInput).units,
+    description: "description" in ch ? ch.description : (ch as InitialChannelInput).description,
+    subsystem_tag: ch.subsystem_tag,
+    liveData: liveData ?? [],
+    sparkline_data: spark ?? [],
+  };
+}
+
+interface RealtimeTelemetryContextValue {
+  /** Channel state by name (always reflects latest from stream or initial). */
+  channelsByName: Record<string, LiveChannelState>;
+  /** Channels as array (for overview list); order matches subscription order where possible. */
+  channelsArray: LiveChannelState[];
+  /** Current backend feed health for the active source/stream. */
+  feedStatus: FeedStatus | null;
+  /** True when backend feed health says the active source/stream is connected. */
+  isLive: boolean;
+  /** Raw client for adding extra handlers (e.g. alerts, orbit). May be null before connect. */
+  client: RealtimeWsClient | null;
+  /** Get state for one channel; returns undefined if not in subscription. */
+  getChannel: (name: string) => LiveChannelState | undefined;
+}
+
+const RealtimeTelemetryContext = createContext<RealtimeTelemetryContextValue | null>(null);
+
+export interface RealtimeTelemetryProviderProps {
+  /** Channel names to subscribe to (watchlist). */
+  channelNames: string[];
+  /** Logical source id for feed health lookups and status messages. */
+  sourceId: string;
+  /** Optional explicit stream id for realtime subscription. */
+  streamId?: string | null;
+  enabled?: boolean;
+  /** Optional initial state per channel (from API/snapshot). */
+  initialChannels?: InitialChannelInput[];
+  children: ReactNode;
+}
+
+/**
+ * Single place for live telemetry subscription and state.
+ * Creates one WebSocket client, subscribes to channelNames for sourceId/streamId,
+ * handles snapshot_watchlist and telemetry_update, and exposes channel state + isLive.
+ * Consumers use useRealtimeTelemetry() or useRealtimeChannel(name).
+ */
+export function RealtimeTelemetryProvider({
+  channelNames,
+  sourceId,
+  streamId = null,
+  enabled = true,
+  initialChannels = [],
+  children,
+}: RealtimeTelemetryProviderProps) {
+  const [client] = useState(() => new RealtimeWsClient());
+  const subscriptionKey = `${sourceId}::${streamId ?? ""}`;
+  const initialChannelState = useMemo(
+    () => buildInitialChannelState(initialChannels),
+    [initialChannels]
+  );
+  const [channelStore, setChannelStore] = useState<{
+    subscriptionKey: string;
+    channelsByName: Record<string, LiveChannelState>;
+  }>(() => ({
+    subscriptionKey,
+    channelsByName: initialChannelState,
+  }));
+  const [feedStatusStore, setFeedStatusStore] = useState<{
+    sourceId: string;
+    feedStatus: FeedStatus | null;
+  }>({
+    sourceId,
+    feedStatus: null,
+  });
+  const currentSourceIdRef = useRef(sourceId);
+  const currentSubscriptionKeyRef = useRef(subscriptionKey);
+  const initialChannelStateRef = useRef(initialChannelState);
+
+  useEffect(() => {
+    currentSourceIdRef.current = sourceId;
+    currentSubscriptionKeyRef.current = subscriptionKey;
+    initialChannelStateRef.current = initialChannelState;
+  }, [initialChannelState, subscriptionKey, streamId, sourceId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setChannelStore((prev) => {
+        if (prev.subscriptionKey !== subscriptionKey) {
+          return {
+            subscriptionKey,
+            channelsByName: initialChannelState,
+          };
+        }
+
+        const nextChannelsByName: Record<string, LiveChannelState> = {};
+        for (const name of channelNames) {
+          const existing = prev.channelsByName[name];
+          const initial = initialChannelState[name];
+          if (existing) {
+            nextChannelsByName[name] = existing;
+          } else if (initial) {
+            nextChannelsByName[name] = initial;
+          }
+        }
+
+        const prevNames = Object.keys(prev.channelsByName);
+        const nextNames = Object.keys(nextChannelsByName);
+        const unchanged =
+          prevNames.length === nextNames.length
+          && nextNames.every((name) => prev.channelsByName[name] === nextChannelsByName[name]);
+        if (unchanged) {
+          return prev;
+        }
+
+        return {
+          subscriptionKey,
+          channelsByName: nextChannelsByName,
+        };
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [channelNames, initialChannelState, subscriptionKey]);
+
+  const channelsByName =
+    channelStore.subscriptionKey === subscriptionKey
+      ? channelStore.channelsByName
+      : initialChannelState;
+  const feedStatus =
+    feedStatusStore.sourceId === sourceId ? feedStatusStore.feedStatus : null;
+
+  const isLive = feedStatus?.state === "connected";
+
+  const handleMessage = useCallback(
+    (msg: RealtimeMessage) => {
+      const activeSourceId = currentSourceIdRef.current;
+      const activeSubscriptionKey = currentSubscriptionKeyRef.current;
+      if (msg.type === "snapshot_watchlist" && msg.channels) {
+        setChannelStore((prev) => {
+          const base =
+            prev.subscriptionKey === activeSubscriptionKey
+              ? prev.channelsByName
+              : initialChannelStateRef.current;
+          const next = { ...base };
+          for (const ch of msg.channels) {
+            const existing = next[ch.name];
+            next[ch.name] = toLiveState(ch, existing?.liveData);
+          }
+          return {
+            subscriptionKey: activeSubscriptionKey,
+            channelsByName: next,
+          };
+        });
+      } else if (msg.type === "telemetry_update" && msg.channel) {
+        const ch = msg.channel;
+        setChannelStore((prev) => {
+          const base =
+            prev.subscriptionKey === activeSubscriptionKey
+              ? prev.channelsByName
+              : initialChannelStateRef.current;
+          const existing = base[ch.name];
+          const newPoint = { timestamp: ch.generation_time, value: ch.current_value };
+          const liveData = existing
+            ? [...existing.liveData, newPoint].slice(-100)
+            : [newPoint];
+          return {
+            subscriptionKey: activeSubscriptionKey,
+            channelsByName: {
+              ...base,
+              [ch.name]: toLiveState(ch, liveData),
+            },
+          };
+        });
+      } else if (msg.type === "feed_status" && msg.source_id === activeSourceId) {
+        setFeedStatusStore({
+          sourceId: activeSourceId,
+          feedStatus: normalizeFeedStatus(msg),
+        });
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!enabled) return;
+    const unsubscribe = client.subscribe(handleMessage);
+    client.connect();
+    return () => {
+      unsubscribe();
+      client.disconnect();
+    };
+  }, [client, enabled, handleMessage]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    client.subscribeWatchlist(channelNames, sourceId, streamId);
+  }, [client, channelNames, enabled, streamId, sourceId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchFeedStatus(sourceId)
+      .then((data) => {
+        if (!cancelled && data) {
+          setFeedStatusStore({
+            sourceId,
+            feedStatus: data,
+          });
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sourceId]);
+
+  const channelsArray = useMemo(() => {
+    const order = channelNames.length ? channelNames : Object.keys(channelsByName);
+    return order.map((name) => channelsByName[name]).filter(Boolean);
+  }, [channelNames, channelsByName]);
+
+  const getChannel = useCallback(
+    (name: string) => channelsByName[name],
+    [channelsByName]
+  );
+
+  const value = useMemo<RealtimeTelemetryContextValue>(
+    () => ({
+      channelsByName,
+      channelsArray,
+      feedStatus,
+      isLive,
+      client,
+      getChannel,
+    }),
+    [channelsByName, channelsArray, feedStatus, isLive, client, getChannel]
+  );
+
+  return (
+    <RealtimeTelemetryContext.Provider value={value}>
+      {children}
+    </RealtimeTelemetryContext.Provider>
+  );
+}
+
+export function useRealtimeTelemetry(): RealtimeTelemetryContextValue {
+  const ctx = useContext(RealtimeTelemetryContext);
+  if (!ctx) {
+    throw new Error("useRealtimeTelemetry must be used within RealtimeTelemetryProvider");
+  }
+  return ctx;
+}
+
+/**
+ * Optional hook: get state for a single channel. Use inside RealtimeTelemetryProvider.
+ * Returns undefined if provider is not mounted or channel not in subscription.
+ */
+export function useRealtimeChannel(channelName: string): LiveChannelState | undefined {
+  const ctx = useContext(RealtimeTelemetryContext);
+  return ctx?.getChannel(channelName);
+}
+
+/**
+ * Optional hook: get client from context to add extra handlers (alerts, orbit).
+ * Returns null if provider not mounted or client not yet created.
+ */
+export function useRealtimeClient(): RealtimeWsClient | null {
+  const ctx = useContext(RealtimeTelemetryContext);
+  return ctx?.client ?? null;
+}
+
+export function useRealtimeFeedStatus(): FeedStatus | null {
+  const ctx = useContext(RealtimeTelemetryContext);
+  return ctx?.feedStatus ?? null;
+}

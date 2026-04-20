@@ -1,0 +1,105 @@
+# Monitoring the Overview
+
+**Workflow:** Stream connected → what to watch and how
+
+The Overview is your main dashboard. When you have a telemetry stream connected (or historical data), it shows your watchlist, feed health, anomalies, event workflows, and integrated telemetry search in a single data-focused layout—no Earth view on this page.
+
+For a full-screen 3D Earth view with position markers and source selection, use the **Planning** tab (or [Planning](/planning)): the globe fills the viewport below the app bar. Each visible source shows its current position (point and label) and a recent position trail (polyline) that builds as telemetry is received. For simulators, Planning follows the source's active stream automatically, so you keep selecting the logical source while the globe reads live position and orbit status from the current stream behind it. The left-side **Earth view** card has a **View** tab for clickable source visibility rows, an **Observations** tab for expandable upcoming observation windows by source, and a gear icon (with tooltip) for configuring position mappings. Switching tabs and expanding or collapsing observation rows animates smoothly rather than jumping. If many sources are registered, the panel scrolls internally instead of overflowing the viewport.
+
+For broad telemetry browsing, use the **Telemetry** tab instead of Overview. Overview stays intentionally watchlist-focused: use it for the channels you already care about, not for full source inventory browsing.
+
+## Watchlist Cards
+
+Each card shows:
+
+- **Channel name** — e.g. `PWR_BUS_A_VOLT`
+- **Current value** — latest measurement with units
+- **State badge** — Normal (green), Caution (yellow), or Warning (red)
+- **Sparkline** — recent trend over time
+- **Persistent visibility** — If a channel is on the watchlist, its card stays on the Overview even when the selected source or simulator stream has no current data for it. In that case the card shows **No data** until telemetry resumes or you remove the channel from the watchlist.
+
+Click a card to open the [channel detail page](/docs/investigating-channels) for stats, trend chart, and AI explanation.
+
+## Context Banner
+
+At the top of the Overview:
+
+- **Feed status:** Live (green), Degraded, or No data
+  - **Live** — receiving data within the last ~15 seconds
+  - **Degraded** — no recent data for 15–60 seconds
+  - **No data** — no data for 60+ seconds
+- **Simulator/stream sync:** If the selected source is a simulator and you start or stop it from the [Sources](/sources) page, the Overview switches to the simulator's active stream automatically within a few seconds. The page stays in place during the handoff, shows a small switching indicator, and updates the watchlist, feed badge, and `Live` pill without a browser refresh.
+- **Source-wide live following:** When you do not explicitly pin a stream, the live Overview keeps following the selected source’s current stream after rollover. Explicit stream selections stay pinned to that stream.
+- **Approximate rate** — e.g. "~5 Hz" when connected
+- **Simulator status** — when the selected source is a simulator: a single status badge (Disconnected, Running, Paused, or Idle) with semantic color
+- **Source selector** — when multiple sources exist, switch between them; grouped by **Vehicles** and **Simulators** (see [Multi-Source Operations](/docs/multi-source))
+- **Alerts** — active alert count; click the count to scroll to the **Events Console** on the same page, or open the dropdown to see a short preview of alerts (subsystem and channel name). **Other** in the preview means the channel is not classified as Power, Thermal, ADCS, or Comms. Use **View all in Events Console** to jump to the full list.
+
+## Search From Overview
+
+Directly under the Context Banner, use the search bar to open the semantic search popover.
+
+- Enter a meaning-based query such as "voltage", "temperature", or "speed"
+- Search is scoped to the source selected in the Context Banner
+- Expand **Advanced filters** to narrow by subsystem, units, anomalous status, or recent activity
+- Add channels to the watchlist from the result list
+- Click a result to open the channel detail page
+
+## Telemetry Inventory
+
+Use the **Telemetry** tab when you need the full source-scoped channel inventory.
+
+- The page loads all registered channels for the selected source, including channels that have never received data.
+- Filters are client-side and cover text search, subsystem, anomaly-only, and has-data/no-data.
+- You can add or remove watchlist membership directly from each row, then return to Overview for compact monitoring.
+- Opening a row keeps you inside the Telemetry section, so breadcrumbs, back navigation, and the active nav tab stay aligned with channel investigation.
+
+## Overview Tabs
+
+Below the search bar, the Overview uses a vertical tab rail:
+
+- **Watchlist** — key telemetry cards for the current source, including live state and sparklines
+- **Event Console** — active alerts grouped by subsystem, with Ack and Resolve actions
+- **Event History** — recent and historical ops events for the current source, with time-range and event-type filters
+
+## Event Console
+
+Channels with current state outside Normal appear in the Event Console (and in the context banner alert preview), grouped by subsystem: **Power**, **Thermal**, **ADCS**, **Comms**, or **Other**. **Other** is used for channels that don't belong to one of the four main subsystems. Click an entry to open the channel detail, or Ack/Resolve the alert from the console.
+
+## Edit Watchlist
+
+Use **Edit watchlist** to open the configure modal: add or remove channels, and see how many are on the list and how many are available. Order in the modal matches the Overview cards. Use the integrated search bar to find channels by meaning (e.g. "voltage") and add them to the watchlist.
+
+## Configure position mapping
+
+On the [Planning](/planning) page, the left-side **Earth view** card separates operational viewing from configuration:
+
+- **View tab** — Click a source row to toggle whether it appears on the globe. Active rows are visible on the globe; inactive rows are hidden. Each row shows source type, feed health when visible, mapping summary, and orbit status when available.
+- **Observations tab** — All registered sources are listed as collapsed rows. Expand a source to view its upcoming observation windows without showing every vehicle's schedule at once.
+- **Configure icon** — Open the position mapping modal from the icon on the right side of the title block. Select a source row in the modal, set **frame** (GPS lat/lon/alt or ECEF/ECI X/Y/Z) and channel names, then **Save**. **Remove** prompts a confirmation and, once confirmed, deletes the mapping immediately. Telemetry data is retained, so you can re-create the mapping from the same modal without leaving the Planning page.
+
+Each source has at most one active position mapping. If a source has no valid mapping, it won’t show a position on the globe when you activate it in the **View** tab.
+
+On channel detail pages, the sticky channel header shows the current **data scope** as a pill (hover for the full line). **Edit scope** opens a modal to use the latest stream, selected streams, selected streams within a time range, or all channel data in a date range. Live updates are available only in Latest mode.
+
+### Workflow: Simulator on the Planning globe
+
+To see a simulator’s position and trail on the globe:
+
+1. **Generate position telemetry** — On the [Sources](/sources) page, add a simulator (if needed), click **Manage**, then **Start**. The simulator emits position channels (e.g. `GPS_LAT`, `GPS_LON`, `GPS_ALT`) along with other telemetry.
+2. **Open Planning** — Go to the [Planning](/planning) tab. In the Earth view card's **View** tab, click the simulator row (and any other sources you want) so it is active.
+3. **Confirm the mapping** — Built-in and newly registered sources seed their position mapping from the vehicle configuration file. Use the configure icon in the **Earth view** title block to verify the frame and channel names if you want operator confirmation or an override. `DrogonSat` uses GPS/LLA channels; `RhaegalSat` uses ECEF XYZ channels.
+4. Planning resolves the simulator source to its current stream automatically. The globe then shows the simulator’s current position (point and label), a recent trail (polyline), and a per-source feed badge (`Live`, `Degraded`, or `No data`) on the selected source row as telemetry is received for that stream.
+5. Use **Nominal** or **Orbit nominal** when you want a stable realistic path on the globe. Use **Orbit decay**, **Orbit highly elliptical**, **Orbit suborbital**, or **Orbit escape** only when you intentionally want the orbit-analysis badges and alerting to exercise those cases.
+
+## Orbit validation
+
+For sources that have a **position mapping** (and thus a position telemetry stream), the platform runs **orbit validation** in real time: it computes orbital parameters (perigee, apogee, eccentricity, velocity), classifies the orbit (LEO, MEO, GEO), and detects anomalies such as escape trajectory, suborbital, orbit decay, or highly elliptical LEO.
+
+- **Where to see status**
+  - **Planning page** — In the View tab, each visible source row shows its own feed-health badge (`Live`, `Degraded`, or `No data`). Each source with a position mapping also shows an orbit status badge (e.g. **LEO** for valid nominal, or the anomaly type). If any source currently shown on the globe has an orbit anomaly, a **red alert banner** appears in the left panel with the source name and reason.
+  - **Overview** — Orbit anomalies appear in the **Events Console** under an **Orbit** subsection (with a link to Planning). The **Alerts** count and dropdown in the Context Banner include orbit anomalies so you see them alongside telemetry alerts.
+
+- **What anomalies mean** — *Escape trajectory*: orbital energy ≥ 0 (unbound). *Suborbital*: velocity < 7 km/s at altitude < 1000 km. *Orbit decay*: predicted perigee below 120 km. *Highly elliptical*: eccentricity > 0.2 for an expected LEO mission. Status updates are pushed in real time over the same WebSocket as telemetry and alerts.
+
+The local simulator example configs keep nominal position telemetry smooth and bounded so Planning trails stay readable. `DrogonSat` exercises GPS/LLA feeds, while `RhaegalSat` exercises ECEF feeds. Orbit-analysis edge cases are exposed as explicit simulator presets instead of random position spikes.

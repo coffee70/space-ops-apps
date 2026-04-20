@@ -1,0 +1,15 @@
+.DS_Store
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+node_modules/
+mission-control-ui/node_modules/
+mission-control-ui/.next/
+mission-control-ui/out/
+tools/playwright/node_modules/
+tmp/

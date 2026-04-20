@@ -1,0 +1,65 @@
+# Multi-Source Operations
+
+**Workflow:** Multiple telemetry streams -> switch context
+
+The platform supports multiple telemetry sources and simulators. A **source** is one row in the source list. Each source can have multiple **streams** (one ingest session). A stream belongs to exactly one source. Catalog metadata, watchlists, and realtime routing are keyed by `source_id`; live telemetry samples are keyed by `stream_id`. `vehicle_id` remains on simulator controls and position/orbit surfaces where it refers to the operator-facing spacecraft identity.
+
+## Source Selector
+
+In the **Context Banner** on the Overview and Telemetry Detail pages, you switch between logical sources only. The dropdown lists registered sources, not individual streams. Telemetry Detail URLs stay source-first: `/telemetry/{source_id}/{channel_name}`. **Edit scope** in the channel header sets whether Summary, Analysis, History, Explanation, and Events use the latest stream, selected streams, selected streams with time bounds, or all channel data in a date range.
+
+Because channel catalogs are now source-scoped, a channel detail page is only valid for sources that actually expose that channel. Registered channels still open even before any samples arrive; the page shows **No data** and empty chart/history states until telemetry is ingested. If you switch to a source that does not provide the current channel, the app redirects you back to that source’s Overview with a notice instead of leaving you on a 404 page.
+
+## Per-Source Feed Health
+
+Each source has its own feed status:
+
+- **Live** — receiving data within ~15 seconds
+- **Degraded** — no recent data for 15–60 seconds
+- **No data** — no data for 60+ seconds
+
+The banner shows the status for the currently selected source.
+
+## Event History Filtered by Source
+
+The **Overview** page shows ops events for the selected source directly under the Event Console. The historical event browser follows the source selected in the Context Banner and supports event-type and time-range filtering.
+
+## When to Use Multi-Source
+
+- **Multiple sources** — monitor several spacecraft or ingest producers from one dashboard
+- **Multiple simulators** — run several simulator instances (e.g. for testing or demos)
+- **Test vs prod** — compare simulator vs live ingest
+
+## Adding a Simulator
+
+1. Go to the **Sources** page.
+2. Click **Add source**.
+3. Choose **Simulator**.
+4. Enter a name, a **Vehicle configuration path** (JSON or YAML under the server’s definitions catalog), and a **Base URL** — the URL the server uses to reach the simulator (e.g. `http://simulator:8001`).
+5. Click **Create**.
+
+The simulator appears in the Simulators list. The backend seeds its expected channel catalog immediately from the vehicle configuration file. Click **Manage** to open its control panel and start, pause, or stop it.
+
+## Adding a Vehicle
+
+1. Go to the **Sources** page.
+2. Click **Add source**.
+3. Choose **Vehicle**.
+4. Enter a name and a **Vehicle configuration path**.
+5. Click **Create**.
+
+The backend seeds the source catalog from that definition so searches, watchlists, summaries, and alerts know which channels belong to that source before live ingest starts.
+
+## Simulator streams (fresh slate per start)
+
+Each time you **start** a simulator from the Sources page, the platform creates a new stream for that source. You are taken to the **Overview** with that source selected; the Overview and Telemetry Detail then show data for the source's current stream. History, trends, and exports remain stream-scoped, while the page URL stays at the source level.
+
+## Local Config-Backed Sources
+
+The local stack can include ordinary vehicle and simulator configuration files:
+
+- `Aegon Relay` and `Balerion Surveyor` as vehicle source examples
+- `DrogonSat` as a lighter simulator example that emits GPS/LLA position channels
+- `RhaegalSat` as a heavier simulator example that emits ECEF position channels
+
+These are not privileged backend identities. If the configuration files are removed, the sources do not auto-register. `DrogonSat` and `RhaegalSat` intentionally share only a small common core. `RhaegalSat` has more onboard computer temperature/load channels, a split propulsion system, and a larger payload/comms catalog, so source switching exercises real source-specific workflows instead of identical feeds with different names.
