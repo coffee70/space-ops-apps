@@ -13,14 +13,17 @@ test("overview search labels discovered channels", async ({ page, request }) => 
   }>;
   const source = sources.find((entry) => entry.source_type === "vehicle") ?? sources[0];
   expect(source).toBeTruthy();
+  const streamId = `discovered-search-${Date.now()}`;
 
   const ingestResponse = await request.post(`${API_URL}/telemetry/realtime/ingest`, {
     data: {
       events: [
         {
           source_id: source.id,
+          stream_id: streamId,
           generation_time: "2026-03-26T16:10:00Z",
           value: 41.25,
+          sequence: 1,
           tags: { decoder: "APRS", field_name: "Payload Temp" },
         },
       ],

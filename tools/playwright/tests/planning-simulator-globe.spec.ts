@@ -16,6 +16,16 @@ interface PositionMapping {
   vehicle_id: string;
 }
 
+interface PositionMappingPayload {
+  frame_type: "gps_lla" | "ecef" | "eci";
+  lat_channel_name?: string;
+  lon_channel_name?: string;
+  alt_channel_name?: string;
+  x_channel_name?: string;
+  y_channel_name?: string;
+  z_channel_name?: string;
+}
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -31,20 +41,74 @@ async function getPlanningSimulator(request: APIRequestContext): Promise<Telemet
 
 async function ensureSimulatorPositionMapping(
   request: APIRequestContext,
-  simulatorId: string
+  simulatorId: string,
+  payload: PositionMappingPayload
 ) {
   const response = await request.post(`${API_URL}/telemetry/position/config`, {
     data: {
       vehicle_id: simulatorId,
-      frame_type: "gps_lla",
-      lat_channel_name: "GPS_LAT",
-      lon_channel_name: "GPS_LON",
-      alt_channel_name: "GPS_ALT",
       active: true,
+      ...payload,
     },
   });
 
   expect(response.ok()).toBeTruthy();
+}
+
+async function getSimulatorPositionMappingPayload(
+  request: APIRequestContext,
+  simulatorId: string
+): Promise<{ payload: PositionMappingPayload; summaryPrefix: string }> {
+  const response = await request.get(
+    `${API_URL}/telemetry/list?source_id=${encodeURIComponent(simulatorId)}`
+  );
+  expect(response.ok()).toBeTruthy();
+  const body = (await response.json()) as {
+    channels?: Array<{ name?: string }>;
+  };
+  const channelNames = new Set(
+    (body.channels ?? [])
+      .map((channel) => channel.name)
+      .filter((name): name is string => typeof name === "string" && name.length > 0)
+  );
+
+  if (channelNames.has("GPS_LAT") && channelNames.has("GPS_LON")) {
+    return {
+      payload: {
+        frame_type: "gps_lla",
+        lat_channel_name: "GPS_LAT",
+        lon_channel_name: "GPS_LON",
+        alt_channel_name: channelNames.has("GPS_ALT") ? "GPS_ALT" : undefined,
+      },
+      summaryPrefix: "GPS:",
+    };
+  }
+
+  if (channelNames.has("POS_ECEF_X") && channelNames.has("POS_ECEF_Y") && channelNames.has("POS_ECEF_Z")) {
+    return {
+      payload: {
+        frame_type: "ecef",
+        x_channel_name: "POS_ECEF_X",
+        y_channel_name: "POS_ECEF_Y",
+        z_channel_name: "POS_ECEF_Z",
+      },
+      summaryPrefix: "ECEF:",
+    };
+  }
+
+  if (channelNames.has("POS_ECI_X") && channelNames.has("POS_ECI_Y") && channelNames.has("POS_ECI_Z")) {
+    return {
+      payload: {
+        frame_type: "eci",
+        x_channel_name: "POS_ECI_X",
+        y_channel_name: "POS_ECI_Y",
+        z_channel_name: "POS_ECI_Z",
+      },
+      summaryPrefix: "ECI:",
+    };
+  }
+
+  throw new Error(`No supported position mapping channels found for simulator ${simulatorId}`);
 }
 
 async function getPositionMapping(
@@ -103,7 +167,8 @@ test("planning renders the live simulator marker on the globe", async ({
   request,
 }) => {
   const simulator = await getPlanningSimulator(request);
-  await ensureSimulatorPositionMapping(request, simulator.id);
+  const mapping = await getSimulatorPositionMappingPayload(request, simulator.id);
+  await ensureSimulatorPositionMapping(request, simulator.id, mapping.payload);
   await ensureSimulatorRunning(request, simulator.id);
 
   await page.addInitScript((simulatorId: string) => {
@@ -151,10 +216,10 @@ test("planning renders the live simulator marker on the globe", async ({
   await expect(mappingDialog).toBeHidden();
   await expect(simulatorRow).toContainText("Not configured");
 
-  await ensureSimulatorPositionMapping(request, simulator.id);
+  await ensureSimulatorPositionMapping(request, simulator.id, mapping.payload);
   await page.reload();
   simulatorRow = page.getByTestId(`planning-source-row-${simulator.id}`);
-  await expect(simulatorRow).toContainText("GPS:");
+  await expect(simulatorRow).toContainText(mapping.summaryPrefix);
 
   await page.getByRole("tab", { name: "Observations" }).click();
   const observationsRow = page.getByTestId(
@@ -177,7 +242,8 @@ test("planning shows no data for a selected simulator after it stops", async ({
   request,
 }) => {
   const simulator = await getPlanningSimulator(request);
-  await ensureSimulatorPositionMapping(request, simulator.id);
+  const mapping = await getSimulatorPositionMappingPayload(request, simulator.id);
+  await ensureSimulatorPositionMapping(request, simulator.id, mapping.payload);
   await ensureSimulatorRunning(request, simulator.id);
 
   await page.addInitScript((simulatorId: string) => {
