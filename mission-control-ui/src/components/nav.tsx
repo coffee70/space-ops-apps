@@ -9,9 +9,11 @@ import {
   ChartNoAxesCombined,
   ChevronLeft,
   ChevronRight,
+  FolderCode,
   Keyboard,
   LayoutDashboard,
   Menu,
+  PanelsTopLeft,
   SatelliteDish,
   Server,
   X,
@@ -31,6 +33,8 @@ const NAV_LINKS = [
   { href: "/telemetry", label: "Telemetry", icon: ChartNoAxesCombined },
   { href: "/planning", label: "Planning", icon: SatelliteDish },
   { href: "/sources", label: "Source", icon: Server },
+  { href: "/modules", label: "Modules", icon: PanelsTopLeft },
+  { href: "/workspace", label: "Workspace", icon: FolderCode },
 ] as const;
 
 const SIDEBAR_EXPANDED_W = "md:w-52";
@@ -306,7 +310,7 @@ export function Nav() {
           isDesktopExpanded ? SIDEBAR_EXPANDED_W : SIDEBAR_COLLAPSED_W,
         )}
       >
-        <div className="h-full overflow-y-auto overflow-x-hidden">
+        <div className="h-full overflow-x-hidden overflow-y-auto">
           {renderSidebarContent({ expanded: isDesktopExpanded })}
         </div>
       </aside>

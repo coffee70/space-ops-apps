@@ -226,7 +226,7 @@ export function TelemetryScopeModal({
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto py-2 pr-1">
           <div>
-            <p className="text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wide">
+            <p className="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase">
               Mode
             </p>
             <div className="bg-muted inline-flex rounded-md p-1">
@@ -277,7 +277,7 @@ export function TelemetryScopeModal({
 
           {mode === "streams" && (
             <div className="space-y-4">
-              <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+              <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                 Streams
               </p>
               <p className="text-muted-foreground text-sm">
@@ -291,7 +291,7 @@ export function TelemetryScopeModal({
                 loading={streamsQuery.isLoading}
               />
               <div>
-                <p className="text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wide">
+                <p className="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase">
                   Time window
                 </p>
                 <DateControls
@@ -309,7 +309,7 @@ export function TelemetryScopeModal({
 
           {mode === "date_range" && (
             <div>
-              <p className="text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wide">
+              <p className="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase">
                 Time window
               </p>
               <DateControls
@@ -324,7 +324,7 @@ export function TelemetryScopeModal({
           )}
         </div>
 
-        <DialogFooter className="shrink-0 flex-col gap-2 border-t border-border pt-2 sm:flex-row sm:justify-between">
+        <DialogFooter className="border-border shrink-0 flex-col gap-2 border-t pt-2 sm:flex-row sm:justify-between">
           <Button type="button" variant="outline" onClick={resetDraftToLatest}>
             Reset draft to latest
           </Button>

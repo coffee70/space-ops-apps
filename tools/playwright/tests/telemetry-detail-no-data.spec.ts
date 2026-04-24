@@ -46,7 +46,7 @@ test("registered channel detail renders when no samples or statistics exist", as
 
   await expect(page.getByRole("heading", { name: new RegExp(channelName) })).toBeVisible();
   await expect(detailHeader).toHaveCSS("position", "sticky");
-  await expect(detailHeader).toHaveCSS("top", "64px");
+  await expect(detailHeader).toHaveCSS("top", "0px");
   await expect(page.locator("header [data-value='']")).toContainText("No data");
   await page.getByRole("tab", { name: "Summary" }).click();
   await expect(

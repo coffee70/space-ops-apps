@@ -418,7 +418,7 @@ export function OverviewContent() {
     setLatestSimulatorStreamId((current) =>
       current === simulatorRuntime.activeStreamId ? current : simulatorRuntime.activeStreamId
     );
-  }, [isSimulatorSource, simulatorRuntime.activeStreamId]);
+  }, [effectiveSource, isSimulatorSource, simulatorRuntime.activeStreamId]);
 
   useEffect(() => {
     if (!effectiveSource || !sourceReady || !isSimulatorSource) return;

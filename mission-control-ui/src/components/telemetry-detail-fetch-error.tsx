@@ -55,7 +55,7 @@ export function TelemetryDetailFetchError({
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-6">
+        <div className="border-destructive/40 bg-destructive/5 rounded-md border p-6">
           <h1 className="text-lg font-semibold">Unable to load channel summary</h1>
           <p className="text-muted-foreground mt-2 text-sm">
             The telemetry service did not return data for this channel. Check your

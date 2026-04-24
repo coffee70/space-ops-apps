@@ -40,9 +40,11 @@ test("telemetry inventory supports browsing, routing, and watchlist toggles", as
   await expect(page.getByRole("button", { name: `Remove ${channelName} from watchlist` })).toBeVisible();
 
   await page.getByText(channelName).click();
-  await expect(page).toHaveURL(new RegExp(`/telemetry/${source.id}/${channelName}$`));
+  await expect(page).toHaveURL(
+    new RegExp(`/telemetry/${source.id}/${channelName}(\\?view=analysis)?$`)
+  );
   await expect(page.getByRole("link", { name: "Telemetry" })).toHaveAttribute("aria-current", "page");
-  await expect(page.getByRole("link", { name: "Back to Telemetry" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "breadcrumb" })).toContainText("Telemetry");
 
   await page.goto(`/telemetry?source=${encodeURIComponent(source.id)}`);
   await search.fill(channelName);

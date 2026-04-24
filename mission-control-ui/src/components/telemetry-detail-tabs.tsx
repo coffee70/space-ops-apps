@@ -154,7 +154,6 @@ export function TelemetryDetailTabs({
 
 function TelemetryDetailTabsContent({
   explain,
-  recentData,
   sourceId,
   scope,
   decodedName,
@@ -311,7 +310,7 @@ function TelemetryDetailTabsContent({
                     </div>
                   )}
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                    <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                       View
                     </span>
                     <Button

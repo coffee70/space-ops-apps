@@ -20,6 +20,8 @@ import {
 } from "@/lib/query-hooks";
 
 const TELEMETRY_SOURCE_STORAGE_KEY = "telemetryInventorySourceId";
+const EMPTY_SOURCES: TelemetrySource[] = [];
+const EMPTY_INVENTORY: TelemetryInventoryEntry[] = [];
 
 function compareStateRank(entry: TelemetryInventoryEntry): number {
   if (entry.is_anomalous || entry.state === "warning") return 0;
@@ -89,7 +91,7 @@ export function TelemetryInventoryPage() {
   const [watchlistBusyName, setWatchlistBusyName] = useState<string | null>(null);
 
   const sourcesQuery = useTelemetrySourcesQuery<TelemetrySource[]>();
-  const sources = sourcesQuery.data ?? [];
+  const sources = sourcesQuery.data ?? EMPTY_SOURCES;
 
   useEffect(() => {
     try {
@@ -138,7 +140,7 @@ export function TelemetryInventoryPage() {
   const addToWatchlist = useAddToWatchlistMutation(selectedSource ?? "");
   const removeFromWatchlist = useRemoveFromWatchlistMutation(selectedSource ?? "");
 
-  const inventory = inventoryQuery.data ?? [];
+  const inventory = inventoryQuery.data ?? EMPTY_INVENTORY;
   const watchlistNames = useMemo(
     () => new Set((watchlistQuery.data ?? []).map((entry) => entry.name)),
     [watchlistQuery.data]
