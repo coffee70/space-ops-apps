@@ -7,4 +7,3 @@ COPY . /app
 EXPOSE 3100
 
 CMD ["node", "server.js"]
-

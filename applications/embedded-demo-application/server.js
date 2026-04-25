@@ -3,7 +3,7 @@ const path = require("path");
 const http = require("http");
 
 const port = Number(process.env.PORT || 3100);
-const basePath = (process.env.MODULE_BASE_PATH || "/").replace(/\/+$/, "") || "/";
+const basePath = (process.env.APPLICATION_PROXY_BASE_PATH || "/").replace(/\/+$/, "") || "/";
 const publicDir = path.join(__dirname, "public");
 
 function isWithinBase(requestPath) {
@@ -20,7 +20,7 @@ function stripBase(requestPath) {
 const server = http.createServer((req, res) => {
   if (req.url === "/health") {
     res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ status: "ok", module: "battery-efficiency-module" }));
+    res.end(JSON.stringify({ status: "ok", application: "embedded-demo-application" }));
     return;
   }
 
@@ -52,4 +52,3 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(port, "0.0.0.0");
-
