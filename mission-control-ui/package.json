@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test:runtime": "node --import tsx --test src/platform/runtime/*.test.tsx"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -19,12 +20,12 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.576.0",
+    "monaco-editor": "^0.54.0",
     "next": "16.1.6",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-markdown": "^10.1.0",
-    "monaco-editor": "^0.54.0",
     "recharts": "^3.7.0",
     "remark-gfm": "^4.0.0",
     "resium": "^1.19.4",
@@ -41,6 +42,7 @@
     "eslint-config-next": "16.1.6",
     "eslint-plugin-tailwindcss": "^4.0.0-beta.0",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

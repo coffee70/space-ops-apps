@@ -6,7 +6,9 @@ export function EmbeddedApplicationHost({
 }: {
   application: PlatformApplicationDefinition;
 }) {
-  if (!application.embeddedUrl) {
+  const iframeSrc = application.embeddedUrl ?? application.proxyBasePath;
+
+  if (!iframeSrc) {
     return (
       <ApplicationUnavailableState description="The embedded application is missing its iframe target." />
     );
@@ -22,7 +24,7 @@ export function EmbeddedApplicationHost({
           </div>
         </div>
         <iframe
-          src={application.embeddedUrl}
+          src={iframeSrc}
           title={application.title}
           sandbox={application.iframeSandbox}
           allow={application.iframeAllow}
