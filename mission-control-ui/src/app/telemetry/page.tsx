@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { TelemetryInventoryPage } from "@/components/telemetry-inventory-page";
 import { Spinner } from "@/components/ui/spinner";
@@ -7,6 +8,10 @@ export const metadata = {
 };
 
 export default function TelemetryPage() {
+  notFound();
+}
+
+export function TelemetryApplicationPage() {
   return (
     <Suspense
       fallback={

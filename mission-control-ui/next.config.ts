@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        source: "/registry/:path*",
+        destination: `${controlPlaneServerUrl}/registry/:path*`,
+      },
+      {
         source: "/workspace",
         destination: `${workspaceServerUrl}/workspace`,
       },
@@ -18,12 +22,12 @@ const nextConfig: NextConfig = {
         destination: `${workspaceServerUrl}/workspace/:path*`,
       },
       {
-        source: "/runtime-modules/:slug",
-        destination: `${controlPlaneServerUrl}/proxy/modules/:slug`,
+        source: "/runtime-applications/:applicationId",
+        destination: `${controlPlaneServerUrl}/runtime-applications/:applicationId`,
       },
       {
-        source: "/runtime-modules/:slug/:path*",
-        destination: `${controlPlaneServerUrl}/proxy/modules/:slug/:path*`,
+        source: "/runtime-applications/:applicationId/:path*",
+        destination: `${controlPlaneServerUrl}/runtime-applications/:applicationId/:path*`,
       },
     ];
   },

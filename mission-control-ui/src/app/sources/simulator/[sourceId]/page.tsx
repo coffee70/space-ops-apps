@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,10 +11,9 @@ import {
 } from "@/components/ui/breadcrumb";
 import { SimulatorPanel } from "@/components/simulator-panel";
 import { useTelemetrySourcesQuery } from "@/lib/query-hooks";
+import { buildApplicationRoute } from "@/platform/registry/application-routes";
 
-export default function SimulatorManagePage() {
-  const params = useParams();
-  const sourceId = params.sourceId as string;
+export function SimulatorManagePage({ sourceId }: { sourceId: string }) {
   const sourcesQuery = useTelemetrySourcesQuery<{ id: string; name: string }[]>();
   const sourceName = sourcesQuery.data?.find((source) => source.id === sourceId)?.name ?? sourceId;
 
@@ -30,7 +28,7 @@ export default function SimulatorManagePage() {
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href="/sources" className="text-primary underline-offset-4 hover:underline">
+                <Link href={buildApplicationRoute("sources")} className="text-primary underline-offset-4 hover:underline">
                   Sources
                 </Link>
               </BreadcrumbLink>
@@ -48,4 +46,13 @@ export default function SimulatorManagePage() {
       </div>
     </div>
   );
+}
+
+export default async function SimulatorManageRoutePage({
+  params,
+}: {
+  params: Promise<{ sourceId: string }>;
+}) {
+  const { sourceId } = await params;
+  return <SimulatorManagePage sourceId={sourceId} />;
 }

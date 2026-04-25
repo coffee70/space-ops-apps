@@ -7,7 +7,7 @@ import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog"
 
 export function KeyboardShortcutsHandler() {
   const pathname = usePathname();
-  const match = pathname?.match(/^\/sources\/([^/]+)\/telemetry\/([^/]+)$/);
+  const match = pathname?.match(/^\/apps\/telemetry\/([^/]+)\/([^/]+)$/);
   const currentSourceId = match ? decodeURIComponent(match[1]) : null;
   const currentChannelName = match
     ? decodeURIComponent(match[2])

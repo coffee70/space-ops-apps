@@ -34,6 +34,7 @@ import {
   type VehicleConfigValidationError,
 } from "@/lib/query-hooks";
 import { cn } from "@/lib/utils";
+import { buildApplicationRoute } from "@/platform/registry/application-routes";
 
 const EXPLORER_WIDTH_STORAGE_KEY = "vehicle-config-explorer-width";
 const EXPLORER_EXPANDED_STORAGE_KEY = "vehicle-config-expanded-folders";
@@ -473,7 +474,7 @@ function VehicleConfigEditorWorkspace({
   );
 }
 
-export default function VehicleConfigsPage() {
+export function VehicleConfigsPage() {
   const [selectedPath, setSelectedPath] = useState("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [explorerWidth, setExplorerWidth] = useState(() => {
@@ -597,7 +598,7 @@ export default function VehicleConfigsPage() {
       <div className="px-4 pt-3 pb-2 sm:px-5">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" className="text-muted-foreground" asChild>
-            <Link href="/sources">
+            <Link href={buildApplicationRoute("sources")}>
               <ArrowLeft className="size-4" />
               Back to Sources
             </Link>
@@ -671,3 +672,5 @@ export default function VehicleConfigsPage() {
     </div>
   );
 }
+
+export default VehicleConfigsPage;

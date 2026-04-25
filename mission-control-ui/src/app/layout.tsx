@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppProviders } from "@/components/app-providers";
-import { Nav } from "@/components/nav";
 import { KeyboardShortcutsHandler } from "@/components/keyboard-shortcuts-handler";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { PlatformShell } from "@/platform/shell/PlatformShell";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -42,16 +42,7 @@ export default function RootLayout({
         <AppProviders>
           <TooltipProvider>
             <KeyboardShortcutsHandler />
-            <div className="flex min-h-0 flex-1">
-              <Nav />
-              <main
-                id="main-content"
-                tabIndex={-1}
-                className="min-h-0 min-w-0 flex-1 pt-14 transition-[width,padding] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:pt-0"
-              >
-                {children}
-              </main>
-            </div>
+            <PlatformShell>{children}</PlatformShell>
           </TooltipProvider>
         </AppProviders>
       </body>

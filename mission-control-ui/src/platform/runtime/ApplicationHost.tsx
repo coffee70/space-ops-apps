@@ -1,0 +1,44 @@
+import { applicationLoaderManifest } from "@/platform/registry/application-loader-manifest.generated";
+import type { PlatformApplicationDefinition } from "@/platform/registry/application-types";
+import type { NativeApplicationProps } from "@/platform/sdk/native-application-contract";
+import { ApplicationUnavailableState } from "@/platform/shell/ApplicationFrame";
+import { EmbeddedApplicationHost } from "@/platform/runtime/EmbeddedApplicationHost";
+import { NativeApplicationHost } from "@/platform/runtime/NativeApplicationHost";
+
+export async function ApplicationHost({
+  application,
+  appPath,
+  searchParams,
+}: {
+  application: PlatformApplicationDefinition;
+  appPath: string[];
+  searchParams: Record<string, string | string[] | undefined>;
+}) {
+  if (application.applicationType === "embedded") {
+    return <EmbeddedApplicationHost application={application} />;
+  }
+
+  if (!application.loaderKey) {
+    return (
+      <ApplicationUnavailableState description="The native application is missing its loader registration." />
+    );
+  }
+
+  const loader = applicationLoaderManifest[application.loaderKey];
+  if (!loader) {
+    return (
+      <ApplicationUnavailableState description="The application registry points to a loader that is not part of this build." />
+    );
+  }
+
+  const props: NativeApplicationProps = {
+    application,
+    appPath,
+    searchParams,
+    platform: {
+      activeApplicationId: application.applicationId,
+    },
+  };
+
+  return <NativeApplicationHost loader={loader} props={props} />;
+}

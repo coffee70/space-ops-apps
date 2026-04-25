@@ -1,0 +1,16 @@
+{
+  "applicationId": "overview",
+  "title": "Overview",
+  "description": "Mission overview dashboard and live telemetry health.",
+  "iconKey": "layout-dashboard",
+  "iconColor": "#38bdf8",
+  "iconBackground": "rgba(56, 189, 248, 0.16)",
+  "applicationType": "native",
+  "routePath": "/apps/overview",
+  "loaderKey": "overview",
+  "version": "0.1.0",
+  "enabled": true,
+  "sortOrder": 10,
+  "owner": "space-ops-apps",
+  "capabilities": ["telemetry-overview"]
+}

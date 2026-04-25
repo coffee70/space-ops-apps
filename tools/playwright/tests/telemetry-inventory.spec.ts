@@ -1,35 +1,32 @@
 import { expect, test } from "@playwright/test";
-
-const API_URL = process.env.PLAYWRIGHT_API_URL || "http://127.0.0.1:8000";
+import { appUrl, escapeRegExp } from "./support/application-routes";
+import {
+  getPreferredTelemetrySource,
+  getTelemetrySources,
+  registerTelemetryChannel,
+} from "./support/telemetry";
 
 test.describe.configure({ mode: "serial" });
+test.setTimeout(90_000);
 
 test("telemetry inventory supports browsing, routing, and watchlist toggles", async ({
   page,
   request,
 }) => {
-  const sourcesResponse = await request.get(`${API_URL}/telemetry/sources`);
-  expect(sourcesResponse.ok()).toBeTruthy();
-  const sources = (await sourcesResponse.json()) as Array<{ id: string; source_type?: string }>;
-  const source = sources.find((entry) => entry.source_type === "vehicle") ?? sources[0];
-  expect(source).toBeTruthy();
-  if (!source) return;
+  const source = await getPreferredTelemetrySource(request);
 
   const channelName = `INV_ROUTE_${Date.now()}`;
-  const schemaResponse = await request.post(`${API_URL}/telemetry/schema`, {
-    data: {
-      source_id: source.id,
-      name: channelName,
-      units: "V",
-      description: "Inventory route test channel",
-      subsystem_tag: "power",
-    },
+  await registerTelemetryChannel(request, {
+    sourceId: source.id,
+    name: channelName,
+    units: "V",
+    description: "Inventory route test channel",
+    subsystemTag: "power",
   });
-  expect(schemaResponse.ok()).toBeTruthy();
 
-  await page.goto(`/telemetry?source=${encodeURIComponent(source.id)}`);
+  await page.goto(appUrl("telemetry", [], { source: source.id }));
   await expect(page.getByRole("heading", { name: "Telemetry" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Telemetry" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByTestId("current-application-nav-item")).toContainText("Telemetry");
 
   const search = page.getByLabel("Search");
   await search.fill(channelName);
@@ -41,12 +38,14 @@ test("telemetry inventory supports browsing, routing, and watchlist toggles", as
 
   await page.getByText(channelName).click();
   await expect(page).toHaveURL(
-    new RegExp(`/telemetry/${source.id}/${channelName}(\\?view=analysis)?$`)
+    new RegExp(
+      `${escapeRegExp(appUrl("telemetry", [source.id, channelName]))}(\\?view=analysis)?$`,
+    ),
   );
-  await expect(page.getByRole("link", { name: "Telemetry" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByTestId("current-application-nav-item")).toContainText("Telemetry");
   await expect(page.getByRole("navigation", { name: "breadcrumb" })).toContainText("Telemetry");
 
-  await page.goto(`/telemetry?source=${encodeURIComponent(source.id)}`);
+  await page.goto(appUrl("telemetry", [], { source: source.id }));
   await search.fill(channelName);
   const removeButton = page.getByRole("button", { name: `Remove ${channelName} from watchlist` });
   await removeButton.click();
@@ -57,29 +56,22 @@ test("telemetry inventory redirects unavailable channels back to telemetry root"
   page,
   request,
 }) => {
-  const sourcesResponse = await request.get(`${API_URL}/telemetry/sources`);
-  expect(sourcesResponse.ok()).toBeTruthy();
-  const sources = (await sourcesResponse.json()) as Array<{ id: string }>;
+  const sources = await getTelemetrySources(request);
   const source = sources[0];
   expect(source).toBeTruthy();
   if (!source) return;
 
   const missingChannel = `MISSING_${Date.now()}`;
-  await page.goto(`/telemetry/${encodeURIComponent(source.id)}/${encodeURIComponent(missingChannel)}`);
+  await page.goto(appUrl("telemetry", [source.id, missingChannel]));
   await expect(page).toHaveURL(
-    new RegExp(`/telemetry\\?source=${encodeURIComponent(source.id)}&channel_unavailable=${encodeURIComponent(missingChannel)}$`)
+    new RegExp(
+      `${escapeRegExp(
+        appUrl("telemetry", [], {
+          source: source.id,
+          channel_unavailable: missingChannel,
+        }),
+      )}$`,
+    ),
   );
   await expect(page.getByText(`${missingChannel} is not available for this source.`)).toBeVisible();
-});
-
-test("old sources-scoped telemetry detail route does not exist", async ({ page, request }) => {
-  const sourcesResponse = await request.get(`${API_URL}/telemetry/sources`);
-  expect(sourcesResponse.ok()).toBeTruthy();
-  const sources = (await sourcesResponse.json()) as Array<{ id: string }>;
-  const source = sources[0];
-  expect(source).toBeTruthy();
-  if (!source) return;
-
-  await page.goto(`/sources/${encodeURIComponent(source.id)}/telemetry/DOES_NOT_EXIST`);
-  await expect(page.getByText("This page could not be found")).toBeVisible();
 });

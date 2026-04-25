@@ -1,0 +1,16 @@
+{
+  "applicationId": "telemetry",
+  "title": "Telemetry",
+  "description": "Telemetry inventory, detail, and analysis surfaces.",
+  "iconKey": "chart-no-axes-combined",
+  "iconColor": "#34d399",
+  "iconBackground": "rgba(52, 211, 153, 0.16)",
+  "applicationType": "native",
+  "routePath": "/apps/telemetry",
+  "loaderKey": "telemetry",
+  "version": "0.1.0",
+  "enabled": true,
+  "sortOrder": 20,
+  "owner": "space-ops-apps",
+  "capabilities": ["telemetry-analysis"]
+}

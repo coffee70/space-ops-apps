@@ -2,6 +2,7 @@ import {
   telemetryScopeToQueryParams,
   type TelemetryDetailScope,
 } from "@/lib/telemetry-detail-scope";
+import { buildApplicationRouteWithQuery } from "@/platform/registry/application-routes";
 
 /** Sidebar / URL tab for telemetry channel detail. */
 export type TelemetryDetailView = "analysis" | "summary" | "explanation";
@@ -22,10 +23,9 @@ export function buildTelemetryDetailHref(
   scope?: TelemetryDetailScope,
   view: TelemetryDetailView = "analysis",
 ): string {
-  const href = `/telemetry/${encodeURIComponent(sourceId)}/${encodeURIComponent(channelName)}`;
   const params = scope ? telemetryScopeToQueryParams(scope) : new URLSearchParams();
   params.set("view", view);
-  return `${href}?${params.toString()}`;
+  return buildApplicationRouteWithQuery("telemetry", [sourceId, channelName], params);
 }
 
 export function buildTelemetryApiBase(sourceId: string, channelName: string): string {

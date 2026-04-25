@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ContextBanner } from "@/components/context-banner";
 import Link from "next/link";
+import { buildApplicationRouteWithQuery } from "@/platform/registry/application-routes";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -34,7 +35,11 @@ export function TelemetryDetailFetchError({
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Link
-                  href={`/telemetry?source=${encodeURIComponent(sourceId)}`}
+                  href={buildApplicationRouteWithQuery(
+                    "telemetry",
+                    [],
+                    new URLSearchParams({ source: sourceId }),
+                  )}
                   className="text-primary underline-offset-4 hover:underline"
                 >
                   Telemetry

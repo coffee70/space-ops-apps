@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { PlanningEarthPage } from "@/components/planning-earth-page";
 import { Spinner } from "@/components/ui/spinner";
@@ -7,6 +8,10 @@ export const metadata = {
 };
 
 export default function PlanningPage() {
+  notFound();
+}
+
+export function PlanningApplicationPage() {
   return (
     <Suspense
       fallback={

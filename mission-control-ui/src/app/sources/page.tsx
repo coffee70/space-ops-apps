@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { SatelliteIcon, CpuIcon } from "lucide-react";
+import { buildApplicationRoute } from "@/platform/registry/application-routes";
 import {
   useCreateTelemetrySourceMutation,
   useSimulatorStatusesMap,
@@ -69,7 +70,7 @@ function historyModeLabel(value?: HistoryMode) {
   return "Time window replay";
 }
 
-export default function SourcesPage() {
+export function SourcesPage() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState<1 | 2>(1);
   const [wizardType, setWizardType] = useState<"vehicle" | "simulator">("simulator");
@@ -202,7 +203,7 @@ export default function SourcesPage() {
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Sources</h1>
           <div className="flex gap-2">
             <Button variant="outline" asChild>
-              <Link href="/sources/configs">Vehicle Configurations</Link>
+              <Link href={buildApplicationRoute("sources", ["configs"])}>Vehicle Configurations</Link>
             </Button>
             <Button onClick={openWizard}>Add source</Button>
           </div>
@@ -375,7 +376,7 @@ export default function SourcesPage() {
                                 Edit
                               </Button>
                               <Button variant="default" size="sm" asChild>
-                                <Link href={`/sources/simulator/${encodeURIComponent(s.id)}`}>
+                                <Link href={buildApplicationRoute("sources", ["simulator", s.id])}>
                                   Manage
                                 </Link>
                               </Button>
@@ -609,3 +610,5 @@ export default function SourcesPage() {
     </div>
   );
 }
+
+export default SourcesPage;

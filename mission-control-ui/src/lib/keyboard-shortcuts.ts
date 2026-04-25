@@ -4,6 +4,7 @@ import { useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getRecentChannels } from "@/lib/recent-telemetry";
 import { buildTelemetryDetailHref } from "@/lib/telemetry-routes";
+import { buildApplicationRoute } from "@/platform/registry/application-routes";
 import {
   AUTO_FOCUS_STORAGE_KEY,
   OVERVIEW_SEARCH_FOCUS_EVENT,
@@ -41,7 +42,7 @@ export function useTelemetryKeyboardShortcuts(
       // / or Cmd+K: Focus search
       if (e.key === "/" || (e.metaKey && e.key === "k")) {
         e.preventDefault();
-        if (pathname === "/overview") {
+        if (pathname === "/apps/overview") {
           window.dispatchEvent(new CustomEvent(OVERVIEW_SEARCH_FOCUS_EVENT));
           const input = document.querySelector<HTMLInputElement>(
             SEARCH_INPUT_SELECTOR
@@ -51,7 +52,7 @@ export function useTelemetryKeyboardShortcuts(
           try {
             sessionStorage.setItem(AUTO_FOCUS_STORAGE_KEY, "1");
           } catch {}
-          router.push("/overview");
+          router.push(buildApplicationRoute("overview"));
         }
         return;
       }
@@ -88,7 +89,7 @@ export function useTelemetryKeyboardShortcuts(
       }
 
       // f: Toggle favorite (detail page only)
-      if (e.key === "f" && pathname?.match(/^\/telemetry\/[^/]+\/[^/]+$/)) {
+      if (e.key === "f" && pathname?.match(/^\/apps\/telemetry\/[^/]+\/[^/]+$/)) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent("telemetry-toggle-favorite"));
         return;

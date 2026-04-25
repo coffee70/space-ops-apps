@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { appUrl } from "./support/application-routes";
 
 test("overview bootstrap failures surface an error instead of a loading spinner", async ({
   page,
@@ -60,7 +61,7 @@ test("overview bootstrap failures surface an error instead of a loading spinner"
     });
   });
 
-  await page.goto("/overview?source=test-source");
+  await page.goto(appUrl("overview", [], { source: "test-source" }));
 
   await expect(page.getByRole("heading", { name: "Operator Overview" })).toBeVisible();
   const alert = page.locator('[data-slot="alert"]');
@@ -90,7 +91,7 @@ test("overview bootstrap HTML responses surface a JSON parsing error instead of 
     });
   });
 
-  await page.goto("/overview?source=test-source");
+  await page.goto(appUrl("overview", [], { source: "test-source" }));
 
   await expect(page.getByRole("heading", { name: "Operator Overview" })).toBeVisible();
   const alert = page.locator('[data-slot="alert"]');

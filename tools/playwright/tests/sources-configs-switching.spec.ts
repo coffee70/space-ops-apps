@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { appUrl } from "./support/application-routes";
 
 test("vehicle config explorer switches files and keeps the workspace interactive", async ({
   page,
@@ -57,7 +58,7 @@ test("vehicle config explorer switches files and keeps the workspace interactive
     });
   });
 
-  await page.goto("/sources/configs");
+  await page.goto(appUrl("sources", ["configs"]));
 
   const fileButtons = page.getByTestId("vehicle-config-file-button");
   await expect.poll(async () => fileButtons.count()).toBeGreaterThanOrEqual(2);
@@ -70,9 +71,13 @@ test("vehicle config explorer switches files and keeps the workspace interactive
   await secondButton.evaluate((element: HTMLButtonElement) => element.click());
 
   await expect(page.getByTestId("vehicle-config-loading-shell")).toContainText(`Loading ${secondPath}...`);
-  await expect(page).toHaveURL(/\/sources\/configs$/);
+  await expect(page).toHaveURL(/\/apps\/sources\/configs$/);
   await expect(page.getByTestId("vehicle-config-path-display")).toContainText(secondPath);
-  await expect(page.getByTestId("vehicle-config-loading-shell")).toHaveCount(0);
+  await expect(page.getByTestId("vehicle-config-loading-shell")).toHaveCount(0, {
+    timeout: 30_000,
+  });
+  await expect(page.getByRole("button", { name: "Validate" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Save" })).toBeEnabled();
   await expect(page.getByTestId("vehicle-config-toolbar-top")).toContainText("Validate");
   await expect(page.getByTestId("vehicle-config-toolbar-top")).toContainText("Save");
   await expect(page.getByTestId("vehicle-config-toolbar-meta")).toContainText("Saved");
@@ -127,7 +132,7 @@ test("vehicle config explorer switches files and keeps the workspace interactive
   await expect(notice).toContainText("Validation Failed");
 
   await firstButton.evaluate((element: HTMLButtonElement) => element.click());
-  await expect(page).toHaveURL(/\/sources\/configs$/);
+  await expect(page).toHaveURL(/\/apps\/sources\/configs$/);
   await expect(page.getByTestId("vehicle-config-path-display")).toContainText(
     ((await firstButton.getAttribute("data-path")) ?? "")
   );

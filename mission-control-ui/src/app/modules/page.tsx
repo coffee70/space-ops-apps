@@ -1,6 +1,5 @@
-import { RuntimeModulesPage } from "@/components/runtime-modules-page";
+import { notFound } from "next/navigation";
 
 export default function ModulesIndexPage() {
-  return <RuntimeModulesPage />;
+  notFound();
 }
-
