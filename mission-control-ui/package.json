@@ -11,7 +11,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test:runtime": "node --import tsx --test src/platform/runtime/*.test.tsx"
+    "test:runtime": "tsx --test $(find src/platform \\( -name '*.test.ts' -o -name '*.test.tsx' \\))"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

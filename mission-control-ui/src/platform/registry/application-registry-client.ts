@@ -1,9 +1,8 @@
 import type { PlatformApplicationDefinition } from "@/platform/registry/application-types";
 
-const CONTROL_PLANE_URL =
-  process.env.CONTROL_PLANE_SERVER_URL ||
-  process.env.NEXT_PUBLIC_CONTROL_PLANE_URL ||
-  "http://control-plane:8100";
+export function getControlPlaneServerUrl(): string {
+  return process.env.CONTROL_PLANE_SERVER_URL || "http://control-plane:8100";
+}
 
 async function readApplications(response: Response): Promise<PlatformApplicationDefinition[]> {
   if (!response.ok) {
@@ -24,7 +23,7 @@ export async function fetchPlatformApplications(signal?: AbortSignal) {
 }
 
 export async function fetchPlatformApplicationsServer() {
-  const response = await fetch(`${CONTROL_PLANE_URL}/registry/applications`, {
+  const response = await fetch(`${getControlPlaneServerUrl()}/registry/applications`, {
     cache: "no-store",
   });
 

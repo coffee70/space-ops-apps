@@ -98,7 +98,7 @@ export function SideNav() {
     queryKey: ["platform-applications"],
     queryFn: () => fetchPlatformApplications(),
   });
-  const applications = applicationsQuery.data ?? [];
+  const applications = useMemo(() => applicationsQuery.data ?? [], [applicationsQuery.data]);
   const currentApplicationId = extractCurrentApplicationId(pathname);
   const currentApplication = useMemo(
     () => applications.find((application) => application.applicationId === currentApplicationId) ?? null,

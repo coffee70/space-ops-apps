@@ -7,7 +7,7 @@ export async function NativeApplicationHost({
   loader: () => Promise<{ applicationEntry: NativeApplicationEntry }>;
   props: NativeApplicationProps;
 }) {
-  const module = await loader();
-  const EntryComponent = module.applicationEntry.Component;
+  const loadedApplication = await loader();
+  const EntryComponent = loadedApplication.applicationEntry.Component;
   return <EntryComponent {...props} />;
 }

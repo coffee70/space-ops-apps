@@ -19,7 +19,7 @@ export function EmbeddedApplicationHost({
       <div className="bg-background/95 flex min-h-[calc(100dvh-2rem)] flex-1 flex-col overflow-hidden rounded-2xl border shadow-[0_24px_80px_rgba(0,0,0,0.16)] sm:min-h-[calc(100dvh-3rem)]">
         <div className="border-border/70 flex items-center justify-between border-b px-5 py-3">
           <div>
-            <p className="text-xs font-semibold tracking-[0.18em] uppercase text-sky-300/80">Embedded Application</p>
+            <p className="text-xs font-semibold tracking-[0.18em] text-sky-300/80 uppercase">Embedded Application</p>
             <h1 className="mt-1 text-lg font-semibold">{application.title}</h1>
           </div>
         </div>

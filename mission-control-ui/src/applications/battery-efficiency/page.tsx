@@ -22,8 +22,6 @@ const REQUIRED_CHANNELS = [
   "PWR_MAIN_BUS_CURR",
 ] as const;
 
-type RequiredChannelName = (typeof REQUIRED_CHANNELS)[number];
-
 interface MetricCardDefinition {
   key: string;
   label: string;
@@ -67,32 +65,28 @@ function buildChannelMap(inventory: TelemetryInventoryEntry[]) {
   return new Map(inventory.map((entry) => [entry.name, entry]));
 }
 
+function readStoredBatterySource(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage.getItem(BATTERY_SOURCE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export function BatteryEfficiencyApplication({ searchParams }: NativeApplicationProps) {
   const sourceFromQuery = readSearchParam(searchParams.source);
-  const [storedSource, setStoredSource] = useState<string | null>(null);
-  const [storageChecked, setStorageChecked] = useState(false);
-  const [selectedSource, setSelectedSource] = useState<string | null>(null);
+  const [storedSource] = useState<string | null>(() => readStoredBatterySource());
+  const [selectedSourceOverride, setSelectedSourceOverride] = useState<string | null>(null);
 
   const sourcesQuery = useTelemetrySourcesQuery<TelemetrySource[]>();
   const sources = sourcesQuery.data ?? EMPTY_SOURCES;
-
-  useEffect(() => {
-    try {
-      setStoredSource(sessionStorage.getItem(BATTERY_SOURCE_STORAGE_KEY));
-    } catch {
-      setStoredSource(null);
-    }
-    setStorageChecked(true);
-  }, []);
-
-  useEffect(() => {
-    if (!storageChecked || sourcesQuery.isLoading) return;
-    const resolvedSource = resolvePreferredSource(sources, sourceFromQuery, storedSource);
-    setSelectedSource((current) => (current === resolvedSource ? current : resolvedSource));
-  }, [sourceFromQuery, sources, sourcesQuery.isLoading, storageChecked, storedSource]);
+  const selectedSource = useMemo(
+    () => resolvePreferredSource(sources, sourceFromQuery, selectedSourceOverride ?? storedSource),
+    [sourceFromQuery, selectedSourceOverride, sources, storedSource],
+  );
 
   const inventoryQuery = useTelemetryInventoryQuery(selectedSource ?? "", Boolean(selectedSource));
-  const inventory = inventoryQuery.data ?? [];
 
   useEffect(() => {
     if (!selectedSource) return;
@@ -109,6 +103,7 @@ export function BatteryEfficiencyApplication({ searchParams }: NativeApplication
     window.history.replaceState({}, "", nextUrl);
   }, [selectedSource]);
 
+  const inventory = useMemo(() => inventoryQuery.data ?? [], [inventoryQuery.data]);
   const channelMap = useMemo(() => buildChannelMap(inventory), [inventory]);
   const missingChannels = useMemo(
     () => REQUIRED_CHANNELS.filter((channelName) => !channelMap.has(channelName)),
@@ -165,10 +160,10 @@ export function BatteryEfficiencyApplication({ searchParams }: NativeApplication
   ];
 
   function handleSourceChange(nextSourceId: string) {
-    setSelectedSource(nextSourceId);
+    setSelectedSourceOverride(nextSourceId);
   }
 
-  if (!storageChecked || sourcesQuery.isLoading || (selectedSource == null && sources.length > 0)) {
+  if (sourcesQuery.isLoading || (selectedSource == null && sources.length > 0)) {
     return (
       <div className="flex min-h-full items-center justify-center p-4 sm:p-6 lg:p-8">
         <Spinner size="lg" className="h-10 w-10" />

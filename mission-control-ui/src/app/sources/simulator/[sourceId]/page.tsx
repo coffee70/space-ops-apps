@@ -1,52 +1,4 @@
-"use client";
-
-import Link from "next/link";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { SimulatorPanel } from "@/components/simulator-panel";
-import { useTelemetrySourcesQuery } from "@/lib/query-hooks";
-import { buildApplicationRoute } from "@/platform/registry/application-routes";
-
-export function SimulatorManagePage({ sourceId }: { sourceId: string }) {
-  const sourcesQuery = useTelemetrySourcesQuery<{ id: string; name: string }[]>();
-  const sourceName = sourcesQuery.data?.find((source) => source.id === sourceId)?.name ?? sourceId;
-
-  if (!sourceId) {
-    return null;
-  }
-
-  return (
-    <div className="min-h-full p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-2xl space-y-6">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link href={buildApplicationRoute("sources")} className="text-primary underline-offset-4 hover:underline">
-                  Sources
-                </Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage className="max-w-[200px] truncate" title={sourceName ?? sourceId}>
-                {sourceName ?? sourceId}
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-
-        <SimulatorPanel sourceId={sourceId} />
-      </div>
-    </div>
-  );
-}
+import { SimulatorManagePageClient } from "./simulator-manage-page-client";
 
 export default async function SimulatorManageRoutePage({
   params,
@@ -54,5 +6,5 @@ export default async function SimulatorManageRoutePage({
   params: Promise<{ sourceId: string }>;
 }) {
   const { sourceId } = await params;
-  return <SimulatorManagePage sourceId={sourceId} />;
+  return <SimulatorManagePageClient sourceId={sourceId} />;
 }
