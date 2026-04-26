@@ -10,8 +10,12 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: "/registry/:path*",
-        destination: `${controlPlaneServerUrl}/registry/:path*`,
+        source: "/registry/applications",
+        destination: `${controlPlaneServerUrl}/registry/applications`,
+      },
+      {
+        source: "/registry/applications/:applicationId",
+        destination: `${controlPlaneServerUrl}/registry/applications/:applicationId`,
       },
       {
         source: "/workspace",
