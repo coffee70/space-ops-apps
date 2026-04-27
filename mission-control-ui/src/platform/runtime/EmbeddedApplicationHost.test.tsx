@@ -29,18 +29,36 @@ function buildEmbeddedApplication(
   };
 }
 
-test("EmbeddedApplicationHost falls back to proxyBasePath for iframe src", () => {
+test("EmbeddedApplicationHost uses embeddedUrl for iframe src", () => {
   const markup = renderToStaticMarkup(
     <EmbeddedApplicationHost
       application={buildEmbeddedApplication({
-        embeddedUrl: undefined,
-        proxyBasePath: "/workspace",
+        embeddedUrl: "/_embedded/workspace",
+        proxyBasePath: undefined,
       })}
     />,
   );
 
   assert.match(markup, /data-testid="embedded-application-frame"/);
-  assert.match(markup, /src="\/workspace"/);
+  assert.match(markup, /src="\/_embedded\/workspace"/);
+  assert.doesNotMatch(markup, /Application unavailable/);
+});
+
+test("EmbeddedApplicationHost falls back to proxyBasePath when embeddedUrl is absent", () => {
+  const markup = renderToStaticMarkup(
+    <EmbeddedApplicationHost
+      application={buildEmbeddedApplication({
+        applicationId: "embedded-demo",
+        title: "Embedded Demo",
+        routePath: "/apps/embedded-demo",
+        embeddedUrl: undefined,
+        proxyBasePath: "/runtime-applications/embedded-demo",
+      })}
+    />,
+  );
+
+  assert.match(markup, /data-testid="embedded-application-frame"/);
+  assert.match(markup, /src="\/runtime-applications\/embedded-demo"/);
   assert.doesNotMatch(markup, /Application unavailable/);
 });
 

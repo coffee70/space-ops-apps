@@ -3,24 +3,6 @@ import { appUrl } from "./support/application-routes";
 
 const registryPayload = [
   {
-    applicationId: "overview",
-    title: "Overview",
-    description: "Mission overview dashboard.",
-    iconKey: "layout-dashboard",
-    iconColor: "#38bdf8",
-    iconBackground: "rgba(56, 189, 248, 0.16)",
-    applicationType: "native",
-    routePath: "/apps/overview",
-    loaderKey: "overview",
-    version: "0.1.0",
-    enabled: true,
-    sortOrder: 10,
-    owner: "space-ops-apps",
-    capabilities: ["telemetry-overview"],
-    healthStatus: "unknown",
-    deploymentStatus: "seeded",
-  },
-  {
     applicationId: "workspace",
     title: "Workspace",
     description: "Open VS Code Server workspace.",
@@ -42,7 +24,7 @@ const registryPayload = [
   },
 ];
 
-test("platform shell keeps the side nav visible around an embedded application", async ({ page }) => {
+test.beforeEach(async ({ page }) => {
   await page.route("**/registry/applications", async (route) => {
     await route.fulfill({
       status: 200,
@@ -50,10 +32,27 @@ test("platform shell keeps the side nav visible around an embedded application",
       body: JSON.stringify(registryPayload),
     });
   });
+});
 
+test("workspace opens through the shell with the internal iframe transport path", async ({ page }) => {
   await page.goto(appUrl("workspace"));
 
-  await expect(page.getByTestId("applications-nav-item")).toBeVisible();
+  await expect(page).toHaveURL(/\/apps\/workspace$/);
   await expect(page.getByTestId("current-application-nav-item")).toContainText("Workspace");
+  await expect(page.getByTestId("embedded-application-frame")).toHaveAttribute("src", "/_embedded/workspace");
+});
+
+test("/workspace no longer resolves to workspace application content", async ({ page }) => {
+  const legacyWorkspacePath = `/${"workspace"}`;
+  const response = await page.goto(legacyWorkspacePath);
+
+  expect(response?.status()).toBe(404);
+  await expect(page.getByTestId("embedded-application-frame")).toHaveCount(0);
+});
+
+test("top-level navigation to the workspace transport path redirects back into the shell", async ({ page }) => {
+  await page.goto("/_embedded/workspace");
+
+  await expect(page).toHaveURL(/\/apps\/workspace$/);
   await expect(page.getByTestId("embedded-application-frame")).toHaveAttribute("src", "/_embedded/workspace");
 });

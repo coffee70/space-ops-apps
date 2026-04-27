@@ -29,8 +29,7 @@ const registryPayload = [
     iconBackground: "rgba(56, 189, 248, 0.16)",
     applicationType: "embedded",
     routePath: "/apps/workspace",
-    embeddedUrl: "/workspace",
-    proxyBasePath: "/workspace",
+    embeddedUrl: "/_embedded/workspace",
     version: "0.1.0",
     enabled: true,
     iframeSandbox: "allow-scripts allow-same-origin allow-forms",
@@ -38,26 +37,6 @@ const registryPayload = [
     sortOrder: 50,
     owner: "space-ops-apps",
     capabilities: ["development-workspace"],
-    healthStatus: "unknown",
-    deploymentStatus: "seeded",
-  },
-  {
-    applicationId: "embedded-demo",
-    title: "Embedded Demo",
-    description: "Embedded application that relies on the runtime proxy.",
-    iconKey: "panels-top-left",
-    iconColor: "#22c55e",
-    iconBackground: "rgba(34, 197, 94, 0.16)",
-    applicationType: "embedded",
-    routePath: "/apps/embedded-demo",
-    proxyBasePath: "/runtime-applications/embedded-demo",
-    version: "0.1.0",
-    enabled: true,
-    iframeSandbox: "allow-scripts allow-same-origin allow-forms",
-    iframeAllow: "",
-    sortOrder: 55,
-    owner: "space-ops-apps",
-    capabilities: ["demo"],
     healthStatus: "unknown",
     deploymentStatus: "seeded",
   },
@@ -105,36 +84,7 @@ test("launcher supports search, selection, and open behavior", async ({ page }) 
   await page.getByTestId("applications-launcher-open").click();
   await expect(page).toHaveURL(/\/apps\/workspace$/);
   await expect(page.getByTestId("current-application-nav-item")).toContainText("Workspace");
-  await expect(page.getByTestId("embedded-application-frame")).toHaveAttribute("src", "/workspace");
-});
-
-test("launcher opens proxy-backed embedded applications without embeddedUrl", async ({ page }) => {
-  await page.route("**/registry/applications", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(registryPayload),
-    });
-  });
-
-  await page.goto(appUrl("overview"));
-  await expect(page.getByTestId("current-application-nav-item")).toContainText("Overview");
-
-  await page.getByTestId("applications-nav-item").click();
-  await expect(page.getByRole("dialog", { name: "Applications" })).toBeVisible();
-
-  await page.getByTestId("applications-launcher-search").fill("embedded");
-  await expect(page.getByTestId("application-option-embedded-demo")).toBeVisible();
-  await page.getByTestId("application-option-embedded-demo").click();
-  await expect(page.getByTestId("applications-launcher-details")).toContainText("Embedded Demo");
-
-  await page.getByTestId("applications-launcher-open").click();
-  await expect(page).toHaveURL(/\/apps\/embedded-demo$/);
-  await expect(page.getByTestId("current-application-nav-item")).toContainText("Embedded Demo");
-  await expect(page.getByTestId("embedded-application-frame")).toHaveAttribute(
-    "src",
-    "/runtime-applications/embedded-demo",
-  );
+  await expect(page.getByTestId("embedded-application-frame")).toHaveAttribute("src", "/_embedded/workspace");
 });
 
 test("launcher opens the native battery efficiency application route", async ({ page }) => {

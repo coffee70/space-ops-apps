@@ -7,6 +7,34 @@ const controlPlaneServerUrl =
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  async redirects() {
+    return [
+      {
+        source: "/_embedded/workspace",
+        has: [
+          {
+            type: "header",
+            key: "sec-fetch-dest",
+            value: "document",
+          },
+        ],
+        destination: "/apps/workspace",
+        permanent: false,
+      },
+      {
+        source: "/_embedded/workspace/:path*",
+        has: [
+          {
+            type: "header",
+            key: "sec-fetch-dest",
+            value: "document",
+          },
+        ],
+        destination: "/apps/workspace",
+        permanent: false,
+      },
+    ];
+  },
   async rewrites() {
     return [
       {
@@ -18,11 +46,11 @@ const nextConfig: NextConfig = {
         destination: `${controlPlaneServerUrl}/registry/applications/:applicationId`,
       },
       {
-        source: "/workspace",
+        source: "/_embedded/workspace",
         destination: `${workspaceServerUrl}/workspace`,
       },
       {
-        source: "/workspace/:path*",
+        source: "/_embedded/workspace/:path*",
         destination: `${workspaceServerUrl}/workspace/:path*`,
       },
       {
