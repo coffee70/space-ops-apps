@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { fetchPlatformApplicationsServer } from "@/platform/registry/application-registry-client";
+import { validateApplicationPathSegments } from "@/platform/registry/application-routes";
 import { ApplicationHost } from "@/platform/runtime/ApplicationHost";
 import { ApplicationUnavailableState } from "@/platform/shell/ApplicationFrame";
 
@@ -14,6 +15,10 @@ export default async function PlatformApplicationPage({
 }) {
   const { applicationId, appPath = [] } = await params;
   if (!APPLICATION_ID_PATTERN.test(applicationId)) {
+    notFound();
+  }
+  const safeAppPath = validateApplicationPathSegments(appPath);
+  if (!safeAppPath) {
     notFound();
   }
 
@@ -35,7 +40,7 @@ export default async function PlatformApplicationPage({
   return (
     <ApplicationHost
       application={application}
-      appPath={appPath}
+      appPath={safeAppPath}
       searchParams={resolvedSearchParams}
     />
   );
