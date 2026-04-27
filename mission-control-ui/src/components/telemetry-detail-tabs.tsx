@@ -34,6 +34,7 @@ import { ChevronDownIcon } from "lucide-react";
 import { formatSmartValue } from "@/lib/format-value";
 import { useTelemetrySourcesQuery } from "@/lib/query-hooks";
 import { buildTelemetryDetailHref, type TelemetryDetailView } from "@/lib/telemetry-routes";
+import { buildApplicationRouteWithQuery } from "@/platform/registry/application-routes";
 import {
   isRealtimeEligible,
   LATEST_SCOPE,
@@ -199,7 +200,11 @@ function TelemetryDetailTabsContent({
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Link
-                  href={`/telemetry?source=${encodeURIComponent(sourceId)}`}
+                  href={buildApplicationRouteWithQuery(
+                    "telemetry",
+                    [],
+                    new URLSearchParams({ source: sourceId }),
+                  )}
                   className="text-primary underline-offset-4 hover:underline"
                 >
                   Telemetry

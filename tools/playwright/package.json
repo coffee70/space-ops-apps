@@ -5,9 +5,12 @@
   "description": "Shared Playwright workspace for agent-driven browser validation",
   "scripts": {
     "install:chromium": "node scripts/pw.mjs install chromium",
-    "open:local": "node scripts/pw.mjs open --browser chromium http://127.0.0.1:3000/overview",
-    "codegen:local": "node scripts/pw.mjs codegen http://127.0.0.1:3000/overview",
+    "open:local": "node scripts/pw.mjs open --browser chromium http://127.0.0.1:3000/apps/overview",
+    "codegen:local": "node scripts/pw.mjs codegen http://127.0.0.1:3000/apps/overview",
     "test": "node scripts/pw.mjs test",
+    "test:e2e": "node scripts/pw.mjs test",
+    "test:e2e:shell": "node scripts/pw.mjs test tests/platform-shell.spec.ts",
+    "test:e2e:ui": "node scripts/pw.mjs test tests/application-launcher.spec.ts",
     "test:smoke": "node scripts/pw.mjs test --grep @smoke",
     "test:smoke:headed": "node scripts/pw.mjs test --grep @smoke --headed"
   },

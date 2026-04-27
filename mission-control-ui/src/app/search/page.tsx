@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { buildApplicationRouteWithQuery } from "@/platform/registry/application-routes";
 
 export default async function SearchRedirectPage({
   searchParams,
@@ -18,6 +19,5 @@ export default async function SearchRedirectPage({
   }
 
   params.set("search", "1");
-  const query = params.toString();
-  redirect(query ? `/overview?${query}` : "/overview");
+  redirect(buildApplicationRouteWithQuery("overview", [], params));
 }

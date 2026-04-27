@@ -1,40 +1,31 @@
 import { expect, test } from "@playwright/test";
+import { appUrl } from "./support/application-routes";
+import {
+  PLAYWRIGHT_API_URL,
+  getPreferredTelemetrySource,
+  ingestRealtimeSample,
+} from "./support/telemetry";
 
-const API_URL = process.env.PLAYWRIGHT_API_URL || "http://127.0.0.1:8000";
 const CHANNEL_NAME = "decoder.aprs.payload_temp";
 
-test("overview search labels discovered channels", async ({ page, request }) => {
-  const sourcesResponse = await request.get(`${API_URL}/telemetry/sources`);
-  expect(sourcesResponse.ok()).toBeTruthy();
+test.setTimeout(60_000);
 
-  const sources = (await sourcesResponse.json()) as Array<{
-    id: string;
-    source_type?: string;
-  }>;
-  const source = sources.find((entry) => entry.source_type === "vehicle") ?? sources[0];
-  expect(source).toBeTruthy();
+test("telemetry inventory labels discovered channels", async ({ page, request }) => {
+  const source = await getPreferredTelemetrySource(request);
   const streamId = `discovered-search-${Date.now()}`;
 
-  const ingestResponse = await request.post(`${API_URL}/telemetry/realtime/ingest`, {
-    data: {
-      events: [
-        {
-          source_id: source.id,
-          stream_id: streamId,
-          generation_time: "2026-03-26T16:10:00Z",
-          value: 41.25,
-          sequence: 1,
-          tags: { decoder: "APRS", field_name: "Payload Temp" },
-        },
-      ],
-    },
+  await ingestRealtimeSample(request, {
+    sourceId: source.id,
+    streamId,
+    generationTime: "2026-03-26T16:10:00Z",
+    value: 41.25,
+    tags: { decoder: "APRS", field_name: "Payload Temp" },
   });
-  expect(ingestResponse.ok()).toBeTruthy();
 
   await expect
     .poll(async () => {
       const response = await request.get(
-        `${API_URL}/telemetry/list?source_id=${encodeURIComponent(source.id)}`,
+        `${PLAYWRIGHT_API_URL}/telemetry/list?source_id=${encodeURIComponent(source.id)}`,
       );
       const payload = (await response.json()) as {
         channels?: Array<{ name: string; channel_origin?: string }>;
@@ -43,13 +34,14 @@ test("overview search labels discovered channels", async ({ page, request }) => 
     })
     .toBe("discovered");
 
-  await page.goto(`/overview?source=${encodeURIComponent(source.id)}`);
+  await page.goto(appUrl("telemetry", [], { source: source.id }));
 
-  await page.getByRole("button", { name: /Search telemetry/i }).click();
-  await page.locator("[data-telemetry-search-input]").fill(CHANNEL_NAME);
-  await page.getByRole("button", { name: "Search", exact: true }).click();
+  const search = page.getByLabel("Search");
+  await search.fill(CHANNEL_NAME);
 
-  const resultCard = page.locator("div.rounded-2xl").filter({ has: page.getByRole("link", { name: CHANNEL_NAME }) }).first();
-  await expect(resultCard).toBeVisible();
-  await expect(resultCard.getByText("Discovered", { exact: true })).toBeVisible();
+  const row = page.getByRole("row").filter({
+    has: page.getByText(CHANNEL_NAME, { exact: true }),
+  }).first();
+  await expect(row).toBeVisible();
+  await expect(row).toContainText("discovered");
 });

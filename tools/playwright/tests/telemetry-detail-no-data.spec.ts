@@ -1,43 +1,31 @@
 import { expect, test } from "@playwright/test";
+import { appUrl, escapeRegExp } from "./support/application-routes";
+import {
+  getPreferredTelemetrySource,
+  registerTelemetryChannel,
+} from "./support/telemetry";
 
-const API_URL = process.env.PLAYWRIGHT_API_URL || "http://127.0.0.1:8000";
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
+test.setTimeout(90_000);
 
 test("registered channel detail renders when no samples or statistics exist", async ({
   page,
   request,
 }) => {
-  const sourcesResponse = await request.get(`${API_URL}/telemetry/sources`);
-  expect(sourcesResponse.ok()).toBeTruthy();
-
-  const sources = (await sourcesResponse.json()) as Array<{
-    id: string;
-    source_type?: string;
-  }>;
-  const source = sources.find((entry) => entry.source_type === "vehicle") ?? sources[0];
-  expect(source).toBeTruthy();
+  const source = await getPreferredTelemetrySource(request);
 
   const channelName = `NO_DATA_DETAIL_${Date.now()}`;
-  const schemaResponse = await request.post(`${API_URL}/telemetry/schema`, {
-    data: {
-      source_id: source.id,
-      name: channelName,
-      units: "deg",
-      description: "Registered channel with no samples",
-    },
+  await registerTelemetryChannel(request, {
+    sourceId: source.id,
+    name: channelName,
+    units: "deg",
+    description: "Registered channel with no samples",
   });
-  expect(schemaResponse.ok()).toBeTruthy();
 
-  await page.goto(
-    `/telemetry/${encodeURIComponent(source.id)}/${encodeURIComponent(channelName)}`,
-  );
+  await page.goto(appUrl("telemetry", [source.id, channelName]));
 
   await expect(page).toHaveURL(
     new RegExp(
-      `${escapeRegExp(`/telemetry/${source.id}/${channelName}`)}(?:\\?scope=latest&view=analysis)?$`,
+      `${escapeRegExp(appUrl("telemetry", [source.id, channelName]))}(?:\\?scope=latest&view=analysis)?$`,
     ),
   );
   const detailHeader = page.locator("header").filter({

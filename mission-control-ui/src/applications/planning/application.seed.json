@@ -1,0 +1,16 @@
+{
+  "applicationId": "planning",
+  "title": "Planning",
+  "description": "Planning views, orbit context, and observation tools.",
+  "iconKey": "satellite-dish",
+  "iconColor": "#f59e0b",
+  "iconBackground": "rgba(245, 158, 11, 0.16)",
+  "applicationType": "native",
+  "routePath": "/apps/planning",
+  "loaderKey": "planning",
+  "version": "0.1.0",
+  "enabled": true,
+  "sortOrder": 30,
+  "owner": "space-ops-apps",
+  "capabilities": ["mission-planning"]
+}

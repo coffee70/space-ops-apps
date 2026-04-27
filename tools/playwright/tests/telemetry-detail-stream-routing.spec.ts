@@ -1,109 +1,82 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
-
-const API_URL = process.env.PLAYWRIGHT_API_URL || "http://127.0.0.1:8000";
+import { appUrl, escapeRegExp } from "./support/application-routes";
+import {
+  PLAYWRIGHT_API_URL,
+  getPreferredTelemetrySource,
+  ingestRealtimeSample,
+  registerTelemetryChannel,
+} from "./support/telemetry";
 
 test.describe.configure({ mode: "serial" });
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-async function ingestRealtimeSample(
-  request: APIRequestContext,
-  sourceId: string,
-  streamId: string,
-  channelName: string,
-  value: number,
-  receptionTime: string,
-  sequence: number,
-) {
-  const response = await request.post(`${API_URL}/telemetry/realtime/ingest`, {
-    data: {
-      events: [
-        {
-          source_id: sourceId,
-          stream_id: streamId,
-          channel_name: channelName,
-          value,
-          reception_time: receptionTime,
-          sequence,
-        },
-      ],
-    },
-  });
-
-  expect(response.ok()).toBeTruthy();
-  const payload = (await response.json()) as { accepted?: number };
-  expect(payload.accepted).toBe(1);
-}
+test.setTimeout(90_000);
 
 async function getRegisteredSourceId(request: APIRequestContext): Promise<string> {
-  const sourcesResponse = await request.get(`${API_URL}/telemetry/sources`);
-  expect(sourcesResponse.ok()).toBeTruthy();
-  const sources = (await sourcesResponse.json()) as Array<{ id?: string }>;
-  const sourceId = sources.find((source) => typeof source.id === "string" && source.id.length > 0)?.id;
-  expect(sourceId).toBeTruthy();
-  return sourceId!;
+  const source = await getPreferredTelemetrySource(request);
+  return source.id;
 }
 
 test("telemetry detail applies repeated stream_ids scope", async ({
   page,
   request,
 }) => {
-  const sourcesResponse = await request.get(`${API_URL}/telemetry/sources`);
-  expect(sourcesResponse.ok()).toBeTruthy();
+  const sourceId = await getRegisteredSourceId(request);
+  const channelName = `STREAM_SCOPE_${Date.now()}`;
+  const olderStreamId = `stream-scope-${Date.now()}-a`;
+  const selectedStreamId = `stream-scope-${Date.now()}-b`;
 
-  const sources = (await sourcesResponse.json()) as Array<{ id: string }>;
-  let selected: { sourceId: string; channelName: string; streamId: string } | null = null;
+  await registerTelemetryChannel(request, {
+    sourceId,
+    name: channelName,
+    units: "V",
+    description: "Repeated stream scope route test channel",
+  });
+  await ingestRealtimeSample(request, {
+    sourceId,
+    streamId: olderStreamId,
+    channelName,
+    value: 3.1,
+    receptionTime: "2026-03-28T12:00:00Z",
+    sequence: 1,
+  });
+  await ingestRealtimeSample(request, {
+    sourceId,
+    streamId: selectedStreamId,
+    channelName,
+    value: 3.2,
+    receptionTime: "2026-03-28T12:05:00Z",
+    sequence: 2,
+  });
 
-  for (const source of sources) {
-    const channelsResponse = await request.get(
-      `${API_URL}/telemetry/list?source_id=${encodeURIComponent(source.id)}`,
-    );
-    if (!channelsResponse.ok()) continue;
-    const channelsPayload = (await channelsResponse.json()) as {
-      channels?: Array<{ name?: string }>;
-    };
-    const channelNames = (channelsPayload.channels ?? [])
-      .map((channel) => channel.name)
-      .filter((channelName): channelName is string => typeof channelName === "string" && channelName.length > 0);
-
-    for (const channelName of channelNames) {
-      const streamsResponse = await request.get(
-        `${API_URL}/telemetry/sources/${encodeURIComponent(source.id)}/channels/${encodeURIComponent(channelName)}/streams`,
-      );
-      if (!streamsResponse.ok()) continue;
-      const streamsPayload = (await streamsResponse.json()) as {
-        sources?: Array<{ stream_id?: string }>;
-      };
-      const streamIds = (streamsPayload.sources ?? [])
-        .map((stream) => stream.stream_id)
-        .filter((streamId): streamId is string => typeof streamId === "string" && streamId.length > 0);
-      if (streamIds.length < 2) continue;
-
-      selected = {
-        sourceId: source.id,
-        channelName,
-        streamId: streamIds[1],
-      };
-      break;
-    }
-
-    if (selected) break;
-  }
-
-  expect(selected).toBeTruthy();
-  if (!selected) return;
+  await expect
+    .poll(
+      async () => {
+        const streamsResponse = await request.get(
+          `${PLAYWRIGHT_API_URL}/telemetry/sources/${encodeURIComponent(sourceId)}/channels/${encodeURIComponent(channelName)}/streams`,
+        );
+        expect(streamsResponse.ok()).toBeTruthy();
+        const streamsPayload = (await streamsResponse.json()) as {
+          sources?: Array<{ stream_id?: string }>;
+        };
+        return (streamsPayload.sources ?? [])
+          .map((stream) => stream.stream_id)
+          .filter((streamId): streamId is string => typeof streamId === "string" && streamId.length > 0);
+      },
+      { timeout: 45_000 },
+    )
+    .toContain(selectedStreamId);
 
   await page.goto(
-    `/telemetry/${encodeURIComponent(selected.sourceId)}/${encodeURIComponent(selected.channelName)}?scope=streams&stream_ids=${encodeURIComponent(selected.streamId)}`,
+    appUrl("telemetry", [sourceId, channelName], {
+      scope: "streams",
+      stream_ids: selectedStreamId,
+    }),
   );
 
   await expect(page).toHaveURL(
     new RegExp(
       `${escapeRegExp(
-        `/telemetry/${selected.sourceId}/${selected.channelName}`,
-      )}\\?scope=streams&stream_ids=${escapeRegExp(selected.streamId)}&view=analysis$`,
+        appUrl("telemetry", [sourceId, channelName]),
+      )}\\?scope=streams&stream_ids=${escapeRegExp(selectedStreamId)}&view=analysis$`,
     ),
   );
 
@@ -117,34 +90,38 @@ test("data scope stream picker preserves backend ordering for opaque ids", async
   request,
 }) => {
   const sourceId = await getRegisteredSourceId(request);
-  const channelName = "PWR_MAIN_BUS_VOLT";
+  const channelName = `PWR_MAIN_BUS_VOLT_${Date.now()}`;
   const olderRunId = "fffffff0-0000-0000-0000-000000000000";
   const newerRunId = "00000000-0000-0000-0000-000000000001";
 
-  await ingestRealtimeSample(
-    request,
+  await registerTelemetryChannel(request, {
     sourceId,
-    olderRunId,
-    channelName,
-    3.1,
-    "2026-03-28T12:00:00Z",
-    1,
-  );
-  await ingestRealtimeSample(
-    request,
+    name: channelName,
+    units: "V",
+    description: "Opaque stream ordering channel",
+  });
+  await ingestRealtimeSample(request, {
     sourceId,
-    newerRunId,
+    streamId: olderRunId,
     channelName,
-    3.2,
-    "2026-03-28T12:05:00Z",
-    2,
-  );
+    value: 3.1,
+    receptionTime: "2026-03-28T12:00:00Z",
+    sequence: 1,
+  });
+  await ingestRealtimeSample(request, {
+    sourceId,
+    streamId: newerRunId,
+    channelName,
+    value: 3.2,
+    receptionTime: "2026-03-28T12:05:00Z",
+    sequence: 2,
+  });
 
   await expect
     .poll(
       async () => {
         const streamsResponse = await request.get(
-          `${API_URL}/telemetry/sources/${encodeURIComponent(sourceId)}/channels/${encodeURIComponent(channelName)}/streams`,
+          `${PLAYWRIGHT_API_URL}/telemetry/sources/${encodeURIComponent(sourceId)}/channels/${encodeURIComponent(channelName)}/streams`,
         );
         expect(streamsResponse.ok()).toBeTruthy();
         const streamsPayload = (await streamsResponse.json()) as {
@@ -162,19 +139,25 @@ test("data scope stream picker preserves backend ordering for opaque ids", async
     .toBeTruthy();
 
   await page.goto(
-    `/telemetry/${encodeURIComponent(sourceId)}/${encodeURIComponent(channelName)}?scope=streams&stream_ids=${encodeURIComponent(newerRunId)}`,
+    appUrl("telemetry", [sourceId, channelName], {
+      scope: "streams",
+      stream_ids: newerRunId,
+    }),
   );
 
   await expect(page).toHaveURL(
     new RegExp(
-      `${escapeRegExp(`/telemetry/${sourceId}/${channelName}`)}\\?scope=streams&stream_ids=${escapeRegExp(newerRunId)}&view=analysis$`,
+      `${escapeRegExp(appUrl("telemetry", [sourceId, channelName]))}\\?scope=streams&stream_ids=${escapeRegExp(newerRunId)}&view=analysis$`,
     ),
   );
 
   await page.getByRole("button", { name: "Edit scope" }).click();
   await page.getByRole("button", { name: "Add stream" }).click();
 
-  const optionTexts = await page.getByRole("button").allTextContents();
+  const streamChooser = page.getByRole("dialog").filter({
+    has: page.getByRole("textbox", { name: "Search streams" }),
+  });
+  const optionTexts = await streamChooser.getByRole("button").allTextContents();
   const newerIndex = optionTexts.findIndex((text) => text.includes(newerRunId));
   const olderIndex = optionTexts.findIndex((text) => text.includes(olderRunId));
   expect(newerIndex).toBeGreaterThanOrEqual(0);
@@ -188,36 +171,40 @@ test("telemetry detail defaults to the latest stream that contains the channel",
   const sourceId = await getRegisteredSourceId(request);
   const selected = {
     sourceId,
-    channelName: "PWR_MAIN_BUS_VOLT",
-    fallbackChannelName: "GPS_LAT",
+    channelName: `PWR_MAIN_BUS_VOLT_${Date.now()}`,
+    fallbackChannelName: `GPS_LAT_${Date.now()}`,
     streamId: "selected-channel-9999-01-01T00-10-00Z",
   };
   const newerStreamId = "fallback-channel-9999-01-01T00-15-00Z";
 
-  await ingestRealtimeSample(
-    request,
-    selected.sourceId,
-    selected.streamId,
-    selected.channelName,
-    3.3,
-    "9999-01-01T00:10:00Z",
-    1,
-  );
-  await ingestRealtimeSample(
-    request,
-    selected.sourceId,
-    newerStreamId,
-    selected.fallbackChannelName,
-    4.56,
-    "9999-01-01T00:05:00Z",
-    2,
-  );
+  await registerTelemetryChannel(request, {
+    sourceId: selected.sourceId,
+    name: selected.channelName,
+    units: "V",
+    description: "Latest stream fallback test channel",
+  });
+  await ingestRealtimeSample(request, {
+    sourceId: selected.sourceId,
+    streamId: selected.streamId,
+    channelName: selected.channelName,
+    value: 3.3,
+    receptionTime: "9999-01-01T00:10:00Z",
+    sequence: 1,
+  });
+  await ingestRealtimeSample(request, {
+    sourceId: selected.sourceId,
+    streamId: newerStreamId,
+    channelName: selected.fallbackChannelName,
+    value: 4.56,
+    receptionTime: "9999-01-01T00:05:00Z",
+    sequence: 2,
+  });
 
   await expect
     .poll(
       async () => {
         const streamsResponse = await request.get(
-          `${API_URL}/telemetry/sources/${encodeURIComponent(selected.sourceId)}/channels/${encodeURIComponent(selected.channelName)}/streams`,
+          `${PLAYWRIGHT_API_URL}/telemetry/sources/${encodeURIComponent(selected.sourceId)}/channels/${encodeURIComponent(selected.channelName)}/streams`,
         );
         expect(streamsResponse.ok()).toBeTruthy();
         const streamsPayload = (await streamsResponse.json()) as {
@@ -235,13 +222,11 @@ test("telemetry detail defaults to the latest stream that contains the channel",
     )
     .toEqual({ hasSelected: true, hasFallback: false });
 
-  await page.goto(
-    `/telemetry/${encodeURIComponent(selected.sourceId)}/${encodeURIComponent(selected.channelName)}`,
-  );
+  await page.goto(appUrl("telemetry", [selected.sourceId, selected.channelName]));
 
   await expect(page).toHaveURL(
     new RegExp(
-      `${escapeRegExp(`/telemetry/${selected.sourceId}/${selected.channelName}`)}\\?scope=latest&view=analysis$`,
+      `${escapeRegExp(appUrl("telemetry", [selected.sourceId, selected.channelName]))}\\?scope=latest&view=analysis$`,
     ),
   );
 

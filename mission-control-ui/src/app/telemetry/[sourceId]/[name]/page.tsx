@@ -8,6 +8,7 @@ import {
 } from "@/lib/telemetry-detail-scope";
 import { parseTelemetryDetailView } from "@/lib/telemetry-routes";
 import type { TelemetryAppliedScope } from "@/lib/telemetry-applied-scope";
+import { buildApplicationRouteWithQuery } from "@/platform/registry/application-routes";
 
 const API_URL =
   process.env.API_SERVER_URL ||
@@ -130,7 +131,7 @@ async function fetchRecent(
   }
 }
 
-export default async function TelemetryDetailPage({
+export async function TelemetryDetailRoutePage({
   params,
   searchParams,
 }: {
@@ -149,9 +150,7 @@ export default async function TelemetryDetailPage({
   if (viewFlat === undefined || viewFlat === "") {
     const p = telemetryScopeToQueryParams(scope);
     p.set("view", "analysis");
-    redirect(
-      `/telemetry/${encodeURIComponent(requestedSourceId)}/${encodeURIComponent(name)}?${p.toString()}`,
-    );
+    redirect(buildApplicationRouteWithQuery("telemetry", [requestedSourceId, name], p));
   }
 
   const initialView = parseTelemetryDetailView(resolvedSearchParams);
@@ -164,7 +163,14 @@ export default async function TelemetryDetailPage({
 
   if (summary.channelUnavailable) {
     redirect(
-      `/telemetry?source=${encodeURIComponent(sourceId)}&channel_unavailable=${encodeURIComponent(decodedName)}`,
+      buildApplicationRouteWithQuery(
+        "telemetry",
+        [],
+        new URLSearchParams({
+          source: sourceId,
+          channel_unavailable: decodedName,
+        }),
+      ),
     );
   }
   if (summary.summaryError) {
@@ -181,10 +187,7 @@ export default async function TelemetryDetailPage({
   if (explain.name !== decodedName) {
     const redirectParams = telemetryScopeToQueryParams(scope);
     redirectParams.set("view", initialView);
-    const suffix = redirectParams.toString();
-    redirect(
-      `/telemetry/${encodeURIComponent(requestedSourceId)}/${encodeURIComponent(explain.name)}${suffix ? `?${suffix}` : ""}`,
-    );
+    redirect(buildApplicationRouteWithQuery("telemetry", [requestedSourceId, explain.name], redirectParams));
   }
 
   return (
@@ -199,3 +202,5 @@ export default async function TelemetryDetailPage({
     />
   );
 }
+
+export default TelemetryDetailRoutePage;

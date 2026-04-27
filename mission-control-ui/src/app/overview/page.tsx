@@ -1,8 +1,13 @@
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { OverviewContent } from "@/components/overview-content";
 import { Spinner } from "@/components/ui/spinner";
 
 export default function OverviewPage() {
+  notFound();
+}
+
+export function OverviewApplicationPage() {
   return (
     <Suspense
       fallback={

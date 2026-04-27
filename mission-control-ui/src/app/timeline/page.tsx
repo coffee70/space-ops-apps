@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { buildApplicationRouteWithQuery } from "@/platform/registry/application-routes";
 
 export default async function TimelineRedirectPage({
   searchParams,
@@ -18,6 +19,5 @@ export default async function TimelineRedirectPage({
   }
 
   params.set("tab", "event-history");
-  const query = params.toString();
-  redirect(query ? `/overview?${query}` : "/overview?tab=event-history");
+  redirect(buildApplicationRouteWithQuery("overview", [], params));
 }

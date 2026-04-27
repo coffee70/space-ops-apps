@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
+import { appUrl } from "./support/application-routes";
 
 const API_URL = process.env.PLAYWRIGHT_API_URL || "http://127.0.0.1:8000";
 
@@ -178,9 +179,12 @@ test("planning renders the live simulator marker on the globe", async ({
     );
   }, simulator.id);
 
-  await page.goto("/planning");
+  await page.goto(appUrl("planning"));
+  await expect(page.getByTestId("current-application-nav-item")).toContainText("Planning");
 
   let simulatorRow = page.getByTestId(`planning-source-row-${simulator.id}`);
+  await expect(page.getByText("Loading mappings...")).toHaveCount(0, { timeout: 30_000 });
+  await expect(simulatorRow).toBeVisible({ timeout: 30_000 });
   await expect(simulatorRow).toHaveAttribute("aria-pressed", "true");
   await simulatorRow.click();
   await expect(simulatorRow).toHaveAttribute("aria-pressed", "false");
@@ -253,7 +257,9 @@ test("planning shows no data for a selected simulator after it stops", async ({
     );
   }, simulator.id);
 
-  await page.goto("/planning");
+  await page.goto(appUrl("planning"));
+  await expect(page.getByTestId("current-application-nav-item")).toContainText("Planning");
+  await expect(page.getByText("Loading mappings...")).toHaveCount(0, { timeout: 30_000 });
   await expect(page.locator("main")).toContainText("Live", { timeout: 30_000 });
 
   await stopSimulator(request, simulator.id);

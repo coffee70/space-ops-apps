@@ -29,6 +29,8 @@ By default the app expects the backend API at `http://localhost:8000`. You can o
 
 Use the shared Playwright workspace at `../tools/playwright` for browser testing and smoke checks instead of creating a frontend-local or `.cursor` Playwright install.
 
+Application loader entries are generated. Use `npm run check:application-loaders` to verify the committed manifest is current, and `npm run generate:application-loaders` to refresh it.
+
 From the repo root:
 
 ```bash
