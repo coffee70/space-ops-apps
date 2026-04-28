@@ -4,6 +4,7 @@ const workspaceServerUrl =
   process.env.OPENVSCODE_SERVER_URL || "http://openvscode-server:3000";
 const controlPlaneServerUrl =
   process.env.CONTROL_PLANE_SERVER_URL || "http://control-plane:8100";
+const apiServerUrl = process.env.API_SERVER_URL || "http://platform-api:8000";
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -60,6 +61,10 @@ const nextConfig: NextConfig = {
       {
         source: "/runtime-applications/:applicationId/:path*",
         destination: `${controlPlaneServerUrl}/runtime-applications/:applicationId/:path*`,
+      },
+      {
+        source: "/intelligence/:path*",
+        destination: `${apiServerUrl}/intelligence/:path*`,
       },
     ];
   },
