@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ActionTimeline } from "@/applications/ai-engineer/components/action-timeline";
 import { AttachmentUploadStatus } from "@/applications/ai-engineer/components/attachment-upload-status";
 import { ChatPanel } from "@/applications/ai-engineer/components/chat-panel";
+import { applyAgentEventToAssistantMessage } from "@/applications/ai-engineer/lib/agent-events";
 import { createConversation, getConversation, listConversations, sendChatMessage, uploadDocument } from "@/applications/ai-engineer/lib/ai-engineer-client";
 import type { AttachmentStatus, ChatEvent, ChatMessage, ChatStreamChunk } from "@/applications/ai-engineer/types";
 import type { NativeApplicationProps } from "@/platform/sdk/native-application-contract";
@@ -47,52 +48,8 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   };
 
   const applyStreamChunk = (draftAssistantId: string, chunk: ChatStreamChunk) => {
-    if (chunk.kind === "message.delta") {
-      setMessages((previous) =>
-        previous.map((message) =>
-          message.id === draftAssistantId
-            ? {
-                ...message,
-                content: `${message.content}${chunk.delta}`,
-              }
-            : message,
-        ),
-      );
-      return;
-    }
-
     appendBackendEvent(chunk.event);
-
-    if (chunk.event.event_type === "message.completed") {
-      const completedMessageId = typeof chunk.event.payload.message_id === "string" ? chunk.event.payload.message_id : draftAssistantId;
-      setMessages((previous) =>
-        previous.map((message) =>
-          message.id === draftAssistantId
-            ? {
-                ...message,
-                id: completedMessageId,
-                status: "complete",
-              }
-            : message,
-        ),
-      );
-      return;
-    }
-
-    if (chunk.event.event_type === "run.failed") {
-      const message = typeof chunk.event.payload.message === "string" ? chunk.event.payload.message : "Agent runtime failed.";
-      setMessages((previous) =>
-        previous.map((item) =>
-          item.id === draftAssistantId
-            ? {
-                ...item,
-                content: item.content || message,
-                status: "complete",
-              }
-            : item,
-        ),
-      );
-    }
+    setMessages((previous) => applyAgentEventToAssistantMessage(previous, draftAssistantId, chunk.event));
   };
 
   const onSend = async (text: string, files: File[]) => {

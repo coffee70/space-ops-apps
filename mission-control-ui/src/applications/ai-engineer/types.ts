@@ -1,15 +1,17 @@
-export interface ChatEvent {
+export interface AgentEvent {
   id: string;
   event_type: string;
-  conversation_id: string;
+  conversation_id: string | null;
   agent_run_id: string;
   request_id: string;
-  tool_call_id?: string | null;
+  tool_call_id: string | null;
   sequence: number;
   emitted_by: string;
   payload: Record<string, unknown>;
   created_at: string;
 }
+
+export type ChatEvent = AgentEvent;
 
 export interface ChatMessage {
   id: string;
@@ -21,21 +23,10 @@ export interface ChatMessage {
 
 export interface ChatEventChunk {
   kind: "event";
-  event: ChatEvent;
+  event: AgentEvent;
 }
 
-export interface ChatMessageDeltaChunk {
-  kind: "message.delta";
-  conversation_id: string;
-  agent_run_id: string;
-  request_id: string;
-  message_id: string | null;
-  sequence: number;
-  delta: string;
-  created_at: string;
-}
-
-export type ChatStreamChunk = ChatEventChunk | ChatMessageDeltaChunk;
+export type ChatStreamChunk = ChatEventChunk;
 
 export interface AttachmentStatus {
   fileName: string;

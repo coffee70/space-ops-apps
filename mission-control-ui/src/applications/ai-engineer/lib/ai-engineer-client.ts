@@ -1,4 +1,5 @@
 import type { AttachmentStatus, ChatStreamChunk } from "@/applications/ai-engineer/types";
+import { chunkFromEvent, normalizeStreamLine } from "@/applications/ai-engineer/lib/agent-events";
 
 export async function createConversation(payload: { title?: string; mission_id?: string; vehicle_id?: string; execution_mode?: string }) {
   const response = await fetch("/intelligence/agent/agent/conversations", {
@@ -61,7 +62,7 @@ export async function sendChatMessage(params: {
       const line = buffer.slice(0, newlineIndex).trim();
       buffer = buffer.slice(newlineIndex + 1);
       if (line.length > 0) {
-        params.onChunk(JSON.parse(line) as ChatStreamChunk);
+        params.onChunk(chunkFromEvent(normalizeStreamLine(line)));
       }
       newlineIndex = buffer.indexOf("\n");
     }
@@ -69,7 +70,7 @@ export async function sendChatMessage(params: {
 
   const trailing = buffer.trim();
   if (trailing.length > 0) {
-    params.onChunk(JSON.parse(trailing) as ChatStreamChunk);
+    params.onChunk(chunkFromEvent(normalizeStreamLine(trailing)));
   }
 
   return {
