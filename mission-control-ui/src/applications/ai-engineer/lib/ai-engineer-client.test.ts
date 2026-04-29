@@ -31,7 +31,7 @@ test("ai-engineer client uses runtime conversation/chat routes only", async () =
     globalThis.fetch = originalFetch;
   }
 
-  assert.ok(urls.every((url) => url.startsWith("/intelligence/agent/agent/")));
+  assert.ok(urls.every((url) => url.startsWith("/intelligence/agent/")));
   assert.equal(urls.some((url) => url.includes("/tool-execution")), false);
   assert.equal(urls.some((url) => url.includes("/internal/runtime-services/tool-execution-service")), false);
 });

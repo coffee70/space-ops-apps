@@ -15,7 +15,7 @@ test("AI Engineer can send a chat message through the live stack", async ({ page
     browserErrors.push(`pageerror:${error.message}`);
   });
 
-  const createResponse = await page.request.post(`${baseUrl}/intelligence/agent/agent/conversations`, {
+  const createResponse = await page.request.post(`${baseUrl}/intelligence/agent/conversations`, {
     data: {
       title: `AI Engineer Playwright ${Date.now()}`,
       execution_mode: "read_only",
@@ -39,7 +39,7 @@ test("AI Engineer can send a chat message through the live stack", async ({ page
 
   await expect
     .poll(async () => {
-      const response = await page.request.get(`${baseUrl}/intelligence/agent/agent/conversations/${conversationId}`);
+      const response = await page.request.get(`${baseUrl}/intelligence/agent/conversations/${conversationId}`);
       if (!response.ok()) {
         return { ok: false, messageCount: -1, lastRole: null, lastContentLength: 0 };
       }
@@ -61,7 +61,7 @@ test("AI Engineer can send a chat message through the live stack", async ({ page
 
   await expect
     .poll(async () => {
-      const response = await page.request.get(`${baseUrl}/intelligence/agent/agent/conversations/${conversationId}`);
+      const response = await page.request.get(`${baseUrl}/intelligence/agent/conversations/${conversationId}`);
       if (!response.ok()) {
         return 0;
       }
@@ -72,7 +72,7 @@ test("AI Engineer can send a chat message through the live stack", async ({ page
     }, { timeout: 30_000 })
     .toBeGreaterThan(0);
 
-  const detailResponse = await page.request.get(`${baseUrl}/intelligence/agent/agent/conversations/${conversationId}`);
+  const detailResponse = await page.request.get(`${baseUrl}/intelligence/agent/conversations/${conversationId}`);
   expect(detailResponse.ok()).toBeTruthy();
   const detail = await detailResponse.json();
   expect(detail.messages).toHaveLength(2);

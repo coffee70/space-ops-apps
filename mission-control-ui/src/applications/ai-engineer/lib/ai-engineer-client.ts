@@ -2,10 +2,10 @@ import type { AttachmentStatus, ChatStreamChunk } from "@/applications/ai-engine
 import { chunkFromEvent, normalizeStreamLine } from "@/applications/ai-engineer/lib/agent-events";
 
 const ROUTES = {
-  createConversation: "/intelligence/agent/agent/conversations",
-  listConversations: "/intelligence/agent/agent/conversations",
-  getConversation: (conversationId: string) => `/intelligence/agent/agent/conversations/${conversationId}`,
-  chat: "/intelligence/agent/agent/chat",
+  createConversation: "/intelligence/agent/conversations",
+  listConversations: "/intelligence/agent/conversations",
+  getConversation: (conversationId: string) => `/intelligence/agent/conversations/${conversationId}`,
+  chat: "/intelligence/agent/chat",
   uploadDocument: "/intelligence/documents/documents",
 } as const;
 
