@@ -7,7 +7,7 @@ import { AttachmentUploadStatus } from "@/applications/ai-engineer/components/at
 import { ChatPanel } from "@/applications/ai-engineer/components/chat-panel";
 import { applyAgentEventToAssistantMessage } from "@/applications/ai-engineer/lib/agent-events";
 import { createConversation, getConversation, listConversations, sendChatMessage, uploadDocument } from "@/applications/ai-engineer/lib/ai-engineer-client";
-import type { AttachmentStatus, ChatEvent, ChatMessage, ChatStreamChunk } from "@/applications/ai-engineer/types";
+import type { AttachmentStatus, ChatEvent, ChatMessage, ChatStreamChunk, ExecutionMode } from "@/applications/ai-engineer/types";
 import type { NativeApplicationProps } from "@/platform/sdk/native-application-contract";
 
 export function AiEngineerApp(props: NativeApplicationProps) {
@@ -15,6 +15,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [events, setEvents] = useState<ChatEvent[]>([]);
   const [attachments, setAttachments] = useState<AttachmentStatus[]>([]);
+  const [executionMode, setExecutionMode] = useState<ExecutionMode>("read_only");
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -75,7 +76,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       await sendChatMessage({
         conversationId,
         message: text,
-        executionMode: "read_only",
+        executionMode,
         onChunk: (chunk) => applyStreamChunk(assistantDraftId, chunk),
       });
     } catch (error) {
@@ -100,7 +101,13 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_320px]">
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">{title}</h2>
-        <ChatPanel messages={messages} attachments={attachments} onSend={onSend} />
+        <ChatPanel
+          messages={messages}
+          attachments={attachments}
+          onSend={onSend}
+          executionMode={executionMode}
+          onExecutionModeChange={setExecutionMode}
+        />
       </div>
       <div className="space-y-3">
         <ActionTimeline events={events} />

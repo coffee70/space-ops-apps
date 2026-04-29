@@ -15,7 +15,7 @@ export type ChatEvent = AgentEvent;
 
 export interface ChatMessage {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "tool";
   content: string;
   status?: "streaming" | "complete";
   createdAt?: string;
@@ -34,3 +34,5 @@ export interface AttachmentStatus {
   documentId?: string;
   message?: string;
 }
+
+export type ExecutionMode = "read_only" | "suggest" | "execute";
