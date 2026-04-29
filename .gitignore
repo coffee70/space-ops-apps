@@ -15,3 +15,5 @@ tools/playwright/node_modules/
 services/*/dist/
 services/*/build/
 tmp/
+tools/test-results/
+tools/playwright-report/
