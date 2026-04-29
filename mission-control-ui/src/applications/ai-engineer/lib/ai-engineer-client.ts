@@ -1,8 +1,16 @@
 import type { AttachmentStatus, ChatStreamChunk } from "@/applications/ai-engineer/types";
 import { chunkFromEvent, normalizeStreamLine } from "@/applications/ai-engineer/lib/agent-events";
 
+const ROUTES = {
+  createConversation: "/intelligence/agent/agent/conversations",
+  listConversations: "/intelligence/agent/agent/conversations",
+  getConversation: (conversationId: string) => `/intelligence/agent/agent/conversations/${conversationId}`,
+  chat: "/intelligence/agent/agent/chat",
+  uploadDocument: "/intelligence/documents/documents",
+} as const;
+
 export async function createConversation(payload: { title?: string; mission_id?: string; vehicle_id?: string; execution_mode?: string }) {
-  const response = await fetch("/intelligence/agent/agent/conversations", {
+  const response = await fetch(ROUTES.createConversation, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -12,13 +20,13 @@ export async function createConversation(payload: { title?: string; mission_id?:
 }
 
 export async function listConversations() {
-  const response = await fetch("/intelligence/agent/agent/conversations");
+  const response = await fetch(ROUTES.listConversations);
   if (!response.ok) throw new Error("Failed to list conversations");
   return response.json();
 }
 
 export async function getConversation(conversationId: string) {
-  const response = await fetch(`/intelligence/agent/agent/conversations/${conversationId}`);
+  const response = await fetch(ROUTES.getConversation(conversationId));
   if (!response.ok) throw new Error("Failed to load conversation");
   return response.json();
 }
@@ -29,7 +37,7 @@ export async function sendChatMessage(params: {
   executionMode?: string;
   onChunk: (chunk: ChatStreamChunk) => void;
 }) {
-  const response = await fetch("/intelligence/agent/agent/chat", {
+  const response = await fetch(ROUTES.chat, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -101,7 +109,7 @@ export async function uploadDocument(params: {
   if (params.description) formData.set("description", params.description);
   if (params.conversationId) formData.set("conversation_id", params.conversationId);
 
-  const response = await fetch("/intelligence/documents/documents", {
+  const response = await fetch(ROUTES.uploadDocument, {
     method: "POST",
     body: formData,
   });
