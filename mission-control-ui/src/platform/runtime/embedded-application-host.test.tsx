@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { EmbeddedApplicationHost } from "./EmbeddedApplicationHost";
+import { EmbeddedApplicationHost } from "./embedded-application-host";
 import type { PlatformApplicationDefinition } from "../registry/application-types";
 
 function buildEmbeddedApplication(

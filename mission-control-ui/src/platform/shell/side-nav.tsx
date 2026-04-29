@@ -22,7 +22,7 @@ import {
   extractCurrentApplicationId,
 } from "@/platform/registry/application-routes";
 import type { PlatformApplicationDefinition } from "@/platform/registry/application-types";
-import { ApplicationsLauncher } from "@/platform/shell/ApplicationsLauncher";
+import { ApplicationsLauncher } from "@/platform/shell/applications-launcher";
 import { resolveApplicationIcon } from "@/platform/shell/application-icons";
 import { cn } from "@/lib/utils";
 

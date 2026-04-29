@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { AppProviders } from "@/components/app-providers";
 import { KeyboardShortcutsHandler } from "@/components/keyboard-shortcuts-handler";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { PlatformShell } from "@/platform/shell/PlatformShell";
+import { PlatformShell } from "@/platform/shell/platform-shell";
 import "./globals.css";
 
 const geistSans = Geist({

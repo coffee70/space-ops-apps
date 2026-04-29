@@ -18,13 +18,13 @@ export function ChatPanel({ messages, attachments, onSend }: ChatPanelProps) {
   const acceptHint = useMemo(() => "Attach mission/vehicle docs (md, txt, json, yaml, csv)", []);
 
   return (
-    <section className="flex min-h-[560px] flex-col rounded-md border border-border bg-card p-3">
+    <section className="border-border bg-card flex min-h-[560px] flex-col rounded-md border p-3">
       <div className="mb-3 flex-1 space-y-2 overflow-auto text-sm">
         {messages.length === 0 ? <p className="text-muted-foreground">Start a conversation with the AI Engineer.</p> : null}
         {messages.map((message) => (
-          <div key={message.id} className="rounded border border-border p-2">
-            <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">{message.role}</div>
-            <p className="whitespace-pre-wrap">{message.content}</p>
+          <div key={message.id} className="border-border rounded border p-2">
+            <div className="text-muted-foreground mb-1 text-xs font-semibold uppercase">{message.role}</div>
+            <p className="whitespace-pre-wrap">{message.content || (message.status === "streaming" ? "Thinking..." : "")}</p>
           </div>
         ))}
       </div>
@@ -47,10 +47,10 @@ export function ChatPanel({ messages, attachments, onSend }: ChatPanelProps) {
         <textarea
           value={text}
           onChange={(event) => setText(event.target.value)}
-          className="min-h-24 w-full rounded border border-border bg-background p-2 text-sm"
+          className="border-border bg-background min-h-24 w-full rounded border p-2 text-sm"
           placeholder="Describe the capability you want to create or inspect..."
         />
-        <label className="block text-xs text-muted-foreground">
+        <label className="text-muted-foreground block text-xs">
           {acceptHint}
           <input
             type="file"
@@ -62,16 +62,16 @@ export function ChatPanel({ messages, attachments, onSend }: ChatPanelProps) {
         {files.length > 0 ? (
           <div className="space-y-1 text-xs">
             {files.map((file) => (
-              <div key={`${file.name}-${file.lastModified}`} className="rounded border border-border px-2 py-1">
+              <div key={`${file.name}-${file.lastModified}`} className="border-border rounded border px-2 py-1">
                 {file.name}
               </div>
             ))}
           </div>
         ) : null}
-        {attachments.length > 0 ? <p className="text-xs text-muted-foreground">Uploaded: {attachments.length} document(s)</p> : null}
+        {attachments.length > 0 ? <p className="text-muted-foreground text-xs">Uploaded: {attachments.length} document(s)</p> : null}
         <button
           type="submit"
-          className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
+          className="bg-primary text-primary-foreground rounded px-3 py-1.5 text-sm disabled:opacity-50"
           disabled={isSending}
         >
           {isSending ? "Sending..." : "Send"}
