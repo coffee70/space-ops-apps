@@ -6,7 +6,7 @@ const ROUTES = {
   listConversations: "/intelligence/agent/conversations",
   getConversation: (conversationId: string) => `/intelligence/agent/conversations/${conversationId}`,
   chat: "/intelligence/agent/chat",
-  uploadDocument: "/intelligence/documents/documents",
+  uploadDocument: "/intelligence/documents",
 } as const;
 
 export async function createConversation(payload: { title?: string; mission_id?: string; vehicle_id?: string; execution_mode?: string }) {
