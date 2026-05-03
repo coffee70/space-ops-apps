@@ -4,6 +4,16 @@ import test from "node:test";
 import { createConversation, getConversation, listConversations, sendChatMessage, uploadDocument } from "./ai-engineer-client";
 
 test("ai-engineer client uses clean gateway routes for agent, chat, and document upload", async () => {
+  const FileCtor =
+    globalThis.File ??
+    class extends Blob {
+      readonly name: string;
+
+      constructor(parts: BlobPart[], name: string, options?: FilePropertyBag) {
+        super(parts, options);
+        this.name = name;
+      }
+    };
   const urls: string[] = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (input: string | URL | Request) => {
@@ -27,7 +37,7 @@ test("ai-engineer client uses clean gateway routes for agent, chat, and document
       message: "hello",
       onChunk: () => {},
     });
-    const file = new File(["hello"], "note.txt", { type: "text/plain" });
+    const file = new FileCtor(["hello"], "note.txt", { type: "text/plain" });
     await uploadDocument({ file });
   } finally {
     globalThis.fetch = originalFetch;

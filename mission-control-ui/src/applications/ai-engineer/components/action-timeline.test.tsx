@@ -38,3 +38,20 @@ test("ActionTimeline renders events grouped by run, ordered by sequence, and cor
   assert.ok(markup.indexOf("2. tool.started") < markup.indexOf("3. tool.completed"));
   assert.match(markup, /Tools: tool-1 completed/);
 });
+
+test("ActionTimeline renders document, code, and navigation lifecycle events in the same run", () => {
+  const markup = renderToStaticMarkup(
+    <ActionTimeline
+      events={[
+        buildEvent({ id: "e1", event_type: "document.ingestion_completed", sequence: 1, emitted_by: "document-knowledge-service", payload: { document_id: "doc-1", chunk_count: 1, embedding_model: "fixture", duration_ms: 0 } }),
+        buildEvent({ id: "e2", event_type: "code.index_completed", sequence: 2, emitted_by: "code-intelligence-service", payload: { repository: "phase3-test-fixture-service", branch: "main", commit_sha: "abc1234", file_count: 1, chunk_count: 1, duration_ms: 0 } }),
+        buildEvent({ id: "e3", event_type: "navigation.requested", sequence: 3, emitted_by: "tool-execution-service", tool_call_id: "tool-nav-1", payload: { action: "navigate_to_application", application_id: "ai-engineer", route_path: "/apps/ai-engineer" } }),
+      ]}
+    />,
+  );
+
+  assert.match(markup, /document.ingestion_completed/);
+  assert.match(markup, /code.index_completed/);
+  assert.match(markup, /navigation.requested/);
+  assert.match(markup, /tool-nav/);
+});
