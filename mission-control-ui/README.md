@@ -1,38 +1,50 @@
-## Telemetry Operations Frontend
+# Mission Control UI (Telemetry Operations Frontend)
 
-This package contains the **Next.js dashboard** for the Telemetry Operations Platform. It provides mission operators with:
+Next.js operator surface for the Space Ops split stack: overview, watchlists, anomalies, live status, integrated search, channel detail, simulator controls, embedded applications, and related workflows.
 
-- **Overview dashboard** for watchlists, anomalies, and live status
-- **Overview-integrated semantic search** and **channel detail** pages with trends, z-scores, and AI explanations
-- **Simulator controls** and other workflows that sit on top of the backend telemetry API
+## Read this with the split checkout
 
-For an end-to-end description of what the full application does, see the root `README.md` and the user guide in `frontend/content/user-guide`.
+Mission Control is one piece of **three siblings** (`space-ops-kernel`, `space-ops-platform`, `space-ops-apps`). Prefer the **parent** docs for full-stack test instructions:
 
-## Running the frontend in development
+| Audience | Start here |
+|----------|------------|
+| Layer 3 apps + Browser tests | [`../README.md`](../README.md), [`../AGENTS.md`](../AGENTS.md) |
+| Compose + `validate-node.sh` / `validate-playwright.sh` | [`../../space-ops-kernel/README.md`](../../space-ops-kernel/README.md) |
+| Backend / platform pytest | [`../../space-ops-platform/README.md`](../../space-ops-platform/README.md) |
 
-From the `frontend/` directory:
+## Development (this package)
+
+From **`space-ops-apps/mission-control-ui/`**:
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
-Then open `http://localhost:3000` in your browser.
+Open `http://localhost:3000`. By default browser calls use `NEXT_PUBLIC_API_URL` (see `.env` / shell). Server-side fetches use **`API_SERVER_URL`** when running outside Compose.
 
-By default the app expects the backend API at `http://localhost:8000`. You can override this with the `NEXT_PUBLIC_API_URL` environment variable.
-
-**Docker:** that value is read at **`next build`** time in the image. To point the browser at a different API host (e.g. LAN IP), rebuild the frontend image with a build arg — see the troubleshooting note in the root `README.md` after “Start services”.
-
-> When running the full stack with Docker, prefer the root-level instructions in `../README.md`, which start all services (database, backend, frontend, simulator) together.
-
-## Browser Validation
-
-Use the shared Playwright workspace at `../tools/playwright` for browser testing and smoke checks instead of creating a frontend-local or `.cursor` Playwright install.
-
-Application loader entries are generated. Use `npm run check:application-loaders` to verify the committed manifest is current, and `npm run generate:application-loaders` to refresh it.
-
-From the workspace root:
+**Quality gate (host):**
 
 ```bash
-./space-ops-kernel/scripts/validate-playwright.sh smoke
+npm run validate       # loaders + eslint + tsc + runtime tests
 ```
+
+**Quality gate (recommended for agents / CI parity):** same work runs inside the kernel’s Linux Node Docker image — reproducible native toolchain:
+
+```bash
+../../space-ops-kernel/scripts/validate-node.sh
+```
+
+## Docker / Compose
+
+`NEXT_PUBLIC_*` values are fixed at **`next build`** time in the image. For the full stack or Playwright on the Compose network, follow kernel + Playwright README rebuild notes so the browser resolves `platform-api`, `control-plane`, etc.
+
+## Browser / Playwright validation
+
+Do **not** add a second Playwright install here. Use **`space-ops-apps/tools/playwright`** driven by the kernel script:
+
+```bash
+../../space-ops-kernel/scripts/validate-playwright.sh smoke
+```
+
+Application loader manifests are generated — `npm run check:application-loaders` (or `generate:application-loaders`) per `package.json`.
