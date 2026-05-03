@@ -25,7 +25,7 @@ test("AI Engineer can send a chat message through the live stack", async ({ page
   const createdConversation = await createResponse.json();
   const conversationId = String(createdConversation.id);
 
-  await page.goto(appUrl("ai-engineer"));
+  await page.goto(appUrl("ai-engineer", [], { conversation_id: conversationId }));
 
   await expect(page.getByRole("heading", { name: "AI Engineer" })).toBeVisible();
   await expect(page.getByText("Action Timeline")).toBeVisible();
@@ -80,7 +80,7 @@ test("AI Engineer can send a chat message through the live stack", async ({ page
   expect(detail.messages[1].role).toBe("assistant");
   expect(String(detail.messages[1].content).trim().length).toBeGreaterThan(0);
 
-  await expect(page.getByText(String(detail.messages[1].content).trim().slice(0, 60))).toBeVisible();
+  await expect(page.getByText(String(detail.messages[1].content).trim().slice(0, 60)).first()).toBeVisible();
   await expect(page.getByText("No events yet.")).toHaveCount(0);
 
   expect(browserErrors).toEqual([]);

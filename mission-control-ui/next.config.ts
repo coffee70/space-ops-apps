@@ -47,6 +47,14 @@ const nextConfig: NextConfig = {
         destination: `${controlPlaneServerUrl}/registry/applications/:applicationId`,
       },
       {
+        source: "/registry/services",
+        destination: `${controlPlaneServerUrl}/registry/services`,
+      },
+      {
+        source: "/registry/services/:serviceSlug",
+        destination: `${controlPlaneServerUrl}/registry/services/:serviceSlug`,
+      },
+      {
         source: "/_embedded/workspace",
         destination: `${workspaceServerUrl}/workspace`,
       },
@@ -61,6 +69,10 @@ const nextConfig: NextConfig = {
       {
         source: "/runtime-applications/:applicationId/:path*",
         destination: `${controlPlaneServerUrl}/runtime-applications/:applicationId/:path*`,
+      },
+      {
+        source: "/internal/runtime-services/:serviceSlug/:path*",
+        destination: `${controlPlaneServerUrl}/internal/runtime-services/:serviceSlug/:path*`,
       },
       {
         source: "/intelligence/:path*",

@@ -35,15 +35,17 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers upload, read tools, d
     },
   });
   expect(createResponse.ok()).toBeTruthy();
+  const createdConversation = await createResponse.json();
+  const conversationId = String(createdConversation.id);
 
-  await page.goto(appUrl("ai-engineer"));
+  await page.goto(appUrl("ai-engineer", [], { conversation_id: conversationId }));
 
   await expect(page.getByRole("heading", { name: "AI Engineer" })).toBeVisible();
   await page.locator("#execution-mode").selectOption("execute");
 
   await page.locator('input[type="file"]').setInputFiles(fixtureDocumentPath);
-  await expect(page.getByText("battery_efficiency_notes.md")).toBeVisible();
-  await expect(page.getByText("ready")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("battery_efficiency_notes.md").first()).toBeVisible();
+  await expect(page.getByText("ready").first()).toBeVisible({ timeout: 30_000 });
 
   await page.locator("textarea").fill("[scripted:scripted_read_tools] Validate deterministic read tools.");
   await page.getByRole("button", { name: "Send" }).click();
@@ -97,7 +99,7 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers upload, read tools, d
     }, { timeout: 30_000 })
     .toBe(404);
 
-  await expect(page.getByText("tool.started")).toBeVisible();
-  await expect(page.getByText("tool.completed")).toBeVisible();
+  await expect(page.getByText("tool.started").first()).toBeVisible();
+  await expect(page.getByText("tool.completed").first()).toBeVisible();
   expect(browserErrors).toEqual([]);
 });

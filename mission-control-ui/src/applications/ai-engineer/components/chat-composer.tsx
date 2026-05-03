@@ -9,11 +9,13 @@ import type { ExecutionMode } from "@/applications/ai-engineer/types";
 interface ChatComposerProps {
   uploadedCount: number;
   onSend: (message: string, files: File[]) => Promise<void>;
+  onFilesSelected?: (files: File[]) => Promise<void>;
   executionMode: ExecutionMode;
   onExecutionModeChange: (mode: ExecutionMode) => void;
+  disabled?: boolean;
 }
 
-export function ChatComposer({ uploadedCount, onSend, executionMode, onExecutionModeChange }: ChatComposerProps) {
+export function ChatComposer({ uploadedCount, onSend, onFilesSelected, executionMode, onExecutionModeChange, disabled = false }: ChatComposerProps) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [isSending, setIsSending] = useState(false);
@@ -26,7 +28,7 @@ export function ChatComposer({ uploadedCount, onSend, executionMode, onExecution
         if (!text.trim() && files.length === 0) return;
         setIsSending(true);
         try {
-          await onSend(text, files);
+          await onSend(text, []);
           setText("");
           setFiles([]);
         } finally {
@@ -55,7 +57,14 @@ export function ChatComposer({ uploadedCount, onSend, executionMode, onExecution
           <option value="execute">Execute</option>
         </select>
       </div>
-      <AttachmentPicker onSelect={setFiles} />
+      <AttachmentPicker
+        onSelect={(selectedFiles) => {
+          setFiles(selectedFiles);
+          if (selectedFiles.length > 0) {
+            void onFilesSelected?.(selectedFiles);
+          }
+        }}
+      />
       <AttachmentPreview
         files={files}
         onRemove={(index) => {
@@ -66,9 +75,9 @@ export function ChatComposer({ uploadedCount, onSend, executionMode, onExecution
       <button
         type="submit"
         className="bg-primary text-primary-foreground rounded px-3 py-1.5 text-sm disabled:opacity-50"
-        disabled={isSending}
+        disabled={isSending || disabled}
       >
-        {isSending ? "Sending..." : "Send"}
+        {isSending ? "Sending..." : disabled ? "Preparing..." : "Send"}
       </button>
     </form>
   );

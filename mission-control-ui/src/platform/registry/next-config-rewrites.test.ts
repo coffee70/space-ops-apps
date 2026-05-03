@@ -6,17 +6,18 @@ import test from "node:test";
 const projectRoot = process.cwd();
 const configSource = readFileSync(join(process.cwd(), "next.config.ts"), "utf8");
 
-test("next config rewrites expose only application registry routes", () => {
+test("next config rewrites expose application and managed service registry routes", () => {
   assert.match(configSource, /source:\s*"\/registry\/applications"/);
   assert.match(configSource, /source:\s*"\/registry\/applications\/:applicationId"/);
+  assert.match(configSource, /source:\s*"\/registry\/services"/);
+  assert.match(configSource, /source:\s*"\/registry\/services\/:serviceSlug"/);
   assert.doesNotMatch(configSource, /source:\s*"\/registry\/:path\*"/);
-  assert.doesNotMatch(configSource, /source:\s*"\/registry\/services/);
   assert.doesNotMatch(configSource, /source:\s*"\/registry\/units/);
 });
 
-test("next config rewrites do not expose internal runtime services", () => {
+test("next config rewrites expose only managed runtime service proxy routes", () => {
   assert.doesNotMatch(configSource, /source:\s*"\/internal\/:path\*"/);
-  assert.doesNotMatch(configSource, /source:\s*"\/internal\/runtime-services/);
+  assert.match(configSource, /source:\s*"\/internal\/runtime-services\/:serviceSlug\/:path\*"/);
 });
 
 test("next config rewrites keep workspace on the internal transport path only", () => {
