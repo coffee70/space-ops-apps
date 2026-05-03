@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { appUrl } from "./support/application-routes";
 
-const controlPlaneBaseUrl = "http://127.0.0.1:8100";
+const controlPlaneBaseUrl = "http://control-plane:8100";
 const disabledApplicationId = "embedded-demo";
 
 test.afterEach(async ({ request }) => {

@@ -31,10 +31,8 @@ Use the shared Playwright workspace at `../tools/playwright` for browser testing
 
 Application loader entries are generated. Use `npm run check:application-loaders` to verify the committed manifest is current, and `npm run generate:application-loaders` to refresh it.
 
-From the repo root:
+From the workspace root:
 
 ```bash
-npm --prefix tools/playwright install
-npm --prefix tools/playwright run install:chromium
-npm --prefix tools/playwright run test:smoke
+./space-ops-kernel/scripts/validate-playwright.sh smoke
 ```

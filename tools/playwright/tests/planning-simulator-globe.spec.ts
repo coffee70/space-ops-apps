@@ -1,7 +1,7 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { appUrl } from "./support/application-routes";
 
-const API_URL = process.env.PLAYWRIGHT_API_URL || "http://127.0.0.1:8000";
+const API_URL = process.env.PLAYWRIGHT_API_URL || "http://platform-api:8000";
 
 test.describe.configure({ mode: "serial" });
 test.setTimeout(150_000);

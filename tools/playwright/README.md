@@ -10,11 +10,20 @@ This workspace is the repo-owned home for browser automation and smoke tests.
 
 ## Canonical Commands
 
-From the repo root:
+From the workspace root:
 
 ```bash
-npm --prefix tools/playwright install
-npm --prefix tools/playwright run install:chromium
+./space-ops-kernel/scripts/validate-playwright.sh test
+./space-ops-kernel/scripts/validate-playwright.sh smoke
+./space-ops-kernel/scripts/validate-playwright.sh phase3-no-llm
+```
+
+Before running the containerized Playwright runner against the kernel stack, make sure `mission-control-ui` is built with internal service URLs that resolve on the Compose network:
+
+```bash
+NEXT_PUBLIC_API_URL=http://platform-api:8000 \
+NEXT_PUBLIC_CONTROL_PLANE_URL=http://control-plane:8100 \
+docker compose -f space-ops-kernel/docker-compose.yml up -d --build mission-control-ui
 ```
 
 Open the local frontend in a real browser:
@@ -29,7 +38,7 @@ Generate browser interactions against the local frontend:
 npm --prefix tools/playwright run codegen:local
 ```
 
-Run the shared smoke test:
+Run the shared smoke test directly in the workspace when needed:
 
 ```bash
 npm --prefix tools/playwright run test:smoke
@@ -43,9 +52,11 @@ npm --prefix tools/playwright run test:smoke:headed
 
 ## Runtime Defaults
 
-- Base URL: `http://127.0.0.1:3000`
+- Base URL: `http://mission-control-ui:3000`
+- API URL: `http://platform-api:8000`
 - Primary smoke route: `/overview`
-- Override the base URL with `PLAYWRIGHT_BASE_URL` when needed
+- Default Docker network: `space-ops-kernel_default`
+- Override only `PLAYWRIGHT_BASE_URL`, `PLAYWRIGHT_API_URL`, and `PLAYWRIGHT_DOCKER_NETWORK` when needed
 
 ## Artifacts
 

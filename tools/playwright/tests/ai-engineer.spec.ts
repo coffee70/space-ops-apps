@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { appUrl } from "./support/application-routes";
 
-const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:3000";
+const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://mission-control-ui:3000";
 
 test("AI Engineer can send a chat message through the live stack", async ({ page }) => {
   const browserErrors: string[] = [];

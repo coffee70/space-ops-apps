@@ -60,12 +60,10 @@ PYTHONPATH=..:. VEHICLE_CONFIG_ROOT=../vehicle-configurations python -m satnogs_
 
 ## Playwright
 
-Run against a kernel-started stack:
+Run against a kernel-started stack with the kernel validation runner:
 
 ```bash
-npm --prefix tools/playwright install
-npm --prefix tools/playwright run install:chromium
-npm --prefix tools/playwright run test:smoke
+./space-ops-kernel/scripts/validate-playwright.sh smoke
 ```
 
 ## Helper Scripts
