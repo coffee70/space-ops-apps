@@ -2,9 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { ActionTimeline } from "@/applications/ai-engineer/components/action-timeline";
-import { AttachmentUploadStatus } from "@/applications/ai-engineer/components/attachment-upload-status";
-import { ChatPanel } from "@/applications/ai-engineer/components/chat-panel";
+import { AiEngineerShell } from "@/applications/ai-engineer/components/ai-engineer-shell";
 import { applyAgentEventToAssistantMessage } from "@/applications/ai-engineer/lib/agent-events";
 import { createConversation, getConversation, listConversations, sendChatMessage, uploadDocument } from "@/applications/ai-engineer/lib/ai-engineer-client";
 import type { AttachmentStatus, ChatEvent, ChatMessage, ChatStreamChunk, ExecutionMode } from "@/applications/ai-engineer/types";
@@ -23,6 +21,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const [attachments, setAttachments] = useState<AttachmentStatus[]>([]);
   const [executionMode, setExecutionMode] = useState<ExecutionMode>("read_only");
   const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const [isStreaming, setIsStreaming] = useState(false);
   const conversationIdRef = useRef<string | null>(null);
   const conversationPromiseRef = useRef<Promise<string> | null>(null);
 
@@ -90,18 +89,22 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     });
   }, [ensureConversation]);
 
-  const uploadFiles = async (files: File[]) => {
-    const activeConversationId = await ensureConversation();
+  const uploadFiles = async (files: File[], activeConversationId: string) => {
     for (const file of files) {
-      setAttachments((prev) => {
-        const withoutPendingDuplicate = prev.filter((attachment) => !(attachment.fileName === file.name && attachment.status === "uploading"));
-        return [...withoutPendingDuplicate, { fileName: file.name, status: "uploading" }];
-      });
-      const result = await uploadDocument({
-        file,
-        conversationId: activeConversationId,
-      });
-      setAttachments((prev) => prev.map((attachment) => (attachment.fileName === file.name && attachment.status === "uploading" ? result : attachment)));
+      const localAttachmentId = createClientId();
+      setAttachments((prev) => [...prev, { id: localAttachmentId, fileName: file.name, status: "uploading" }]);
+      try {
+        const result = await uploadDocument({
+          file,
+          conversationId: activeConversationId,
+        });
+        setAttachments((prev) => prev.map((attachment) => (attachment.id === localAttachmentId ? { ...result, id: localAttachmentId } : attachment)));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Upload failed";
+        setAttachments((prev) =>
+          prev.map((attachment) => (attachment.id === localAttachmentId ? { ...attachment, status: "failed", message } : attachment)),
+        );
+      }
     }
   };
 
@@ -119,24 +122,42 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   };
 
   const onSend = async (text: string, files: File[]) => {
-    const shouldSendChat = text.trim().length > 0;
-    const userMessage: ChatMessage = { id: createClientId(), role: "user", content: text || "[attachment upload]", status: "complete" };
+    const trimmed = text.trim();
+    const hasText = trimmed.length > 0;
+    const hasFiles = files.length > 0;
+
+    if (!hasText && !hasFiles) return;
+
+    const activeConversationId = await ensureConversation();
+    const userMessage: ChatMessage = {
+      id: createClientId(),
+      role: "user",
+      content: hasText ? trimmed : "Uploaded mission document(s)",
+      status: "complete",
+      attachments: files.map((file) => ({
+        id: createClientId(),
+        fileName: file.name,
+        size: file.size,
+        mimeType: file.type,
+        status: "pending",
+      })),
+    };
     const assistantDraftId = createClientId();
     setMessages((prev) =>
-      shouldSendChat ? [...prev, userMessage, { id: assistantDraftId, role: "assistant", content: "", status: "streaming" }] : [...prev, userMessage],
+      hasText ? [...prev, userMessage, { id: assistantDraftId, role: "assistant", content: "", status: "streaming" }] : [...prev, userMessage],
     );
 
-    if (files.length > 0) {
-      await uploadFiles(files);
+    if (hasFiles) {
+      await uploadFiles(files, activeConversationId);
     }
 
-    if (!shouldSendChat) return;
-    const activeConversationId = await ensureConversation();
+    if (!hasText) return;
 
     try {
+      setIsStreaming(true);
       await sendChatMessage({
         conversationId: activeConversationId,
-        message: text,
+        message: trimmed,
         executionMode,
         onChunk: (chunk) => applyStreamChunk(assistantDraftId, chunk),
       });
@@ -153,29 +174,25 @@ export function AiEngineerApp(props: NativeApplicationProps) {
             : item,
         ),
       );
+    } finally {
+      setIsStreaming(false);
     }
   };
 
   const title = useMemo(() => props.application.title ?? "AI Engineer", [props.application.title]);
 
   return (
-    <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_320px]">
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <ChatPanel
-          messages={messages}
-          attachments={attachments}
-          onSend={onSend}
-          onFilesSelected={uploadFiles}
-          executionMode={executionMode}
-          onExecutionModeChange={setExecutionMode}
-          disabled={isBootstrapping}
-        />
-      </div>
-      <div className="space-y-3">
-        <ActionTimeline events={events} />
-        <AttachmentUploadStatus attachments={attachments} />
-      </div>
-    </div>
+    <AiEngineerShell
+      title={title}
+      messages={messages}
+      events={events}
+      attachments={attachments}
+      executionMode={executionMode}
+      onExecutionModeChange={setExecutionMode}
+      onSend={onSend}
+      disabled={isBootstrapping}
+      isBootstrapping={isBootstrapping}
+      isStreaming={isStreaming}
+    />
   );
 }

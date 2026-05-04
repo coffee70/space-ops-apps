@@ -13,12 +13,22 @@ export interface AgentEvent {
 
 export type ChatEvent = AgentEvent;
 
+export interface ChatMessageAttachment {
+  id: string;
+  fileName: string;
+  size?: number;
+  mimeType?: string;
+  status?: "pending" | "uploading" | "ready" | "failed";
+  documentId?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "tool";
   content: string;
   status?: "streaming" | "complete";
   createdAt?: string;
+  attachments?: ChatMessageAttachment[];
 }
 
 export interface ChatEventChunk {
@@ -29,6 +39,7 @@ export interface ChatEventChunk {
 export type ChatStreamChunk = ChatEventChunk;
 
 export interface AttachmentStatus {
+  id?: string;
   fileName: string;
   status: "uploading" | "ready" | "failed";
   documentId?: string;

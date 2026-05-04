@@ -20,7 +20,7 @@ function buildEvent(overrides: Partial<ChatEvent>): ChatEvent {
   };
 }
 
-test("ActionTimeline renders events grouped by run, ordered by sequence, and correlated by tool_call_id", () => {
+test("ActionTimeline renders friendly activity cards with raw event details collapsed", () => {
   const markup = renderToStaticMarkup(
     <ActionTimeline
       events={[
@@ -32,11 +32,10 @@ test("ActionTimeline renders events grouped by run, ordered by sequence, and cor
     />,
   );
 
-  assert.match(markup, /Run run-1/);
-  assert.match(markup, /Run run-2/);
-  assert.ok(markup.indexOf("1. run.started") < markup.indexOf("2. tool.started"));
-  assert.ok(markup.indexOf("2. tool.started") < markup.indexOf("3. tool.completed"));
-  assert.match(markup, /Tools: tool-1 completed/);
+  assert.match(markup, /Tool completed/);
+  assert.match(markup, /Run started/);
+  assert.match(markup, /Raw event/);
+  assert.doesNotMatch(markup, /<details[^>]* open/);
 });
 
 test("ActionTimeline renders document, code, and navigation lifecycle events in the same run", () => {
@@ -50,8 +49,8 @@ test("ActionTimeline renders document, code, and navigation lifecycle events in 
     />,
   );
 
-  assert.match(markup, /document.ingestion_completed/);
-  assert.match(markup, /code.index_completed/);
-  assert.match(markup, /navigation.requested/);
+  assert.match(markup, /Document ready/);
+  assert.match(markup, /Code index complete/);
+  assert.match(markup, /Navigation requested/);
   assert.match(markup, /tool-nav/);
 });

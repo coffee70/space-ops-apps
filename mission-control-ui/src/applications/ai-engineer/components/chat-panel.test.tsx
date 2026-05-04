@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { ChatPanel } from "./chat-panel";
 
-test("ChatPanel renders user, assistant, and tool messages", () => {
+test("ChatPanel renders role-specific AI Engineer messages", () => {
   const markup = renderToStaticMarkup(
     <ChatPanel
       messages={[
@@ -22,9 +22,13 @@ test("ChatPanel renders user, assistant, and tool messages", () => {
   assert.match(markup, /User question/);
   assert.match(markup, /Assistant response/);
   assert.match(markup, /Tool output/);
+  assert.match(markup, /data-testid="ai-engineer-message-user"/);
+  assert.match(markup, /data-testid="ai-engineer-message-assistant"/);
+  assert.doesNotMatch(markup, />USER</);
+  assert.doesNotMatch(markup, />ASSISTANT</);
 });
 
-test("ChatPanel exposes execution mode selector and default read_only value", () => {
+test("ChatPanel renders greeting and Vercel-style composer controls", () => {
   const markup = renderToStaticMarkup(
     <ChatPanel
       messages={[]}
@@ -35,9 +39,13 @@ test("ChatPanel exposes execution mode selector and default read_only value", ()
     />,
   );
 
-  assert.match(markup, /id="execution-mode"/);
-  assert.match(markup, /Read-only/);
+  assert.match(markup, /What should we inspect or build/);
+  assert.match(markup, /data-testid="ai-engineer-composer"/);
+  assert.match(markup, /data-testid="ai-engineer-chat-input"/);
+  assert.match(markup, /aria-label="Attach mission or vehicle documents"/);
+  assert.match(markup, /aria-label="Send message"/);
+  assert.match(markup, /Read/);
   assert.match(markup, /Suggest/);
   assert.match(markup, /Execute/);
-  assert.match(markup, /option value="read_only" selected=""/);
+  assert.doesNotMatch(markup, /<select/);
 });

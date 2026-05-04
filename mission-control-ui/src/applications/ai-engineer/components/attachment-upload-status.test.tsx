@@ -16,15 +16,15 @@ test("AttachmentUploadStatus shows ingestion status values", () => {
   );
 
   assert.match(markup, /pending.txt/);
-  assert.match(markup, /ingesting/);
+  assert.match(markup, /Ingesting/);
   assert.match(markup, /ready.txt/);
-  assert.match(markup, /ready/);
+  assert.match(markup, /Ready/);
   assert.match(markup, /failed.txt/);
-  assert.match(markup, /failed/);
+  assert.match(markup, /Failed/);
   assert.match(markup, /ingestion failed/);
 });
 
-test("AttachmentUploadStatus validates required metadata for ready documents", () => {
+test("AttachmentUploadStatus does not surface missing document ids as primary UX", () => {
   const markup = renderToStaticMarkup(
     <AttachmentUploadStatus
       attachments={[
@@ -33,5 +33,6 @@ test("AttachmentUploadStatus validates required metadata for ready documents", (
     />,
   );
 
-  assert.match(markup, /metadata incomplete: missing document id/);
+  assert.match(markup, /missing-id.txt/);
+  assert.doesNotMatch(markup, /metadata incomplete: missing document id/);
 });
