@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { resolve } from "node:path";
 
 import { appUrl } from "./support/application-routes";
@@ -18,6 +18,23 @@ const fixtureDocumentPath = resolve(
 );
 
 test.setTimeout(180_000);
+
+async function waitForComposerReady(page: Page) {
+  const input = page.getByTestId("ai-engineer-chat-input");
+  const send = page.getByRole("button", { name: "Send" });
+  await expect(input).toBeVisible();
+  await expect(input).toBeEnabled();
+  await expect
+    .poll(
+      async () => {
+        if (await send.isDisabled()) return false;
+        const label = await send.textContent();
+        return label != null && !label.includes("Sending");
+      },
+      { timeout: 120_000, intervals: [200, 500, 1000] },
+    )
+    .toBe(true);
+}
 
 test("AI Engineer deterministic Phase 3 no-LLM flow covers upload, read tools, deploy, and cleanup", async ({ page }) => {
   const browserErrors: string[] = [];
@@ -49,13 +66,20 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers upload, read tools, d
   await expect(page.getByText("battery_efficiency_notes.md").first()).toBeVisible();
   await expect(page.getByText("ready").first()).toBeVisible({ timeout: 30_000 });
 
-  await page.locator("textarea").fill("[scripted:scripted_read_tools] Validate deterministic read tools.");
+  await waitForComposerReady(page);
+  const composer = page.getByTestId("ai-engineer-chat-input");
+  const readMsg = "[scripted:scripted_read_tools] Validate deterministic read tools.";
+  await composer.fill(readMsg);
+  await expect(composer).toHaveValue(readMsg);
   await page.getByRole("button", { name: "Send" }).click();
 
   await expect(page.getByText("navigation.requested")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("run.completed")).toBeVisible({ timeout: 30_000 });
 
-  await page.locator("textarea").fill("[scripted:scripted_write_deploy] Deploy the deterministic fixture.");
+  await waitForComposerReady(page);
+  const deployMsg = "[scripted:scripted_write_deploy] Deploy the deterministic fixture.";
+  await composer.fill(deployMsg);
+  await expect(composer).toHaveValue(deployMsg);
   await page.getByRole("button", { name: "Send" }).click();
 
   await expect
@@ -84,8 +108,17 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers upload, read tools, d
     }, { timeout: 120_000 })
     .toBe(200);
 
-  await page.locator("textarea").fill("[scripted:scripted_delete_cleanup] Delete the deterministic fixture.");
+  await waitForComposerReady(page);
+  const cleanupMsg = "[scripted:scripted_delete_cleanup] Delete the deterministic fixture.";
+  await composer.fill(cleanupMsg);
+  await expect(composer).toHaveValue(cleanupMsg);
   await page.getByRole("button", { name: "Send" }).click();
+
+  await expect(
+    page.getByText("Deterministic scripted cleanup completed through delete_managed_resources.", {
+      exact: false,
+    }),
+  ).toBeVisible({ timeout: 120_000 });
 
   await expect
     .poll(async () => {

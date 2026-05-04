@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { AttachmentPicker } from "@/applications/ai-engineer/components/attachment-picker";
 import { AttachmentPreview } from "@/applications/ai-engineer/components/attachment-preview";
@@ -19,16 +19,18 @@ export function ChatComposer({ uploadedCount, onSend, onFilesSelected, execution
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   return (
     <form
       className="space-y-2"
       onSubmit={async (event) => {
         event.preventDefault();
-        if (!text.trim() && files.length === 0) return;
+        const draft = (textareaRef.current?.value ?? text).trim();
+        if (!draft && files.length === 0) return;
         setIsSending(true);
         try {
-          await onSend(text, []);
+          await onSend(draft, []);
           setText("");
           setFiles([]);
         } finally {
@@ -37,6 +39,8 @@ export function ChatComposer({ uploadedCount, onSend, onFilesSelected, execution
       }}
     >
       <textarea
+        ref={textareaRef}
+        data-testid="ai-engineer-chat-input"
         value={text}
         onChange={(event) => setText(event.target.value)}
         className="border-border bg-background min-h-24 w-full rounded border p-2 text-sm"

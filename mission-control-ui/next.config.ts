@@ -84,6 +84,36 @@ const nextConfig: NextConfig = {
           source: "/intelligence/:path*",
           destination: `${apiServerUrl}/intelligence/:path*`,
         },
+        /**
+         * Position/orbit APIs live under /telemetry/... but must not be captured by
+         * `app/telemetry/[sourceId]/[name]` (e.g. sourceId=position, name=config).
+         * Proxy these in afterFiles so they win over the dynamic page route; keep the
+         * broad `/telemetry/:path*` fallback for true API paths that do not match pages.
+         */
+        {
+          source: "/telemetry/position/latest",
+          destination: `${apiServerUrl}/telemetry/position/latest`,
+        },
+        {
+          source: "/telemetry/position/latest/:path*",
+          destination: `${apiServerUrl}/telemetry/position/latest/:path*`,
+        },
+        {
+          source: "/telemetry/position/config",
+          destination: `${apiServerUrl}/telemetry/position/config`,
+        },
+        {
+          source: "/telemetry/position/config/:path*",
+          destination: `${apiServerUrl}/telemetry/position/config/:path*`,
+        },
+        {
+          source: "/telemetry/orbit/status",
+          destination: `${apiServerUrl}/telemetry/orbit/status`,
+        },
+        {
+          source: "/telemetry/orbit/:path*",
+          destination: `${apiServerUrl}/telemetry/orbit/:path*`,
+        },
       ],
       fallback: [
         {
