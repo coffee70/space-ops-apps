@@ -147,14 +147,17 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       hasText ? [...prev, userMessage, { id: assistantDraftId, role: "assistant", content: "", status: "streaming" }] : [...prev, userMessage],
     );
 
-    if (hasFiles) {
-      await uploadFiles(files, activeConversationId);
+    if (hasText) {
+      setIsStreaming(true);
     }
 
-    if (!hasText) return;
-
     try {
-      setIsStreaming(true);
+      if (hasFiles) {
+        await uploadFiles(files, activeConversationId);
+      }
+
+      if (!hasText) return;
+
       await sendChatMessage({
         conversationId: activeConversationId,
         message: trimmed,
@@ -162,6 +165,8 @@ export function AiEngineerApp(props: NativeApplicationProps) {
         onChunk: (chunk) => applyStreamChunk(assistantDraftId, chunk),
       });
     } catch (error) {
+      if (!hasText) return;
+
       const message = error instanceof Error ? error.message : "Failed to contact agent runtime.";
       setMessages((previous) =>
         previous.map((item) =>
@@ -175,7 +180,9 @@ export function AiEngineerApp(props: NativeApplicationProps) {
         ),
       );
     } finally {
-      setIsStreaming(false);
+      if (hasText) {
+        setIsStreaming(false);
+      }
     }
   };
 

@@ -57,6 +57,8 @@ function InlineEventCards({ events }: { events: ChatEvent[] }) {
 }
 
 export function AiEngineerMessage({ message, events = [] }: { message: ChatMessage; events?: ChatEvent[] }) {
+  const isEmptyStreamingAssistant = message.role === "assistant" && message.status === "streaming" && message.content.trim().length === 0;
+
   if (message.role === "user") {
     return (
       <div className="group/message fade-up w-full" data-role="user" data-testid="ai-engineer-message-user">
@@ -88,7 +90,13 @@ export function AiEngineerMessage({ message, events = [] }: { message: ChatMessa
         <AssistantAvatar />
         <div className="flex min-w-0 flex-1 flex-col gap-2 text-[13px] leading-[1.65]">
           <div data-testid="ai-engineer-assistant-message">
-            <AiEngineerMarkdown content={message.content} />
+            {isEmptyStreamingAssistant ? (
+              <div className="flex h-[calc(13px*1.65)] items-center text-[13px] leading-[1.65]">
+                <span className="shimmer font-medium">Thinking...</span>
+              </div>
+            ) : (
+              <AiEngineerMarkdown content={message.content} />
+            )}
           </div>
           <InlineEventCards events={events} />
         </div>
