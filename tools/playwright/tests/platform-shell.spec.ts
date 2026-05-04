@@ -20,29 +20,9 @@ const registryPayload = [
     healthStatus: "unknown",
     deploymentStatus: "seeded",
   },
-  {
-    applicationId: "workspace",
-    title: "Workspace",
-    description: "Open VS Code Server workspace.",
-    iconKey: "folder-code",
-    iconColor: "#38bdf8",
-    iconBackground: "rgba(56, 189, 248, 0.16)",
-    applicationType: "embedded",
-    routePath: "/apps/workspace",
-    embeddedUrl: "/_embedded/workspace",
-    version: "0.1.0",
-    enabled: true,
-    iframeSandbox: "allow-scripts allow-same-origin allow-forms",
-    iframeAllow: "",
-    sortOrder: 50,
-    owner: "space-ops-apps",
-    capabilities: ["development-workspace"],
-    healthStatus: "unknown",
-    deploymentStatus: "seeded",
-  },
 ];
 
-test("platform shell keeps the side nav visible around an embedded application", async ({ page }) => {
+test("platform shell keeps the side nav visible around a native application", async ({ page }) => {
   await page.route("**/registry/applications", async (route) => {
     await route.fulfill({
       status: 200,
@@ -51,9 +31,26 @@ test("platform shell keeps the side nav visible around an embedded application",
     });
   });
 
-  await page.goto(appUrl("workspace"));
+  await page.goto(appUrl("overview"));
 
   await expect(page.getByTestId("applications-nav-item")).toBeVisible();
-  await expect(page.getByTestId("current-application-nav-item")).toContainText("Workspace");
-  await expect(page.getByTestId("embedded-application-frame")).toHaveAttribute("src", "/_embedded/workspace");
+  await expect(page.getByTestId("current-application-nav-item")).toContainText("Overview");
+  await expect(page.getByTestId("embedded-application-frame")).toHaveCount(0);
+});
+
+test("unknown application routes render unavailable state without app metadata", async ({ page }) => {
+  await page.route("**/registry/applications", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(registryPayload),
+    });
+  });
+
+  await page.goto(appUrl("unknown-application"));
+
+  await expect(page.getByText("Application unavailable")).toBeVisible();
+  await expect(page.getByText("The requested application is not registered in this platform runtime.")).toBeVisible();
+  await expect(page.getByTestId("embedded-application-frame")).toHaveCount(0);
+  await expect(page.getByTestId("current-application-nav-item")).toHaveCount(0);
 });

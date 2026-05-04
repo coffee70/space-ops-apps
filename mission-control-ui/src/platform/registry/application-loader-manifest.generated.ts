@@ -7,7 +7,6 @@ export const applicationLoaderManifest: Record<
   () => Promise<{ applicationEntry: NativeApplicationEntry }>
 > = {
   "ai-engineer": () => import("@/applications/ai-engineer/entry"),
-  "battery-efficiency": () => import("@/applications/battery-efficiency/entry"),
   "overview": () => import("@/applications/overview/entry"),
   "planning": () => import("@/applications/planning/entry"),
   "sources": () => import("@/applications/sources/entry"),
