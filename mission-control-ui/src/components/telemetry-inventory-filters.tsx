@@ -46,6 +46,7 @@ export function TelemetryInventoryFilters({
         <Label htmlFor="telemetry-search">Search</Label>
         <Input
           id="telemetry-search"
+          data-testid="telemetry-inventory-search"
           value={searchText}
           onChange={(event) => onSearchTextChange(event.target.value)}
           placeholder="Name, alias, description, namespace"

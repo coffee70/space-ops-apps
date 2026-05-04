@@ -6,6 +6,7 @@ import {
   FolderCode,
   LayoutDashboard,
   SatelliteDish,
+  Sparkles,
   Server,
 } from "lucide-react";
 
@@ -16,6 +17,7 @@ const ICONS: Record<string, LucideIcon> = {
   "folder-code": FolderCode,
   "layout-dashboard": LayoutDashboard,
   "satellite-dish": SatelliteDish,
+  sparkles: Sparkles,
   server: Server,
 };
 

@@ -1,12 +1,9 @@
 "use client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const API_FALLBACK_URL = process.env.NEXT_PUBLIC_API_FALLBACK_URL || "";
+import { getPublicFetchBases } from "@/lib/public-api-origin";
 
 function getApiBases(): string[] {
-  const bases = [API_URL, API_FALLBACK_URL].filter(Boolean);
-  // Deduplicate while preserving order
-  return bases.filter((v, i, arr) => arr.indexOf(v) === i);
+  return getPublicFetchBases(false);
 }
 
 async function fetchWithFallback(

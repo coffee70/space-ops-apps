@@ -1,9 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
+import { resolvePublicApiUrl } from "@/lib/public-api-origin";
 import { useSimulatorStatusQuery } from "@/lib/query-hooks";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export interface SimulatorRuntimeStatus {
   connected: boolean;
@@ -58,8 +57,9 @@ function toRuntimeState(
 export async function fetchSimulatorRuntimeStatus(
   sourceId: string
 ): Promise<SimulatorRuntimeStatus> {
+  const base = resolvePublicApiUrl();
   const response = await fetch(
-    `${API_URL}/simulator/status?vehicle_id=${encodeURIComponent(sourceId)}`,
+    `${base}/simulator/status?vehicle_id=${encodeURIComponent(sourceId)}`,
     { cache: "no-store" }
   );
   if (!response.ok) {

@@ -1,5 +1,7 @@
 "use client";
 
+import { resolvePublicApiUrl } from "@/lib/public-api-origin";
+
 /**
  * Typed WebSocket client for realtime telemetry.
  * Reconnect with backoff, message validation, subscription manager.
@@ -8,11 +10,21 @@
 const DEFAULT_WS_PATH = "/telemetry/realtime/ws";
 
 function getWsUrl(): string {
-  const base =
-    typeof window !== "undefined"
-      ? (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000")
-      : "http://localhost:8000";
-  const wsBase = base.replace(/^http/, "ws");
+  if (typeof window === "undefined") {
+    const origin = resolvePublicApiUrl();
+    const wsBase =
+      origin === ""
+        ? "ws://127.0.0.1:3000"
+        : origin.replace(/^http/, "ws");
+    return `${wsBase}${DEFAULT_WS_PATH}`;
+  }
+  const origin = resolvePublicApiUrl();
+  if (origin === "") {
+    const loc = window.location;
+    const protocol = loc.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${loc.host}${DEFAULT_WS_PATH}`;
+  }
+  const wsBase = origin.replace(/^http/, "ws");
   return `${wsBase}${DEFAULT_WS_PATH}`;
 }
 

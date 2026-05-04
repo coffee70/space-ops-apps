@@ -1,9 +1,9 @@
 import { applicationLoaderManifest } from "@/platform/registry/application-loader-manifest.generated";
 import type { PlatformApplicationDefinition } from "@/platform/registry/application-types";
 import type { NativeApplicationProps } from "@/platform/sdk/native-application-contract";
-import { ApplicationUnavailableState } from "@/platform/shell/ApplicationFrame";
-import { EmbeddedApplicationHost } from "@/platform/runtime/EmbeddedApplicationHost";
-import { NativeApplicationHost } from "@/platform/runtime/NativeApplicationHost";
+import { ApplicationUnavailableState } from "@/platform/shell/application-frame";
+import { EmbeddedApplicationHost } from "@/platform/runtime/embedded-application-host";
+import { NativeApplicationHost } from "@/platform/runtime/native-application-host";
 
 export async function ApplicationHost({
   application,

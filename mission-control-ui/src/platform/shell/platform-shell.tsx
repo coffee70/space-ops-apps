@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { SideNav } from "@/platform/shell/SideNav";
+import { SideNav } from "@/platform/shell/side-nav";
 import { PlatformContextProvider } from "@/platform/runtime/platform-context";
 import { extractCurrentApplicationId } from "@/platform/registry/application-routes";
 

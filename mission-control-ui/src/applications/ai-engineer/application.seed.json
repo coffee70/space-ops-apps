@@ -1,0 +1,16 @@
+{
+  "applicationId": "ai-engineer",
+  "title": "AI Engineer",
+  "description": "AI-native engineering interface for platform capabilities.",
+  "iconKey": "sparkles",
+  "iconColor": "#34d399",
+  "iconBackground": "rgba(52, 211, 153, 0.16)",
+  "applicationType": "native",
+  "routePath": "/apps/ai-engineer",
+  "loaderKey": "ai-engineer",
+  "version": "0.1.0",
+  "enabled": true,
+  "sortOrder": 25,
+  "owner": "space-ops-apps",
+  "capabilities": ["ai-engineering", "platform-intelligence", "tool-execution", "knowledge-management"]
+}

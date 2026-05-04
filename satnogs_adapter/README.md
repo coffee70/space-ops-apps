@@ -148,3 +148,13 @@ One-sided bounds also behaved coherently:
 - Following the exact `end`-only `next` link preserved `end=2026-04-10T11%3A07%3A00Z`; page 2 also contained only observations ending at or before the bound.
 
 Operational implication: live polling can rely on the unbounded initial request naturally walking newest-to-oldest, while bounded backfill can use `start` and `end` to fetch fully contained historical windows.
+
+## Tests
+
+From the **`space-ops-apps` repository root** (`PYTHONPATH` must expose the `satnogs_adapter` package):
+
+```bash
+PYTHONPATH=. pytest satnogs_adapter/tests -q
+```
+
+Full workspace testing matrix (Node containers, Playwright Docker runner, sibling repos): [`../README.md`](../README.md), [`../../space-ops-kernel/README.md`](../../space-ops-kernel/README.md), and [`../AGENTS.md`](../AGENTS.md).

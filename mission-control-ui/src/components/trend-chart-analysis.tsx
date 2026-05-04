@@ -38,8 +38,9 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronDownIcon } from "lucide-react";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { resolvePublicApiUrl } from "@/lib/public-api-origin";
+
+const API_URL = resolvePublicApiUrl();
 
 interface DataPoint {
   timestamp: string;

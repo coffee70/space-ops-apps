@@ -155,13 +155,16 @@ test("data scope stream picker preserves backend ordering for opaque ids", async
   await page.getByRole("button", { name: "Add stream" }).click();
 
   const streamChooser = page.getByRole("dialog").filter({
-    has: page.getByRole("textbox", { name: "Search streams" }),
+    has: page.getByPlaceholder("Search streams"),
   });
-  const optionTexts = await streamChooser.getByRole("button").allTextContents();
-  const newerIndex = optionTexts.findIndex((text) => text.includes(newerRunId));
-  const olderIndex = optionTexts.findIndex((text) => text.includes(olderRunId));
-  expect(newerIndex).toBeGreaterThanOrEqual(0);
-  expect(olderIndex).toBeGreaterThan(newerIndex);
+  const newerRow = streamChooser.getByTestId(`telemetry-stream-option-${newerRunId}`);
+  const olderRow = streamChooser.getByTestId(`telemetry-stream-option-${olderRunId}`);
+  await expect(newerRow).toBeVisible();
+  await expect(olderRow).toBeVisible();
+
+  const newerTop = await newerRow.evaluate((el) => el.getBoundingClientRect().top);
+  const olderTop = await olderRow.evaluate((el) => el.getBoundingClientRect().top);
+  expect(newerTop).toBeLessThan(olderTop);
 });
 
 test("telemetry detail defaults to the latest stream that contains the channel", async ({

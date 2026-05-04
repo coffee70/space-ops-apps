@@ -6,9 +6,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const workspaceRoot = path.resolve(__dirname, "../../..");
 const toolRoot = path.resolve(__dirname, "..");
-const browserStore = path.join(workspaceRoot, "tmp/playwright/ms-playwright");
-const htmlReport = path.join(workspaceRoot, "tmp/playwright/report");
-const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:3000";
+const browserStore =
+  process.env.PLAYWRIGHT_BROWSERS_PATH ||
+  path.join(workspaceRoot, "tmp/playwright/ms-playwright");
+const htmlReport =
+  process.env.PLAYWRIGHT_HTML_REPORT || path.join(workspaceRoot, "tmp/playwright/report");
+const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://mission-control-ui:3000";
 
 const env = {
   ...process.env,

@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { fetchPlatformApplicationsServer } from "@/platform/registry/application-registry-client";
 import { validateApplicationPathSegments } from "@/platform/registry/application-routes";
-import { ApplicationHost } from "@/platform/runtime/ApplicationHost";
-import { ApplicationUnavailableState } from "@/platform/shell/ApplicationFrame";
+import { ApplicationHost } from "@/platform/runtime/application-host";
+import { ApplicationUnavailableState } from "@/platform/shell/application-frame";
 
 const APPLICATION_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 

@@ -6,17 +6,46 @@ import test from "node:test";
 const projectRoot = process.cwd();
 const configSource = readFileSync(join(process.cwd(), "next.config.ts"), "utf8");
 
-test("next config rewrites expose only application registry routes", () => {
+test("next config rewrites expose application and managed service registry routes", () => {
   assert.match(configSource, /source:\s*"\/registry\/applications"/);
   assert.match(configSource, /source:\s*"\/registry\/applications\/:applicationId"/);
+  assert.match(configSource, /source:\s*"\/registry\/services"/);
+  assert.match(configSource, /source:\s*"\/registry\/services\/:serviceSlug"/);
   assert.doesNotMatch(configSource, /source:\s*"\/registry\/:path\*"/);
-  assert.doesNotMatch(configSource, /source:\s*"\/registry\/services/);
   assert.doesNotMatch(configSource, /source:\s*"\/registry\/units/);
 });
 
-test("next config rewrites do not expose internal runtime services", () => {
+test("next config rewrites expose only managed runtime service proxy routes", () => {
   assert.doesNotMatch(configSource, /source:\s*"\/internal\/:path\*"/);
-  assert.doesNotMatch(configSource, /source:\s*"\/internal\/runtime-services/);
+  assert.match(configSource, /source:\s*"\/internal\/runtime-services\/:serviceSlug\/:path\*"/);
+});
+
+test("next config proxies telemetry position API in afterFiles (before dynamic telemetry pages)", () => {
+  assert.match(configSource, /afterFiles:/);
+  const positionConfigIdx = configSource.indexOf('/telemetry/position/config"');
+  const telemetryFallbackIdx = configSource.search(/fallback:\s*\[[\s\S]*source:\s*"\/telemetry\/:path\*"/);
+  assert.ok(positionConfigIdx > 0, "missing /telemetry/position/config rewrite");
+  assert.ok(telemetryFallbackIdx > 0, "missing fallback telemetry proxy");
+  assert.ok(
+    positionConfigIdx < telemetryFallbackIdx,
+    "position config rewrite must appear before fallback so it is not shadowed by afterFiles routing to pages incorrectly — check order",
+  );
+  assert.match(configSource, /source:\s*"\/telemetry\/position\/config"/);
+  assert.match(configSource, /\$\{apiServerUrl\}\/telemetry\/position\/config/);
+  assert.match(configSource, /source:\s*"\/telemetry\/position\/config\/:path\*"/);
+  assert.match(configSource, /source:\s*"\/telemetry\/position\/latest"/);
+  assert.match(configSource, /source:\s*"\/telemetry\/orbit\/status"/);
+});
+
+test("next config fallback rewrites proxy platform API paths without shadowing telemetry pages", () => {
+  assert.match(configSource, /fallback:/);
+  assert.match(configSource, /source:\s*"\/telemetry"/);
+  assert.match(configSource, /source:\s*"\/telemetry\/:path\*"/);
+  assert.match(configSource, /source:\s*"\/vehicle-configs"/);
+  assert.match(configSource, /source:\s*"\/vehicle-configs\/:path\*"/);
+  assert.match(configSource, /source:\s*"\/ops\/:path\*"/);
+  assert.match(configSource, /source:\s*"\/simulator\/:path\*"/);
+  assert.match(configSource, /\$\{apiServerUrl\}\/telemetry\/:path\*/);
 });
 
 test("next config rewrites keep workspace on the internal transport path only", () => {

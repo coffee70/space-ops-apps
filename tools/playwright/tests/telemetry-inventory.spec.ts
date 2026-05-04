@@ -28,7 +28,8 @@ test("telemetry inventory supports browsing, routing, and watchlist toggles", as
   await expect(page.getByRole("heading", { name: "Telemetry" })).toBeVisible();
   await expect(page.getByTestId("current-application-nav-item")).toContainText("Telemetry");
 
-  const search = page.getByLabel("Search");
+  const search = page.getByTestId("telemetry-inventory-search");
+  await expect(search).toBeVisible();
   await search.fill(channelName);
   await expect(page.getByText(channelName)).toBeVisible();
 

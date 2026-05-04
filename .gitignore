@@ -12,4 +12,8 @@ mission-control-ui/node_modules/
 mission-control-ui/.next/
 mission-control-ui/out/
 tools/playwright/node_modules/
+services/*/dist/
+services/*/build/
 tmp/
+tools/test-results/
+tools/playwright-report/

@@ -160,6 +160,7 @@ export function TelemetryStreamSelector({
                   <button
                     key={stream.stream_id}
                     type="button"
+                    data-testid={`telemetry-stream-option-${stream.stream_id}`}
                     className={cn(
                       "hover:bg-muted flex w-full items-start gap-3 rounded-md px-3 py-2 text-left text-sm",
                       active && "bg-muted",

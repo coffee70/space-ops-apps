@@ -20,7 +20,7 @@ export default defineConfig({
   ],
   outputDir: path.join(artifactRoot, "test-results"),
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:3000",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://mission-control-ui:3000",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",

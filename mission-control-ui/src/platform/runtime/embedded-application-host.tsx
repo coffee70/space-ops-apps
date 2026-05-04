@@ -1,5 +1,5 @@
 import type { PlatformApplicationDefinition } from "@/platform/registry/application-types";
-import { ApplicationUnavailableState } from "@/platform/shell/ApplicationFrame";
+import { ApplicationUnavailableState } from "@/platform/shell/application-frame";
 
 export function EmbeddedApplicationHost({
   application,
