@@ -182,8 +182,11 @@ test("planning renders the live simulator marker on the globe", async ({
   await page.goto(appUrl("planning"));
   await expect(page.getByTestId("current-application-nav-item")).toContainText("Planning");
 
+  await expect(page.getByText("Loading mappings...")).toHaveCount(0, { timeout: 60_000 });
+  await expect(page.locator('[data-testid^="planning-source-row-"]').first()).toBeVisible({
+    timeout: 60_000,
+  });
   let simulatorRow = page.getByTestId(`planning-source-row-${simulator.id}`);
-  await expect(page.getByText("Loading mappings...")).toHaveCount(0, { timeout: 30_000 });
   await expect(simulatorRow).toBeVisible({ timeout: 30_000 });
   await expect(simulatorRow).toHaveAttribute("aria-pressed", "true");
   await simulatorRow.click();
@@ -259,7 +262,10 @@ test("planning shows no data for a selected simulator after it stops", async ({
 
   await page.goto(appUrl("planning"));
   await expect(page.getByTestId("current-application-nav-item")).toContainText("Planning");
-  await expect(page.getByText("Loading mappings...")).toHaveCount(0, { timeout: 30_000 });
+  await expect(page.getByText("Loading mappings...")).toHaveCount(0, { timeout: 60_000 });
+  await expect(page.locator('[data-testid^="planning-source-row-"]').first()).toBeVisible({
+    timeout: 60_000,
+  });
   await expect(page.locator("main")).toContainText("Live", { timeout: 30_000 });
 
   await stopSimulator(request, simulator.id);

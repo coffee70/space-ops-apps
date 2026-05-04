@@ -41,9 +41,8 @@ docs/API_TELEMETRY_CONTRACTS.md
 |-------|-------------------|------|
 | **Mission Control + agent runtime (`npm`** ***, Linux-native deps)** | `../space-ops-kernel/scripts/validate-node.sh` | Kernel README Testing table |
 | **Playwright (`http://mission-control-ui:3000`, Compose network)** | `../space-ops-kernel/scripts/validate-playwright.sh smoke` (or `test`, etc.) | [tools/playwright/README.md](./tools/playwright/README.md) |
-| **Simulator Python** | from **`space-ops-apps` repo root**: `PYTHONPATH=. pytest simulator/tests -q` (after `pip install -r simulator/requirements.txt` in your venv) | [AGENTS.md](./AGENTS.md) |
-| **SatNOGS adapter Python** | from **`space-ops-apps` repo root**: `PYTHONPATH=. pytest satnogs_adapter/tests -q` (after deps in `satnogs_adapter/requirements.txt`) | [AGENTS.md](./AGENTS.md) |
-| **Platform backend** | `PYTHONPATH` + `pytest` under `space-ops-platform` | sibling README |
+| **Simulator + SatNOGS adapter Python** | from **`space-ops-apps` repo root**: `./scripts/run-python-tests.sh` (uses gitignored `./.venv`, installs deps + `pytest`, sets `PYTHONPATH`) | [AGENTS.md](./AGENTS.md) |
+| **Platform backend** | `../space-ops-platform/scripts/run-backend-tests.sh` | sibling README |
 
 ## Mission Control UI
 
@@ -71,11 +70,13 @@ pip install -r requirements.txt
 PYTHONPATH=..:. VEHICLE_CONFIG_ROOT=../vehicle-configurations BACKEND_URL=http://localhost:8000 uvicorn simulator.main:app --host 0.0.0.0 --port 8001
 ```
 
-Tests (from repo **`space-ops-apps`**, not nested `cd simulator` only):
+Tests:
 
 ```bash
-PYTHONPATH=. pytest simulator/tests -q
+./scripts/run-python-tests.sh -q
 ```
+
+(`simulator/requirements.txt` and `satnogs_adapter/requirements.txt` omit `pytest`; the script installs it into `./.venv`.)
 
 ## SatNOGS Adapter
 
@@ -87,11 +88,7 @@ pip install -r requirements.txt
 PYTHONPATH=..:. VEHICLE_CONFIG_ROOT=../vehicle-configurations python -m satnogs_adapter.main --config config.example.yaml
 ```
 
-Tests:
-
-```bash
-cd .. && PYTHONPATH=. pytest satnogs_adapter/tests -q
-```
+Both adapter and simulator suites run from the repo root via `./scripts/run-python-tests.sh` (see table above).
 
 ## Playwright (`tools/playwright`)
 

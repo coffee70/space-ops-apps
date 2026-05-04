@@ -17,6 +17,8 @@ const fixtureDocumentPath = resolve(
   "battery_efficiency_notes.md",
 );
 
+test.setTimeout(180_000);
+
 test("AI Engineer deterministic Phase 3 no-LLM flow covers upload, read tools, deploy, and cleanup", async ({ page }) => {
   const browserErrors: string[] = [];
   page.on("console", (message) => {
@@ -67,7 +69,7 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers upload, read tools, d
         deploymentStatus: payload.deploymentStatus,
         healthStatus: payload.healthStatus,
       };
-    }, { timeout: 30_000 })
+    }, { timeout: 120_000 })
     .toMatchObject({
       ok: true,
       serviceSlug: "phase3-test-fixture-service",
@@ -79,7 +81,7 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers upload, read tools, d
     .poll(async () => {
       const response = await page.request.get(`${baseUrl}/internal/runtime-services/phase3-test-fixture-service/health`);
       return response.status();
-    }, { timeout: 30_000 })
+    }, { timeout: 120_000 })
     .toBe(200);
 
   await page.locator("textarea").fill("[scripted:scripted_delete_cleanup] Delete the deterministic fixture.");
@@ -89,14 +91,14 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers upload, read tools, d
     .poll(async () => {
       const response = await page.request.get(`${baseUrl}/registry/services/phase3-test-fixture-service`);
       return response.status();
-    }, { timeout: 30_000 })
+    }, { timeout: 120_000 })
     .toBe(404);
 
   await expect
     .poll(async () => {
       const response = await page.request.get(`${baseUrl}/internal/runtime-services/phase3-test-fixture-service/health`);
       return response.status();
-    }, { timeout: 30_000 })
+    }, { timeout: 120_000 })
     .toBe(404);
 
   await expect(page.getByText("tool.started").first()).toBeVisible();

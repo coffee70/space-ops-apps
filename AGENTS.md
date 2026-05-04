@@ -55,29 +55,25 @@ Details, env overrides, and UI rebuild hints: `tools/playwright/README.md` and `
 
 Ad-hoc `npm --prefix tools/playwright run …` on the host is for local debugging; set `PLAYWRIGHT_BASE_URL` explicitly if you hit `localhost` instead of the default `mission-control-ui:3000` service name.
 
-### Python (simulator)
+### Python (simulator + SatNOGS adapter)
 
-From repository root **`space-ops-apps`**:
+From repository root **`space-ops-apps`** — **canonical**:
 
 ```bash
-cd simulator && python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cd .. && PYTHONPATH=. pytest simulator/tests -q
+./scripts/run-python-tests.sh
 ```
 
-### Python (SatNOGS adapter)
+This creates or reuses the gitignored **`./.venv`** directory, installs `simulator/requirements.txt`, `satnogs_adapter/requirements.txt`, and **`pytest`**, sets `PYTHONPATH` to the repo root, and runs both `simulator/tests` and `satnogs_adapter/tests`. Pass pytest flags as needed (`-q`, `-k`, file paths).
 
-From **`space-ops-apps`** root so imports resolve (`satnogs_adapter` is a package directory):
+Tight loop after you have already activated **`./.venv`** yourself:
 
 ```bash
-cd satnogs_adapter && python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cd .. && PYTHONPATH=. pytest satnogs_adapter/tests -q
+PYTHONPATH=. pytest simulator/tests satnogs_adapter/tests
 ```
 
 ### Platform backend pytest
 
-Owned by Layer 2: `space-ops-platform/README.md`.
+Owned by Layer 2 — canonical: `../space-ops-platform/scripts/run-backend-tests.sh` (`space-ops-platform/README.md`).
 
 ### Control-plane pytest
 

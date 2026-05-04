@@ -1,9 +1,23 @@
 import { expect, test } from "@playwright/test";
 import { appUrl } from "./support/application-routes";
+import { PLAYWRIGHT_API_URL } from "./support/telemetry";
 
 test("vehicle config explorer switches files and keeps the workspace interactive", async ({
   page,
+  request,
 }) => {
+  await expect
+    .poll(
+      async () => {
+        const response = await request.get(`${PLAYWRIGHT_API_URL}/vehicle-configs`);
+        if (!response.ok()) return 0;
+        const body = (await response.json()) as unknown[];
+        return Array.isArray(body) ? body.length : 0;
+      },
+      { timeout: 90_000 },
+    )
+    .toBeGreaterThanOrEqual(2);
+
   let documentRequestCount = 0;
 
   await page.route("**/vehicle-configs/**", async (route) => {
