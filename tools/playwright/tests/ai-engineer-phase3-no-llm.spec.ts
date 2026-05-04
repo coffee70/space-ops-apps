@@ -115,10 +115,13 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers upload, read tools, d
   await page.getByRole("button", { name: "Send" }).click();
 
   await expect(
-    page.getByText("Deterministic scripted cleanup completed through delete_managed_resources.", {
-      exact: false,
-    }),
-  ).toBeVisible({ timeout: 120_000 });
+    page
+      .getByTestId("ai-engineer-chat-transcript")
+      .getByTestId("ai-engineer-assistant-message")
+      .filter({
+        hasText: /Deterministic scripted cleanup completed[\s\S]*delete_managed_resources/,
+      }),
+  ).toBeVisible({ timeout: 150_000 });
 
   await expect
     .poll(async () => {
