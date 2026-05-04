@@ -11,15 +11,12 @@ import {
   useSimulatorRuntime,
   type SimulatorRuntimeStatus,
 } from "@/lib/simulator-runtime";
+import { getPublicFetchBases } from "@/lib/public-api-origin";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const API_FALLBACK_URL = process.env.NEXT_PUBLIC_API_FALLBACK_URL || "";
 const BOOTSTRAP_REQUEST_TIMEOUT_MS = 10_000;
 
 async function fetchWithTimeoutAndFallback(path: string): Promise<Response> {
-  const bases = [API_URL, API_FALLBACK_URL].filter(
-    (v, i, arr) => arr.indexOf(v) === i
-  );
+  const bases = getPublicFetchBases(true);
   let lastError: unknown = null;
   for (const base of bases) {
     const controller = new AbortController();

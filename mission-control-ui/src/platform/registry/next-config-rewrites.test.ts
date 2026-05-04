@@ -20,6 +20,17 @@ test("next config rewrites expose only managed runtime service proxy routes", ()
   assert.match(configSource, /source:\s*"\/internal\/runtime-services\/:serviceSlug\/:path\*"/);
 });
 
+test("next config fallback rewrites proxy platform API paths without shadowing telemetry pages", () => {
+  assert.match(configSource, /fallback:/);
+  assert.match(configSource, /source:\s*"\/telemetry"/);
+  assert.match(configSource, /source:\s*"\/telemetry\/:path\*"/);
+  assert.match(configSource, /source:\s*"\/vehicle-configs"/);
+  assert.match(configSource, /source:\s*"\/vehicle-configs\/:path\*"/);
+  assert.match(configSource, /source:\s*"\/ops\/:path\*"/);
+  assert.match(configSource, /source:\s*"\/simulator\/:path\*"/);
+  assert.match(configSource, /\$\{apiServerUrl\}\/telemetry\/:path\*/);
+});
+
 test("next config rewrites keep workspace on the internal transport path only", () => {
   assert.doesNotMatch(configSource, /source:\s*"\/workspace"/);
   assert.doesNotMatch(configSource, /source:\s*"\/workspace\/:path\*"/);

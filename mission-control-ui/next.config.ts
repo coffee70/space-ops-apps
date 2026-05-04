@@ -37,48 +37,81 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
-    return [
-      {
-        source: "/registry/applications",
-        destination: `${controlPlaneServerUrl}/registry/applications`,
-      },
-      {
-        source: "/registry/applications/:applicationId",
-        destination: `${controlPlaneServerUrl}/registry/applications/:applicationId`,
-      },
-      {
-        source: "/registry/services",
-        destination: `${controlPlaneServerUrl}/registry/services`,
-      },
-      {
-        source: "/registry/services/:serviceSlug",
-        destination: `${controlPlaneServerUrl}/registry/services/:serviceSlug`,
-      },
-      {
-        source: "/_embedded/workspace",
-        destination: `${workspaceServerUrl}/workspace`,
-      },
-      {
-        source: "/_embedded/workspace/:path*",
-        destination: `${workspaceServerUrl}/workspace/:path*`,
-      },
-      {
-        source: "/runtime-applications/:applicationId",
-        destination: `${controlPlaneServerUrl}/runtime-applications/:applicationId`,
-      },
-      {
-        source: "/runtime-applications/:applicationId/:path*",
-        destination: `${controlPlaneServerUrl}/runtime-applications/:applicationId/:path*`,
-      },
-      {
-        source: "/internal/runtime-services/:serviceSlug/:path*",
-        destination: `${controlPlaneServerUrl}/internal/runtime-services/:serviceSlug/:path*`,
-      },
-      {
-        source: "/intelligence/:path*",
-        destination: `${apiServerUrl}/intelligence/:path*`,
-      },
-    ];
+    return {
+      /**
+       * afterFiles — control plane / upstream bundles (no collision with Next pages).
+       * Fallback rewrites proxy platform-api paths only after App Router declines to handle the URL
+       * (see `fallback`), so `/telemetry/:source/:channel` pages keep working beside `/telemetry/sources`.
+       */
+      afterFiles: [
+        {
+          source: "/registry/applications",
+          destination: `${controlPlaneServerUrl}/registry/applications`,
+        },
+        {
+          source: "/registry/applications/:applicationId",
+          destination: `${controlPlaneServerUrl}/registry/applications/:applicationId`,
+        },
+        {
+          source: "/registry/services",
+          destination: `${controlPlaneServerUrl}/registry/services`,
+        },
+        {
+          source: "/registry/services/:serviceSlug",
+          destination: `${controlPlaneServerUrl}/registry/services/:serviceSlug`,
+        },
+        {
+          source: "/_embedded/workspace",
+          destination: `${workspaceServerUrl}/workspace`,
+        },
+        {
+          source: "/_embedded/workspace/:path*",
+          destination: `${workspaceServerUrl}/workspace/:path*`,
+        },
+        {
+          source: "/runtime-applications/:applicationId",
+          destination: `${controlPlaneServerUrl}/runtime-applications/:applicationId`,
+        },
+        {
+          source: "/runtime-applications/:applicationId/:path*",
+          destination: `${controlPlaneServerUrl}/runtime-applications/:applicationId/:path*`,
+        },
+        {
+          source: "/internal/runtime-services/:serviceSlug/:path*",
+          destination: `${controlPlaneServerUrl}/internal/runtime-services/:serviceSlug/:path*`,
+        },
+        {
+          source: "/intelligence/:path*",
+          destination: `${apiServerUrl}/intelligence/:path*`,
+        },
+      ],
+      fallback: [
+        {
+          source: "/telemetry",
+          destination: `${apiServerUrl}/telemetry`,
+        },
+        {
+          source: "/telemetry/:path*",
+          destination: `${apiServerUrl}/telemetry/:path*`,
+        },
+        {
+          source: "/vehicle-configs",
+          destination: `${apiServerUrl}/vehicle-configs`,
+        },
+        {
+          source: "/vehicle-configs/:path*",
+          destination: `${apiServerUrl}/vehicle-configs/:path*`,
+        },
+        {
+          source: "/ops/:path*",
+          destination: `${apiServerUrl}/ops/:path*`,
+        },
+        {
+          source: "/simulator/:path*",
+          destination: `${apiServerUrl}/simulator/:path*`,
+        },
+      ],
+    };
   },
 };
 

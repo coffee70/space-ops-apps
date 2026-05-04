@@ -1,7 +1,6 @@
 "use client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const API_FALLBACK_URL = process.env.NEXT_PUBLIC_API_FALLBACK_URL || "";
+import { getPublicFetchBases } from "@/lib/public-api-origin";
 
 export interface ApiError extends Error {
   status?: number;
@@ -10,8 +9,7 @@ export interface ApiError extends Error {
 }
 
 function getApiBases(useFallback = false): string[] {
-  const bases = useFallback ? [API_URL, API_FALLBACK_URL] : [API_URL];
-  return bases.filter(Boolean).filter((value, index, all) => all.indexOf(value) === index);
+  return getPublicFetchBases(useFallback);
 }
 
 function isIdempotentMethod(method: string | undefined): boolean {

@@ -7,7 +7,8 @@ RUN npm ci
 
 FROM base AS builder
 WORKDIR /app
-ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+# Empty = same-origin fetches; next.config fallback rewrites to platform-api in Compose.
+ARG NEXT_PUBLIC_API_URL=
 ARG NEXT_PUBLIC_CONTROL_PLANE_URL=http://localhost:8100
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_CONTROL_PLANE_URL=$NEXT_PUBLIC_CONTROL_PLANE_URL
