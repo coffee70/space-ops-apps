@@ -14,6 +14,8 @@ const modes: Array<{ value: ExecutionMode; label: string; title: string }> = [
 ];
 
 export function AiEngineerComposer({
+  input,
+  onInputChange,
   disabled = false,
   executionMode,
   onExecutionModeChange,
@@ -21,6 +23,8 @@ export function AiEngineerComposer({
   isStreaming = false,
   onStop,
 }: {
+  input: string;
+  onInputChange: (value: string) => void;
   disabled?: boolean;
   executionMode: ExecutionMode;
   onExecutionModeChange: (mode: ExecutionMode) => void;
@@ -28,13 +32,12 @@ export function AiEngineerComposer({
   isStreaming?: boolean;
   onStop?: () => void;
 }) {
-  const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const canSubmit = !disabled && !isSubmitting && !isStreaming && (text.trim().length > 0 || files.length > 0);
+  const canSubmit = !disabled && !isSubmitting && !isStreaming && (input.trim().length > 0 || files.length > 0);
 
   const appendFiles = (selectedFiles: File[]) => {
     if (selectedFiles.length === 0) return;
@@ -47,14 +50,14 @@ export function AiEngineerComposer({
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const draft = text.trim();
+    const draft = input.trim();
     if (!draft && files.length === 0) return;
 
     setIsSubmitting(true);
     const filesToSend = files;
     try {
       await onSend(draft, filesToSend);
-      setText("");
+      onInputChange("");
       setFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } finally {
@@ -69,7 +72,7 @@ export function AiEngineerComposer({
       return;
     }
 
-    if (event.key === "Backspace" && text.length === 0 && files.length > 0) {
+    if (event.key === "Backspace" && input.length === 0 && files.length > 0) {
       event.preventDefault();
       setFiles((previous) => previous.slice(0, -1));
     }
@@ -95,8 +98,8 @@ export function AiEngineerComposer({
         <textarea
           ref={textareaRef}
           data-testid="ai-engineer-chat-input"
-          value={text}
-          onChange={(event) => setText(event.target.value)}
+          value={input}
+          onChange={(event) => onInputChange(event.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={(event) => appendFiles(Array.from(event.clipboardData.files))}
           placeholder={disabled ? "Preparing session..." : "Ask the AI Engineer to inspect, explain, or modify the platform..."}

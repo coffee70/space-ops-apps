@@ -2,7 +2,13 @@
 
 import { Sparkles } from "lucide-react";
 
-export function AiEngineerGreeting({ isBootstrapping = false }: { isBootstrapping?: boolean }) {
+export function AiEngineerGreeting({
+  isBootstrapping = false,
+  onSuggestionSelect,
+}: {
+  isBootstrapping?: boolean;
+  onSuggestionSelect?: (suggestion: string) => void;
+}) {
   const suggestions = [
     "Where is the application registry implemented?",
     "List available platform tools",
@@ -23,9 +29,15 @@ export function AiEngineerGreeting({ isBootstrapping = false }: { isBootstrappin
       </p>
       <div className="mt-5 flex max-w-xl flex-wrap justify-center gap-2">
         {suggestions.map((suggestion) => (
-          <span key={suggestion} className="border-border/50 bg-card/70 text-muted-foreground rounded-full border px-3 py-1.5 text-[11px] shadow-[var(--shadow-card)]">
+          <button
+            key={suggestion}
+            type="button"
+            className="border-border/50 bg-card/70 text-muted-foreground hover:text-foreground hover:border-border rounded-full border px-3 py-1.5 text-[11px] shadow-[var(--shadow-card)] transition-colors disabled:opacity-50"
+            onClick={() => onSuggestionSelect?.(suggestion)}
+            disabled={isBootstrapping}
+          >
             {suggestion}
-          </span>
+          </button>
         ))}
       </div>
     </div>

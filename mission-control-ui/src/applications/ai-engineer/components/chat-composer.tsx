@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { AiEngineerComposer } from "@/applications/ai-engineer/components/ai-engineer-composer";
 import type { ExecutionMode } from "@/applications/ai-engineer/types";
 
@@ -13,7 +15,18 @@ interface ChatComposerProps {
 }
 
 export function ChatComposer({ uploadedCount, onSend, onFilesSelected, executionMode, onExecutionModeChange, disabled = false }: ChatComposerProps) {
+  const [input, setInput] = useState("");
+
   void uploadedCount;
   void onFilesSelected;
-  return <AiEngineerComposer onSend={onSend} executionMode={executionMode} onExecutionModeChange={onExecutionModeChange} disabled={disabled} />;
+  return (
+    <AiEngineerComposer
+      input={input}
+      onInputChange={setInput}
+      onSend={onSend}
+      executionMode={executionMode}
+      onExecutionModeChange={onExecutionModeChange}
+      disabled={disabled}
+    />
+  );
 }

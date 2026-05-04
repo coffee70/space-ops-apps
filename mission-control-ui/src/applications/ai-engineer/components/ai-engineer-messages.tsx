@@ -14,11 +14,13 @@ export function AiEngineerMessages({
   events,
   isStreaming = false,
   isBootstrapping = false,
+  onSuggestionSelect,
 }: {
   messages: ChatMessage[];
   events: ChatEvent[];
   isStreaming?: boolean;
   isBootstrapping?: boolean;
+  onSuggestionSelect?: (suggestion: string) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -53,7 +55,9 @@ export function AiEngineerMessages({
     <div className="bg-background relative min-h-0 flex-1" data-testid="ai-engineer-messages">
       {messages.length === 0 ? (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-          <AiEngineerGreeting isBootstrapping={isBootstrapping} />
+          <div className="pointer-events-auto">
+            <AiEngineerGreeting isBootstrapping={isBootstrapping} onSuggestionSelect={onSuggestionSelect} />
+          </div>
         </div>
       ) : null}
       <div ref={scrollRef} className="absolute inset-0 touch-pan-y overflow-y-auto" onScroll={handleScroll} data-testid="ai-engineer-chat-transcript">
