@@ -8,21 +8,21 @@ function buildEmbeddedApplication(
   overrides: Partial<PlatformApplicationDefinition> = {},
 ): PlatformApplicationDefinition {
   return {
-    applicationId: "workspace",
-    title: "Workspace",
-    description: "Open VS Code Server workspace.",
-    iconKey: "folder-code",
+    applicationId: "external-embedded-test-app",
+    title: "External Embedded Test App",
+    description: "Synthetic embedded application fixture.",
+    iconKey: "monitor-smartphone",
     iconColor: "#38bdf8",
     iconBackground: "rgba(56, 189, 248, 0.16)",
     applicationType: "embedded",
-    routePath: "/apps/workspace",
+    routePath: "/apps/external-embedded-test-app",
     version: "0.1.0",
     enabled: true,
     iframeSandbox: "allow-scripts allow-same-origin allow-forms",
     iframeAllow: "",
     sortOrder: 60,
     owner: "space-ops-apps",
-    capabilities: ["development-workspace"],
+    capabilities: ["embedded-test"],
     healthStatus: "unknown",
     deploymentStatus: "seeded",
     ...overrides,
@@ -33,14 +33,14 @@ test("EmbeddedApplicationHost uses embeddedUrl for iframe src", () => {
   const markup = renderToStaticMarkup(
     <EmbeddedApplicationHost
       application={buildEmbeddedApplication({
-        embeddedUrl: "/_embedded/workspace",
+        embeddedUrl: "/_embedded/external-test-app",
         proxyBasePath: undefined,
       })}
     />,
   );
 
   assert.match(markup, /data-testid="embedded-application-frame"/);
-  assert.match(markup, /src="\/_embedded\/workspace"/);
+  assert.match(markup, /src="\/_embedded\/external-test-app"/);
   assert.doesNotMatch(markup, /Application unavailable/);
 });
 
@@ -48,17 +48,17 @@ test("EmbeddedApplicationHost falls back to proxyBasePath when embeddedUrl is ab
   const markup = renderToStaticMarkup(
     <EmbeddedApplicationHost
       application={buildEmbeddedApplication({
-        applicationId: "embedded-demo",
-        title: "Embedded Demo",
-        routePath: "/apps/embedded-demo",
+        applicationId: "proxy-backed-test-app",
+        title: "Proxy Backed Test App",
+        routePath: "/apps/proxy-backed-test-app",
         embeddedUrl: undefined,
-        proxyBasePath: "/runtime-applications/embedded-demo",
+        proxyBasePath: "/runtime-applications/proxy-backed-test-app",
       })}
     />,
   );
 
   assert.match(markup, /data-testid="embedded-application-frame"/);
-  assert.match(markup, /src="\/runtime-applications\/embedded-demo"/);
+  assert.match(markup, /src="\/runtime-applications\/proxy-backed-test-app"/);
   assert.doesNotMatch(markup, /Application unavailable/);
 });
 

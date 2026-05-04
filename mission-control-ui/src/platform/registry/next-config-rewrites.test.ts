@@ -48,19 +48,18 @@ test("next config fallback rewrites proxy platform API paths without shadowing t
   assert.match(configSource, /\$\{apiServerUrl\}\/telemetry\/:path\*/);
 });
 
-test("next config rewrites keep workspace on the internal transport path only", () => {
+test("next config does not expose deleted workspace transport routes", () => {
   assert.doesNotMatch(configSource, /source:\s*"\/workspace"/);
   assert.doesNotMatch(configSource, /source:\s*"\/workspace\/:path\*"/);
-  assert.match(configSource, /source:\s*"\/_embedded\/workspace"/);
-  assert.match(configSource, /source:\s*"\/_embedded\/workspace\/:path\*"/);
+  assert.doesNotMatch(configSource, /source:\s*"\/_embedded\/workspace"/);
+  assert.doesNotMatch(configSource, /source:\s*"\/_embedded\/workspace\/:path\*"/);
+  assert.doesNotMatch(configSource, /OPENVSCODE_SERVER_URL/);
+  assert.doesNotMatch(configSource, /openvscode-server/);
 });
 
-test("next config redirects top-level workspace transport navigation back into the shell", () => {
-  assert.match(configSource, /async redirects\(\)/);
-  assert.match(configSource, /source:\s*"\/_embedded\/workspace"/);
-  assert.match(configSource, /destination:\s*"\/apps\/workspace"/);
-  assert.match(configSource, /key:\s*"sec-fetch-dest"/);
-  assert.match(configSource, /value:\s*"document"/);
+test("next config keeps generic runtime application proxy routes", () => {
+  assert.match(configSource, /source:\s*"\/runtime-applications\/:applicationId"/);
+  assert.match(configSource, /source:\s*"\/runtime-applications\/:applicationId\/:path\*"/);
   assert.equal(existsSync(join(projectRoot, "src", "middleware.ts")), false);
   assert.equal(existsSync(join(projectRoot, "src", "proxy.ts")), false);
   assert.equal(existsSync(join(projectRoot, "middleware.ts")), false);

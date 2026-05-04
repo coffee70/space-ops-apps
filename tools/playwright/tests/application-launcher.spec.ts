@@ -38,44 +38,6 @@ const registryPayload = [
     healthStatus: "unknown",
     deploymentStatus: "seeded",
   },
-  {
-    applicationId: "workspace",
-    title: "Workspace",
-    description: "Open VS Code Server workspace.",
-    iconKey: "folder-code",
-    iconColor: "#38bdf8",
-    iconBackground: "rgba(56, 189, 248, 0.16)",
-    applicationType: "embedded",
-    routePath: "/apps/workspace",
-    embeddedUrl: "/_embedded/workspace",
-    version: "0.1.0",
-    enabled: true,
-    iframeSandbox: "allow-scripts allow-same-origin allow-forms",
-    iframeAllow: "",
-    sortOrder: 50,
-    owner: "space-ops-apps",
-    capabilities: ["development-workspace"],
-    healthStatus: "unknown",
-    deploymentStatus: "seeded",
-  },
-  {
-    applicationId: "battery-efficiency",
-    title: "Battery Efficiency",
-    description: "Example native analysis app built inside the platform shell over Layer 2 telemetry.",
-    iconKey: "battery",
-    iconColor: "#f59e0b",
-    iconBackground: "rgba(245, 158, 11, 0.16)",
-    applicationType: "native",
-    routePath: "/apps/battery-efficiency",
-    loaderKey: "battery-efficiency",
-    version: "0.1.0",
-    enabled: true,
-    sortOrder: 60,
-    owner: "space-ops-apps",
-    capabilities: ["telemetry-analysis", "battery-analysis"],
-    healthStatus: "unknown",
-    deploymentStatus: "seeded",
-  },
 ];
 
 test("launcher supports search, selection, and open behavior", async ({ page }) => {
@@ -94,15 +56,35 @@ test("launcher supports search, selection, and open behavior", async ({ page }) 
   await expect(page.getByRole("dialog", { name: "Applications" })).toBeVisible();
   await expect(page.getByTestId("applications-launcher-search")).toBeFocused();
 
-  await page.getByTestId("applications-launcher-search").fill("work");
-  await expect(page.getByTestId("application-option-workspace")).toBeVisible();
-  await page.getByTestId("application-option-workspace").click();
-  await expect(page.getByTestId("applications-launcher-details")).toContainText("Workspace");
+  await page.getByTestId("applications-launcher-search").fill("AI Engineer");
+  await expect(page.getByTestId("application-option-ai-engineer")).toBeVisible();
+  await page.getByTestId("application-option-ai-engineer").click();
+  await expect(page.getByTestId("applications-launcher-details")).toContainText("AI Engineer");
 
   await page.getByTestId("applications-launcher-open").click();
-  await expect(page).toHaveURL(/\/apps\/workspace$/);
-  await expect(page.getByTestId("current-application-nav-item")).toContainText("Workspace");
-  await expect(page.getByTestId("embedded-application-frame")).toHaveAttribute("src", "/_embedded/workspace");
+  await expect(page).toHaveURL(/\/apps\/ai-engineer(?:\?.*)?$/);
+  await expect(page.getByTestId("current-application-nav-item")).toContainText("AI Engineer");
+  await expect(page.getByRole("heading", { name: "AI Engineer" })).toBeVisible();
+  await expect(page.getByTestId("embedded-application-frame")).toHaveCount(0);
+});
+
+test("launcher does not show deleted application entries", async ({ page }) => {
+  await page.route("**/registry/applications", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(registryPayload),
+    });
+  });
+
+  await page.goto(appUrl("overview"));
+  await page.getByTestId("applications-nav-item").click();
+
+  await page.getByTestId("applications-launcher-search").fill("work");
+  await expect(page.getByTestId("application-option-workspace")).toHaveCount(0);
+
+  await page.getByTestId("applications-launcher-search").fill("Battery");
+  await expect(page.getByTestId("application-option-battery-efficiency")).toHaveCount(0);
 });
 
 test("launcher opens a native application route through the shell", async ({ page }) => {

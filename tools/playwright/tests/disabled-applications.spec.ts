@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { appUrl } from "./support/application-routes";
 
 const controlPlaneBaseUrl = "http://control-plane:8100";
-const disabledApplicationId = "embedded-demo";
+const disabledApplicationId = "telemetry";
 
 test.afterEach(async ({ request }) => {
   const response = await request.post(
@@ -24,7 +24,7 @@ test("launcher hides disabled applications", async ({ page, request }) => {
   await expect(page.getByTestId(`application-option-${disabledApplicationId}`)).toHaveCount(0);
 });
 
-test("disabled embedded applications render the shell-owned unavailable state", async ({ page, request }) => {
+test("disabled applications render the shell-owned unavailable state", async ({ page, request }) => {
   const disableResponse = await request.post(
     `${controlPlaneBaseUrl}/registry/applications/${disabledApplicationId}/disable`,
   );
