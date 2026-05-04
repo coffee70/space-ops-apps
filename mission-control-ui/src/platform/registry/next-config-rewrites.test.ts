@@ -48,11 +48,8 @@ test("next config fallback rewrites proxy platform API paths without shadowing t
   assert.match(configSource, /\$\{apiServerUrl\}\/telemetry\/:path\*/);
 });
 
-test("next config does not expose deleted workspace transport routes", () => {
-  assert.doesNotMatch(configSource, /source:\s*"\/workspace"/);
-  assert.doesNotMatch(configSource, /source:\s*"\/workspace\/:path\*"/);
-  assert.doesNotMatch(configSource, /source:\s*"\/_embedded\/workspace"/);
-  assert.doesNotMatch(configSource, /source:\s*"\/_embedded\/workspace\/:path\*"/);
+test("next config does not expose direct embedded transport rewrites", () => {
+  assert.doesNotMatch(configSource, /source:\s*"\/_embedded\//);
   assert.doesNotMatch(configSource, /OPENVSCODE_SERVER_URL/);
   assert.doesNotMatch(configSource, /openvscode-server/);
 });

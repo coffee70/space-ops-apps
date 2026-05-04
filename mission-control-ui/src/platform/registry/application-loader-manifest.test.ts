@@ -5,12 +5,14 @@ import test from "node:test";
 
 import { applicationLoaderManifest } from "./application-loader-manifest.generated";
 
-test("application loader manifest includes ai-engineer", () => {
-  assert.equal(typeof applicationLoaderManifest["ai-engineer"], "function");
-});
-
-test("application loader manifest excludes deleted battery efficiency app", () => {
-  assert.equal(applicationLoaderManifest["battery-efficiency"], undefined);
+test("application loader manifest includes retained native applications", () => {
+  assert.deepEqual(Object.keys(applicationLoaderManifest).sort(), [
+    "ai-engineer",
+    "overview",
+    "planning",
+    "sources",
+    "telemetry",
+  ]);
 });
 
 test("ai-engineer seed loaderKey matches generated loader manifest key", () => {

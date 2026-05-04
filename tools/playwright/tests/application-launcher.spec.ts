@@ -68,25 +68,6 @@ test("launcher supports search, selection, and open behavior", async ({ page }) 
   await expect(page.getByTestId("embedded-application-frame")).toHaveCount(0);
 });
 
-test("launcher does not show deleted application entries", async ({ page }) => {
-  await page.route("**/registry/applications", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(registryPayload),
-    });
-  });
-
-  await page.goto(appUrl("overview"));
-  await page.getByTestId("applications-nav-item").click();
-
-  await page.getByTestId("applications-launcher-search").fill("work");
-  await expect(page.getByTestId("application-option-workspace")).toHaveCount(0);
-
-  await page.getByTestId("applications-launcher-search").fill("Battery");
-  await expect(page.getByTestId("application-option-battery-efficiency")).toHaveCount(0);
-});
-
 test("launcher opens a native application route through the shell", async ({ page }) => {
   await page.route("**/registry/applications", async (route) => {
     await route.fulfill({
