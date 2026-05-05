@@ -46,8 +46,8 @@ The streamer posts to `POST /telemetry/realtime/ingest` with a registered source
 Use the SatNOGS adapter when you want a real external packet-radio feed instead of simulator traffic.
 
 1. Start the backend so it can auto-register vehicle configuration files.
-2. Keep the adapter config pointed at the platform source resolve, observation upsert, backfill progress, and live state endpoints. Set `vehicle.vehicle_config_path: "vehicles/lasarsat.yaml"`, `vehicle.norad_id: 62391`, `vehicle.decoder.strategy: "kaitai"`, `vehicle.decoder.decoder_id: "lasarsat"`, `satnogs.transmitter_uuid: "C3RnLSSuaKzWhHrtJCqUgu"`, and `satnogs.status: "good"`. For APRS payloads such as ISS, use `vehicle.decoder.strategy: "aprs"` instead.
-3. Start the compose-managed `satnogs-adapter` service.
+2. Keep the Layer 2 adapter config pointed at the platform source resolve, observation upsert, backfill progress, and live state endpoints. Set `vehicle.vehicle_config_path: "vehicles/lasarsat.yaml"`, `vehicle.norad_id: 62391`, `vehicle.decoder.strategy: "kaitai"`, `vehicle.decoder.decoder_id: "lasarsat"`, `satnogs.transmitter_uuid: "C3RnLSSuaKzWhHrtJCqUgu"`, and `satnogs.status: "good"`. For APRS payloads such as ISS, use `vehicle.decoder.strategy: "aprs"` instead.
+3. Enable the managed `satnogs-adapter-service` through Layer 1 with `SATNOGS_LIVE_ENABLED=true` when live polling is needed.
 4. The adapter resolves the canonical backend vehicle source, publishes upcoming observation windows for Planning, starts live polling, and drains any historical backlog in platform-sized chunks. Live and backfill requests share one SatNOGS coordinator for rate limits and retry-after handling.
 
 The detailed workflow lives in [SatNOGS Adapter](/docs/satnogs-adapter).

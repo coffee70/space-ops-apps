@@ -12,7 +12,7 @@ If you validate the UI in a browser, read the kernel Playwright section first so
 
 ## Repo role (Layer 3)
 
-Keep changes scoped to Mission Control UI, simulator runtime, SatNOGS adapter runtime, concrete vehicle configurations, app scripts, browser tests, and operator workflow documentation.
+Keep changes scoped to Mission Control UI, simulator runtime, concrete vehicle configurations, app scripts, browser tests, and operator workflow documentation. The SatNOGS adapter is a Layer 2 managed service in `space-ops-platform`.
 
 Apps should consume platform behavior through REST/WebSocket APIs and copied contract/package sources such as `telemetry_catalog/`. Do not import `backend.app.*` internals from `space-ops-platform`.
 
@@ -55,7 +55,7 @@ Details, env overrides, and UI rebuild hints: `tools/playwright/README.md` and `
 
 Ad-hoc `npm --prefix tools/playwright run …` on the host is for local debugging; set `PLAYWRIGHT_BASE_URL` explicitly if you hit `localhost` instead of the default `mission-control-ui:3000` service name.
 
-### Python (simulator + SatNOGS adapter)
+### Python (simulator)
 
 From repository root **`space-ops-apps`** — **canonical**:
 
@@ -63,12 +63,12 @@ From repository root **`space-ops-apps`** — **canonical**:
 ./scripts/run-python-tests.sh
 ```
 
-This creates or reuses the gitignored **`./.venv`** directory, installs `simulator/requirements.txt`, `satnogs_adapter/requirements.txt`, and **`pytest`**, sets `PYTHONPATH` to the repo root, and runs both `simulator/tests` and `satnogs_adapter/tests`. Pass pytest flags as needed (`-q`, `-k`, file paths).
+This creates or reuses the gitignored **`./.venv`** directory, installs `simulator/requirements.txt` and **`pytest`**, sets `PYTHONPATH` to the repo root, and runs `simulator/tests`. Pass pytest flags as needed (`-q`, `-k`, file paths).
 
 Tight loop after you have already activated **`./.venv`** yourself:
 
 ```bash
-PYTHONPATH=. pytest simulator/tests satnogs_adapter/tests
+PYTHONPATH=. pytest simulator/tests
 ```
 
 ### Platform backend pytest

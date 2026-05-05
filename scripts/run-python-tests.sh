@@ -11,11 +11,10 @@ if [[ ! -d "${VENVDIR}" ]]; then
   "${PYTHON}" -m venv "${VENVDIR}"
 fi
 
-echo "==> pip install (simulator + satnogs_adapter + pytest)"
+echo "==> pip install (simulator + pytest)"
 "${VENVDIR}/bin/pip" install -q pytest \
-  -r "${APPS_ROOT}/simulator/requirements.txt" \
-  -r "${APPS_ROOT}/satnogs_adapter/requirements.txt"
+  -r "${APPS_ROOT}/simulator/requirements.txt"
 
 export PYTHONPATH="${APPS_ROOT}"
-echo "==> pytest simulator/tests satnogs_adapter/tests"
-exec "${VENVDIR}/bin/pytest" "${APPS_ROOT}/simulator/tests" "${APPS_ROOT}/satnogs_adapter/tests" "$@"
+echo "==> pytest simulator/tests"
+exec "${VENVDIR}/bin/pytest" "${APPS_ROOT}/simulator/tests" "$@"
