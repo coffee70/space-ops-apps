@@ -8,7 +8,7 @@ By default, live Overview and watchlist subscriptions stay **source-scoped**: if
 
 ## Option A: In-app Simulator
 
-1. Go to the **Sources** page (nav link). The page lists Vehicles and Simulators. Add a simulator with **Add source** → choose **Simulator** → enter a name, a vehicle configuration path (for example `simulators/drogonsat.yaml`), and a Base URL (for example `http://simulator:8001`). The server uses the vehicle configuration file to seed the expected channel catalog and uses the Base URL to reach the simulator.
+1. Go to the **Sources** page (nav link). The page lists Vehicles and Simulators. Built-in simulators are registered from Layer 2 vehicle configuration resources. For a custom managed simulator, enter a vehicle configuration path (for example `simulators/drogonsat.yaml`) and the control-plane runtime proxy URL for that managed service. The server uses the vehicle configuration file to seed the expected channel catalog and uses the Base URL to reach the simulator.
 2. Use **Vehicle Configurations** from the Sources page when you need to inspect or edit the backing YAML/JSON files directly. The page now opens as a full workspace: an explorer on the left mirrors the folder structure under `VEHICLE_CONFIGURATION_PATH`, the editor fills the right side, and the divider can be dragged wider or narrower.
 3. Click **Manage** on a simulator to open its control panel on a dedicated page. The panel shows a connection pill (green when reachable, red when disconnected) and runtime state (Idle, Running, Paused) with elapsed time.
 4. Choose a scenario:

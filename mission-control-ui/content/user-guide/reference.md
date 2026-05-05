@@ -20,7 +20,7 @@ Open **Keybindings** from the bottom of the left navigation rail to view availab
 
 The platform emits structured JSON audit logs for auditing and debugging:
 
-- **Backend / Simulator:** Logs go to stdout. With Docker: `docker compose logs backend` or `docker compose logs simulator`. Each line is JSON with `audit: true`, `action`, `component`, and action-specific fields.
+- **Backend / Simulator:** Logs go to stdout. With Docker, use `docker compose logs platform-api` for the API and inspect managed simulator deployment logs through the control plane. Each line is JSON with `audit: true`, `action`, `component`, and action-specific fields.
 - **Frontend:** In development, user actions (simulator, watchlist, ack/resolve, search) are logged to the browser console. In production, set `NEXT_PUBLIC_AUDIT_LOG=true` to enable.
 
 ## Operator Mode

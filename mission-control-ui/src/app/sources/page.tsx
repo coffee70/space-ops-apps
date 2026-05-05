@@ -424,7 +424,7 @@ export function SourcesPage() {
                                 id={`edit-baseurl-${s.id}`}
                                 value={editBaseUrl}
                                 onChange={(e) => setEditBaseUrl(e.target.value)}
-                                placeholder="http://simulator:8001"
+                                placeholder="http://control-plane:8100/internal/runtime-services/simulator-service"
                                 className="mt-1"
                               />
                             </div>
@@ -576,11 +576,11 @@ export function SourcesPage() {
                     id="wizard-baseurl"
                     value={wizardBaseUrl}
                     onChange={(e) => setWizardBaseUrl(e.target.value)}
-                    placeholder="http://simulator:8001"
+                    placeholder="http://control-plane:8100/internal/runtime-services/simulator-service"
                     className="mt-1"
                   />
                   <p className="text-muted-foreground mt-1 text-xs">
-                    URL the server uses to reach the simulator (e.g. http://simulator:8001).
+                    URL the server uses to reach the managed simulator.
                   </p>
                 </div>
               ) : null}

@@ -1,6 +1,6 @@
 # Space Ops Apps
 
-Layer 3 applications, concrete configs, app scripts, and app tests.
+Layer 3 applications, app scripts, browser tests, and operator workflow docs.
 
 Extraction baseline: `c2-infra` commit `7b4f15ace9895c440ad89a9a460566c78135c57b` (`phase1-layer-split-baseline-2026-04-20`).
 
@@ -8,7 +8,7 @@ Extraction baseline: `c2-infra` commit `7b4f15ace9895c440ad89a9a460566c78135c57b
 
 | Area | Humans | Agents / automation |
 |------|--------|---------------------|
-| **This repo — UI, simulator, Playwright workspace** | this file | [AGENTS.md](./AGENTS.md) |
+| **This repo — UI and Playwright workspace** | this file | [AGENTS.md](./AGENTS.md) |
 | **Layer 1 — Compose + `validate-node` / `validate-playwright` wrappers** | [../space-ops-kernel/README.md](../space-ops-kernel/README.md) | [../space-ops-kernel/AGENTS.md](../space-ops-kernel/AGENTS.md) |
 | **Layer 2 — platform backend pytest + agent-runtime sources** | [../space-ops-platform/README.md](../space-ops-platform/README.md) | [../space-ops-platform/AGENTS.md](../space-ops-platform/AGENTS.md) |
 | Playwright paths, env knobs | [tools/playwright/README.md](./tools/playwright/README.md) | — |
@@ -17,7 +17,7 @@ Extraction baseline: `c2-infra` commit `7b4f15ace9895c440ad89a9a460566c78135c57b
 
 ## Role
 
-This repository owns Mission Control UI, the simulator runtime, concrete vehicle configuration assets, Playwright browser tests, app/sample telemetry scripts, and operator workflow documentation. The SatNOGS adapter is a Layer 2 managed service in `space-ops-platform`.
+This repository owns Mission Control UI, Playwright browser tests, app/sample telemetry scripts, and operator workflow documentation. The simulator runtime, SatNOGS adapter, and concrete vehicle configuration resources are Layer 2 managed capabilities in `space-ops-platform`.
 
 Apps consume Layer 2 through REST/WebSocket APIs and copied contract/package sources such as `telemetry_catalog/`. They should not import `backend.app.*` internals.
 
@@ -25,9 +25,7 @@ Apps consume Layer 2 through REST/WebSocket APIs and copied contract/package sou
 
 ```text
 mission-control-ui/            Next.js Mission Control application
-simulator/                     Telemetry simulator runtime
-vehicle-configurations/        Concrete mission/sample/simulator configs
-telemetry_catalog/             Copied Layer 2 schema package source for app runtimes
+telemetry_catalog/             Copied Layer 2 schema package source for app helper scripts
 tools/playwright/              Browser smoke tests
 scripts/                       App/sample telemetry helper scripts
 docs/SITUATIONAL_AWARENESS_QA.md
@@ -40,7 +38,6 @@ docs/API_TELEMETRY_CONTRACTS.md
 |-------|-------------------|------|
 | **Mission Control + agent runtime (`npm`** ***, Linux-native deps)** | `../space-ops-kernel/scripts/validate-node.sh` | Kernel README Testing table |
 | **Playwright (`http://mission-control-ui:3000`, Compose network)** | `../space-ops-kernel/scripts/validate-playwright.sh smoke` (or `test`, etc.) | [tools/playwright/README.md](./tools/playwright/README.md) |
-| **Simulator Python** | from **`space-ops-apps` repo root**: `./scripts/run-python-tests.sh` (uses gitignored `./.venv`, installs deps + `pytest`, sets `PYTHONPATH`) | [AGENTS.md](./AGENTS.md) |
 | **Platform backend** | `../space-ops-platform/scripts/run-backend-tests.sh` | sibling README |
 
 ## Mission Control UI
@@ -59,23 +56,7 @@ Use `NEXT_PUBLIC_API_URL` for browser calls and `API_SERVER_URL` for server-side
 
 ## Simulator
 
-The simulator reads vehicle config files through `VEHICLE_CONFIG_ROOT` and publishes telemetry to the platform ingest APIs.
-
-```bash
-cd simulator
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-PYTHONPATH=..:. VEHICLE_CONFIG_ROOT=../vehicle-configurations BACKEND_URL=http://localhost:8000 uvicorn simulator.main:app --host 0.0.0.0 --port 8001
-```
-
-Tests:
-
-```bash
-./scripts/run-python-tests.sh -q
-```
-
-(`simulator/requirements.txt` omits `pytest`; the script installs it into `./.venv`.)
+The telemetry simulator is a Layer 2 managed service in `../space-ops-platform/backend/app/simulator`, deployed by Layer 1 manifests. Mission Control controls it through platform `/simulator/*` APIs.
 
 ## Playwright (`tools/playwright`)
 
