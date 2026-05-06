@@ -109,6 +109,7 @@ export function SideNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [expanded, setExpanded] = useState(true);
+  const [suppressCollapsedToggle, setSuppressCollapsedToggle] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [launcherOpen, setLauncherOpen] = useState(false);
   const applicationsQuery = useQuery({
@@ -128,14 +129,18 @@ export function SideNav() {
     router.push(application.routePath);
   };
 
+  const toggleExpanded = () => {
+    setSuppressCollapsedToggle(true);
+    setExpanded((value) => !value);
+
+    window.setTimeout(() => {
+      setSuppressCollapsedToggle(false);
+    }, 300);
+  };
+
   const content = (mobile = false) => (
     <nav aria-label={mobile ? "Mobile navigation" : "Primary navigation"} className="flex h-full flex-col gap-3 p-2">
-      <div
-        className={cn(
-          "flex h-10 items-center",
-          mobile || expanded ? "justify-between" : "justify-end",
-        )}
-      >
+      <div className="flex h-10 items-center justify-between">
         {mobile ? (
           <Button
             variant="ghost"
@@ -145,48 +150,55 @@ export function SideNav() {
           >
             <X className="size-4" />
           </Button>
-        ) : expanded ? (
-          <>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg">
-              <SidebarLogo />
-            </div>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-10 w-10 rounded-lg"
-                  onClick={() => setExpanded((value) => !value)}
-                  aria-label="Collapse sidebar"
-                >
-                  <ChevronLeft className="size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Close sidebar</TooltipContent>
-            </Tooltip>
-          </>
         ) : (
-          <div className="relative h-10 w-10">
-            <div className="absolute inset-0 flex items-center justify-center rounded-lg transition-opacity duration-150 group-focus-within/sidebar:opacity-0 group-hover/sidebar:opacity-0">
-              <SidebarLogo />
+          <>
+            <div className="relative h-10 w-10 shrink-0">
+              <div
+                className={cn(
+                  "absolute inset-0 flex items-center justify-center rounded-lg transition-opacity duration-150",
+                  expanded || suppressCollapsedToggle
+                    ? "opacity-100"
+                    : "opacity-100 group-focus-within/sidebar:opacity-0 group-hover/sidebar:opacity-0",
+                )}
+              >
+                <SidebarLogo />
+              </div>
+
+              {!expanded && !suppressCollapsedToggle ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="absolute inset-0 h-10 w-10 rounded-lg opacity-0 transition-opacity duration-150 group-focus-within/sidebar:opacity-100 group-hover/sidebar:opacity-100 focus-visible:opacity-100"
+                      onClick={toggleExpanded}
+                      aria-label="Open sidebar"
+                    >
+                      <ChevronRight className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Open sidebar</TooltipContent>
+                </Tooltip>
+              ) : null}
             </div>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="absolute inset-0 h-10 w-10 rounded-lg opacity-0 transition-opacity duration-150 group-focus-within/sidebar:opacity-100 group-hover/sidebar:opacity-100 focus-visible:opacity-100"
-                  onClick={() => setExpanded((value) => !value)}
-                  aria-label="Expand sidebar"
-                >
-                  <ChevronRight className="size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Open sidebar</TooltipContent>
-            </Tooltip>
-          </div>
+            {expanded ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-10 w-10 rounded-lg"
+                    onClick={toggleExpanded}
+                    aria-label="Close sidebar"
+                  >
+                    <ChevronLeft className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Close sidebar</TooltipContent>
+              </Tooltip>
+            ) : null}
+          </>
         )}
       </div>
 
