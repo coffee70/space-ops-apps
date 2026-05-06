@@ -27,7 +27,8 @@ import { resolveApplicationIcon } from "@/platform/shell/application-icons";
 import { cn } from "@/lib/utils";
 
 const SIDEBAR_EXPANDED_W = "md:w-56";
-const SIDEBAR_COLLAPSED_W = "md:w-[56px]";
+// 57px = 40px collapsed icon rail + 16px nav padding + 1px border-r.
+const SIDEBAR_COLLAPSED_W = "md:w-[57px]";
 const ITEM_ROW =
   "flex h-10 w-full items-center gap-2 overflow-hidden rounded-lg px-2.5 text-sm font-medium";
 
@@ -122,6 +123,7 @@ export function SideNav() {
           <Button
             variant="ghost"
             size="icon-sm"
+            className="h-10 w-10 rounded-lg"
             onClick={() => setExpanded((value) => !value)}
             aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
           >
@@ -206,7 +208,7 @@ export function SideNav() {
 
       <aside
         className={cn(
-          "bg-background/95 supports-[backdrop-filter]:bg-background/80 z-40 hidden overflow-hidden border-r backdrop-blur md:sticky md:top-0 md:block md:h-screen md:shrink-0 md:transition-[width] md:duration-300",
+          "bg-background/95 supports-backdrop-filter:bg-background/80 z-40 hidden overflow-hidden border-r backdrop-blur md:sticky md:top-0 md:block md:h-screen md:shrink-0 md:transition-[width] md:duration-300",
           expanded ? SIDEBAR_EXPANDED_W : SIDEBAR_COLLAPSED_W,
         )}
       >
