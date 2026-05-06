@@ -44,10 +44,9 @@ const MODE_LABELS: Record<OperatorMode, string> = {
 interface OperatorModeToggleProps {
   className?: string;
   ariaLabel?: string;
-  collapsed?: boolean;
 }
 
-export function OperatorModeToggle({ className, ariaLabel, collapsed = false }: OperatorModeToggleProps) {
+export function OperatorModeToggle({ className, ariaLabel }: OperatorModeToggleProps) {
   const [mode, setMode] = useState<OperatorMode>(() => getStoredMode());
 
   useEffect(() => {
@@ -70,8 +69,7 @@ export function OperatorModeToggle({ className, ariaLabel, collapsed = false }: 
         <button
           type="button"
           className={cn(
-            "flex h-10 cursor-pointer items-center overflow-hidden rounded-lg border bg-background text-sm font-medium text-muted-foreground shadow-xs transition-colors",
-            collapsed ? "w-10 justify-center px-0" : "w-full gap-2 px-2.75",
+            "flex h-10 w-full cursor-pointer items-center gap-2 overflow-hidden rounded-lg border bg-background px-2.75 text-sm font-medium text-muted-foreground shadow-xs transition-colors",
             "hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
             "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
             className,
@@ -80,9 +78,9 @@ export function OperatorModeToggle({ className, ariaLabel, collapsed = false }: 
           aria-label={ariaLabel ?? `Screen type (${MODE_LABELS[mode]})`}
         >
           <MonitorIcon className="h-4 w-4 shrink-0" />
-          {collapsed ? null : (
-            <span className="min-w-0 overflow-hidden whitespace-nowrap">{MODE_LABELS[mode]}</span>
-          )}
+          <span className="min-w-0 overflow-hidden whitespace-nowrap">
+            {MODE_LABELS[mode]}
+          </span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
