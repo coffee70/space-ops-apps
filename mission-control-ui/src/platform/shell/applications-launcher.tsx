@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { Search, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +14,7 @@ import {
   sanitizeApplicationColor,
   sortApplications,
 } from "@/platform/registry/application-types";
+import { ApplicationOpenSplitButton } from "@/platform/shell/application-open-split-button";
 import { resolveApplicationIcon } from "@/platform/shell/application-icons";
 import { cn } from "@/lib/utils";
 
@@ -217,12 +217,14 @@ function ApplicationsLauncherContent({
                   </div>
                 ) : null}
 
-                <Button
-                  onClick={() => onOpenApplication(selectedApplication)}
-                  data-testid="applications-launcher-open"
-                >
-                  Open Application
-                </Button>
+                <ApplicationOpenSplitButton
+                  label="Open Application"
+                  applicationId={selectedApplication.applicationId}
+                  applicationTitle={selectedApplication.title}
+                  routePath={selectedApplication.routePath}
+                  onOpenInShell={() => onOpenApplication(selectedApplication)}
+                  testId="applications-launcher-open"
+                />
               </div>
             ) : (
               <div className="text-muted-foreground flex h-full min-h-[18rem] items-center justify-center rounded-2xl border border-dashed px-6 text-center text-sm">
