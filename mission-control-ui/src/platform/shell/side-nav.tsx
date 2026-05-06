@@ -25,12 +25,28 @@ import type { PlatformApplicationDefinition } from "@/platform/registry/applicat
 import { ApplicationsLauncher } from "@/platform/shell/applications-launcher";
 import { resolveApplicationIcon } from "@/platform/shell/application-icons";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 const SIDEBAR_EXPANDED_W = "md:w-56";
 // 57px = 40px collapsed icon rail + 16px nav padding + 1px border-r.
 const SIDEBAR_COLLAPSED_W = "md:w-[57px]";
 const ITEM_ROW =
   "flex h-10 w-full items-center gap-2 overflow-hidden rounded-lg px-2.5 text-sm font-medium";
+
+const LOGO_SRC = "/aentx-logo.png";
+
+function SidebarLogo() {
+  return (
+    <Image
+      src={LOGO_SRC}
+      alt="Aentx"
+      width={28}
+      height={28}
+      className="object-contain"
+      priority
+    />
+  );
+}
 
 function NavRow({
   expanded,
@@ -114,21 +130,63 @@ export function SideNav() {
 
   const content = (mobile = false) => (
     <nav aria-label={mobile ? "Mobile navigation" : "Primary navigation"} className="flex h-full flex-col gap-3 p-2">
-      <div className="flex h-10 items-center justify-end">
+      <div
+        className={cn(
+          "flex h-10 items-center",
+          mobile || expanded ? "justify-between" : "justify-end",
+        )}
+      >
         {mobile ? (
-          <Button variant="ghost" size="icon-sm" onClick={() => setMobileOpen(false)} aria-label="Close navigation menu">
-            <X className="size-4" />
-          </Button>
-        ) : (
           <Button
             variant="ghost"
             size="icon-sm"
-            className="h-10 w-10 rounded-lg"
-            onClick={() => setExpanded((value) => !value)}
-            aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close navigation menu"
           >
-            {expanded ? <ChevronLeft className="size-4" /> : <ChevronRight className="size-4" />}
+            <X className="size-4" />
           </Button>
+        ) : expanded ? (
+          <>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg">
+              <SidebarLogo />
+            </div>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="h-10 w-10 rounded-lg"
+                  onClick={() => setExpanded((value) => !value)}
+                  aria-label="Collapse sidebar"
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Close sidebar</TooltipContent>
+            </Tooltip>
+          </>
+        ) : (
+          <div className="relative h-10 w-10">
+            <div className="absolute inset-0 flex items-center justify-center rounded-lg transition-opacity duration-150 group-focus-within/sidebar:opacity-0 group-hover/sidebar:opacity-0">
+              <SidebarLogo />
+            </div>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="absolute inset-0 h-10 w-10 rounded-lg opacity-0 transition-opacity duration-150 group-focus-within/sidebar:opacity-100 group-hover/sidebar:opacity-100 focus-visible:opacity-100"
+                  onClick={() => setExpanded((value) => !value)}
+                  aria-label="Expand sidebar"
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Open sidebar</TooltipContent>
+            </Tooltip>
+          </div>
         )}
       </div>
 
@@ -206,7 +264,7 @@ export function SideNav() {
 
       <aside
         className={cn(
-          "bg-background/95 supports-backdrop-filter:bg-background/80 z-40 hidden overflow-hidden border-r backdrop-blur md:sticky md:top-0 md:block md:h-screen md:shrink-0 md:transition-[width] md:duration-300",
+          "bg-background/95 supports-backdrop-filter:bg-background/80 group/sidebar z-40 hidden overflow-hidden border-r backdrop-blur md:sticky md:top-0 md:block md:h-screen md:shrink-0 md:transition-[width] md:duration-300",
           expanded ? SIDEBAR_EXPANDED_W : SIDEBAR_COLLAPSED_W,
         )}
       >
