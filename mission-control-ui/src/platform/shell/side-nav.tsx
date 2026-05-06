@@ -172,9 +172,10 @@ export function SideNav() {
           icon={<Keyboard className="size-4" />}
           onClick={() => window.dispatchEvent(new CustomEvent("show-keyboard-shortcuts"))}
         />
-        <div className={cn("px-1", mobile || expanded ? "" : "flex justify-center")}>
-          <OperatorModeToggle ariaLabel="Operator mode" />
-        </div>
+        <OperatorModeToggle
+          ariaLabel="Operator mode"
+          collapsed={!mobile && !expanded}
+        />
       </div>
     </nav>
   );
