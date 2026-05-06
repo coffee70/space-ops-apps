@@ -35,7 +35,7 @@ The **Overview** page shows ops events for the selected source directly under th
 1. Go to the **Sources** page.
 2. Click **Add source**.
 3. Choose **Simulator**.
-4. Enter a name, a **Vehicle configuration path** (JSON or YAML under the server’s definitions catalog), and a **Base URL** — the URL the server uses to reach the simulator (e.g. `http://simulator:8001`).
+4. Enter a name, a **Vehicle configuration path** (JSON or YAML under the Layer 2 vehicle configuration resources), and a **Base URL** — the URL the server uses to reach the managed simulator, typically a control-plane runtime proxy URL.
 5. Click **Create**.
 
 The simulator appears in the Simulators list. The backend seeds its expected channel catalog immediately from the vehicle configuration file. Click **Manage** to open its control panel and start, pause, or stop it.
@@ -56,7 +56,7 @@ Each time you **start** a simulator from the Sources page, the platform creates 
 
 ## Local Config-Backed Sources
 
-The local stack can include ordinary vehicle and simulator configuration files:
+The local stack includes ordinary vehicle and simulator configuration files under Layer 2 resources:
 
 - `Aegon Relay` and `Balerion Surveyor` as vehicle source examples
 - `DrogonSat` as a lighter simulator example that emits GPS/LLA position channels

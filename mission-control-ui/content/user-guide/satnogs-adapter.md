@@ -2,11 +2,11 @@
 
 **Workflow:** Start backend → start adapter → live ingest + background backfill
 
-Use the SatNOGS adapter to ingest AX.25 telemetry from one SatNOGS satellite/transmitter pair into the platform. The example config uses LASARSAT NORAD `62391` with transmitter UUID `C3RnLSSuaKzWhHrtJCqUgu`.
+Use the Layer 2 SatNOGS adapter service to ingest AX.25 telemetry from one SatNOGS satellite/transmitter pair into the platform. The example config uses LASARSAT NORAD `62391` with transmitter UUID `C3RnLSSuaKzWhHrtJCqUgu`.
 
 ## 1. Configure the adapter
 
-Edit `satnogs_adapter/config.example.yaml` or provide your own config file.
+Edit `space-ops-platform/backend/app/adapters/satnogs/config.example.yaml` or provide your own config file through `SATNOGS_ADAPTER_CONFIG`.
 
 - Keep `platform.source_resolve_url` pointed at `/telemetry/sources/resolve`.
 - Keep `platform.observations_batch_upsert_url` pointed at `/telemetry/sources/{source_id}/observations:batch-upsert`.
@@ -25,7 +25,7 @@ The adapter resolves the canonical backend `source_id` from `vehicle.vehicle_con
 ## 2. Start the service
 
 ```bash
-docker compose up -d satnogs-adapter
+SATNOGS_LIVE_ENABLED=true docker compose up -d control-plane
 ```
 
 The backend auto-registers known vehicle configs during startup. If the LASARSAT source already exists, the adapter receives that existing source ID and ingestion contract. If it is missing, the backend creates it through the generic vehicle source resolution path. The adapter publishes future expected contact windows to the source observation API, runs live polling, and for replay-capable sources drains a background historical backlog in chunks. Only observations matching the configured satellite, transmitter, and status are eligible for ingestion.
@@ -53,4 +53,4 @@ The backend auto-registers known vehicle configs during startup. If the LASARSAT
 - If the adapter restarts during backfill, the new process supersedes the stale running target and continues from the platform checkpoint with a new startup cutoff.
 - Use adapter `--mode replay-dlq` to retry batch DLQ entries after fixing an ingest or mapping issue.
 
-DLQ files are written under `tmp/satnogs-adapter/` by default. The adapter does not write local checkpoint state.
+DLQ files are written under `/app/runtime/satnogs-adapter/dlq` by default. The adapter does not write local checkpoint state.

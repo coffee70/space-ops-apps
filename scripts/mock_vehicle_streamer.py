@@ -18,10 +18,12 @@ Examples:
 """
 
 import argparse
+import os
 import random
 import sys
 import time
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 try:
@@ -37,6 +39,11 @@ if _SCRIPT_DIR not in sys.path:
 _REPO_ROOT = __file__.rsplit("/", 2)[0] if "/" in __file__ else "."
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
+
+_DEFAULT_VEHICLE_CONFIG_ROOT = (
+    Path(_REPO_ROOT).parent / "space-ops-platform" / "backend" / "resources" / "vehicle-configurations"
+)
+os.environ.setdefault("VEHICLE_CONFIG_ROOT", str(_DEFAULT_VEHICLE_CONFIG_ROOT))
 
 from telemetry_catalog.builtins import MOCK_VEHICLE_SOURCE_ID
 from telemetry_catalog.definitions import channel_rate_hz, load_vehicle_config_file
