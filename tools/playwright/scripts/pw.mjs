@@ -11,7 +11,7 @@ const browserStore =
   path.join(workspaceRoot, "tmp/playwright/ms-playwright");
 const htmlReport =
   process.env.PLAYWRIGHT_HTML_REPORT || path.join(workspaceRoot, "tmp/playwright/report");
-const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://mission-control-ui:3000";
+const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://platform-edge-proxy:8080";
 
 const env = {
   ...process.env,

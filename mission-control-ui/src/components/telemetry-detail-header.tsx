@@ -140,7 +140,11 @@ export function TelemetryDetailHeader({
               </Badge>
             )}
             {live && (
-              <Badge variant="default" className="shrink-0 gap-1.5 bg-emerald-600 text-xs text-white hover:bg-emerald-600">
+              <Badge
+                variant="default"
+                className="shrink-0 gap-1.5 bg-emerald-600 text-xs text-white hover:bg-emerald-600"
+                data-testid="telemetry-detail-live-badge"
+              >
                 <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-current opacity-80" />
                 Live
               </Badge>

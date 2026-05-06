@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import { appUrl } from "./support/application-routes";
 
-const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://mission-control-ui:3000";
+const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://platform-edge-proxy:8080";
 const fixtureDocumentPath = resolve(
   process.cwd(),
   "..",

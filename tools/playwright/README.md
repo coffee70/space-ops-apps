@@ -33,15 +33,15 @@ Targets and env overrides are printed by `validate-playwright.sh help` (image, b
 
 ### Prerequisites (Compose-facing URLs)
 
-Containers talk to **`http://mission-control-ui:3000`**, not `localhost`. Rebuild/start UI so build-time env matches in-cluster service names:
+Playwright defaults to the **Layer 1 edge proxy**: **`http://platform-edge-proxy:8080`** (same-origin HTTP + WebSocket as the browser). Start the full stack from `space-ops-kernel` so `platform-edge-proxy`, `mission-control-ui`, `platform-api`, and `control-plane` are up:
 
 ```bash
-NEXT_PUBLIC_API_URL=http://platform-api:8000 \
-NEXT_PUBLIC_CONTROL_PLANE_URL=http://control-plane:8100 \
-docker compose -f space-ops-kernel/docker-compose.yml up -d --build mission-control-ui
+docker compose -f space-ops-kernel/docker-compose.yml up -d --build
 ```
 
-Bring up whatever API/control-plane deps your scenario needs before invoking Playwright.
+Use empty `NEXT_PUBLIC_API_URL` for the official path (see kernel README). Raw `http://mission-control-ui:3000` is UI-only/debug without the proxy route map.
+
+Bring up whatever optional deps your scenario needs before invoking Playwright.
 
 ## Host-only runs (local debugging only)
 
@@ -54,15 +54,15 @@ npm --prefix tools/playwright run test:smoke            # expects PLAYWRIGHT_BAS
 npm --prefix tools/playwright run test:smoke:headed
 ```
 
-Use `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000` (example) when the UI listens on localhost; defaults target the Compose service hostname.
+Use `PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080` (example) when hitting the edge proxy on the host; defaults target the Compose service hostname for **`platform-edge-proxy`**.
 
 Host runs may stash browser binaries under `tmp/playwright/ms-playwright`; the Docker runner uses bundled `/ms-playwright`.
 
 ## Runtime defaults (`playwright.config.ts`)
 
-- Base URL: `http://mission-control-ui:3000`
-- API URL (tests): `http://platform-api:8000`
-- Primary smoke route: `/overview`
+- Base URL: `http://platform-edge-proxy:8080`
+- API URL (tests): `http://platform-edge-proxy:8080` (same-origin through Layer 1)
+- Primary smoke route: `/overview` (via edge → Mission Control)
 - Default Docker network: `space-ops-kernel_default` (wired by **`validate-playwright.sh`**, not local `npm` alone)
 
 Override via `PLAYWRIGHT_BASE_URL`, `PLAYWRIGHT_API_URL`, and `PLAYWRIGHT_DOCKER_NETWORK` when cloning into non-default Compose project names.

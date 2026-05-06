@@ -1,7 +1,7 @@
 import { expect, type APIRequestContext } from "@playwright/test";
 
 export const PLAYWRIGHT_API_URL =
-  process.env.PLAYWRIGHT_API_URL || "http://platform-api:8000";
+  process.env.PLAYWRIGHT_API_URL || "http://platform-edge-proxy:8080";
 
 export interface TelemetrySource {
   id: string;
