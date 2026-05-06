@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test";
 
+test.setTimeout(60_000);
+
 /**
- * Proves broad route families reach the platform API gateway and control plane through
- * the Layer 1 edge proxy (not raw platform-api:8000).
+ * Fast same-origin checks for CI/smoke (avoids /ops/feed-status which can be slow or 502 upstream).
  */
-test("edge proxy GET route families @smoke @edge-proxy", async ({ request }) => {
+test("edge proxy GET core routes @smoke @edge-proxy", async ({ request }) => {
   const sourcesResp = await request.get("/telemetry/sources");
   expect(sourcesResp.ok()).toBeTruthy();
   const sources = (await sourcesResp.json()) as Array<{ id?: string; source_type?: string }>;
@@ -12,11 +13,21 @@ test("edge proxy GET route families @smoke @edge-proxy", async ({ request }) => 
 
   const registryResp = await request.get("/registry/applications");
   expect(registryResp.ok()).toBeTruthy();
+});
+
+/**
+ * Platform/control-plane-forwarded paths that may be slower or depend on optional services.
+ */
+test("edge proxy GET ops and simulator route families @edge-proxy", async ({ request }) => {
+  const sourcesResp = await request.get("/telemetry/sources");
+  expect(sourcesResp.ok()).toBeTruthy();
+  const sources = (await sourcesResp.json()) as Array<{ id?: string; source_type?: string }>;
 
   const firstSourceId = sources.find((s) => s.id)?.id;
   expect(firstSourceId).toBeTruthy();
   const feedResp = await request.get(
-    `/ops/feed-status?source_id=${encodeURIComponent(firstSourceId!)}`
+    `/ops/feed-status?source_id=${encodeURIComponent(firstSourceId!)}`,
+    { timeout: 45_000 }
   );
   expect(feedResp.ok()).toBeTruthy();
 

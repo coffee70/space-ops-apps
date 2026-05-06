@@ -64,7 +64,8 @@ test("launcher supports search, selection, and open behavior", async ({ page }) 
   await page.getByTestId("applications-launcher-open").click();
   await expect(page).toHaveURL(/\/apps\/ai-engineer(?:\?.*)?$/);
   await expect(page.getByTestId("current-application-nav-item")).toContainText("AI Engineer");
-  await expect(page.getByRole("heading", { name: "AI Engineer" })).toBeVisible();
+  await expect(page.getByTestId("ai-engineer-shell")).toBeVisible();
+  await expect(page.getByTestId("ai-engineer-shell").getByText("AI Engineer", { exact: true })).toBeVisible();
   await expect(page.getByTestId("embedded-application-frame")).toHaveCount(0);
 });
 
@@ -91,7 +92,8 @@ test("launcher opens a native application route through the shell", async ({ pag
   await page.getByTestId("applications-launcher-open").click();
   await expect(page).toHaveURL(/\/apps\/ai-engineer(?:\?.*)?$/);
   await expect(page.getByTestId("current-application-nav-item")).toContainText("AI Engineer");
-  await expect(page.getByRole("heading", { name: "AI Engineer" })).toBeVisible();
+  await expect(page.getByTestId("ai-engineer-shell")).toBeVisible();
+  await expect(page.getByTestId("ai-engineer-shell").getByText("AI Engineer", { exact: true })).toBeVisible();
   await expect(page.getByTestId("embedded-application-frame")).toHaveCount(0);
 });
 

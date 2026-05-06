@@ -30,7 +30,9 @@ test("edge proxy: simulator yields live telemetry on channel detail @edge-proxy"
   await expect(page.getByTestId("simulator-play-button")).toBeEnabled({ timeout: 90_000 });
   await page.getByTestId("simulator-play-button").click();
 
-  await expect(page.getByTestId("simulator-panel").getByText("Running")).toBeVisible({
+  await expect(
+    page.getByTestId("simulator-panel").getByText("Running").first()
+  ).toBeVisible({
     timeout: 120_000,
   });
 
@@ -46,9 +48,9 @@ test("edge proxy: simulator yields live telemetry on channel detail @edge-proxy"
     { timeout: 120_000 }
   );
 
-  const stamp = page.locator("[data-last-timestamp]").first();
-  const initial = await stamp.textContent();
+  const valueCell = page.locator("header span[data-value]").first();
+  const initialValue = await valueCell.getAttribute("data-value");
   await expect
-    .poll(async () => stamp.textContent(), { timeout: 120_000 })
-    .not.toBe(initial);
+    .poll(async () => valueCell.getAttribute("data-value"), { timeout: 120_000 })
+    .not.toBe(initialValue);
 });

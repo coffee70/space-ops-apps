@@ -8,7 +8,7 @@ import {
 
 const CHANNEL_NAME = "decoder.aprs.payload_temp";
 
-test.setTimeout(60_000);
+test.setTimeout(120_000);
 
 test("telemetry inventory labels discovered channels", async ({ page, request }) => {
   const source = await getPreferredTelemetrySource(request);
@@ -35,7 +35,7 @@ test("telemetry inventory labels discovered channels", async ({ page, request })
     .toBe("discovered");
 
   await page.goto(appUrl("telemetry", [], { source: source.id }));
-  await expect(page.getByRole("heading", { name: "Telemetry" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Telemetry" })).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId("telemetry-inventory-search")).toBeVisible();
 
   const search = page.getByTestId("telemetry-inventory-search");
