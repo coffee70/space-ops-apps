@@ -135,7 +135,16 @@ export function RealtimeTelemetryProvider({
   const [client] = useState(() => new RealtimeWsClient());
   const subscriptionKey = `${sourceId}::${streamId ?? ""}`;
 
-  const stableChannelNames = useMemo(() => channelNames.filter(Boolean), [channelNames]);
+  /** Content key so effects do not churn when parents pass freshly allocated arrays with the same channel names. */
+  const channelNamesKey = useMemo(
+    () => channelNames.join("\u0000"),
+    [channelNames]
+  );
+
+  const stableChannelNames = useMemo(
+    () => channelNames.filter(Boolean),
+    [channelNamesKey]
+  );
 
   const initialChannelState = useMemo(
     () => buildInitialChannelState(initialChannels),
