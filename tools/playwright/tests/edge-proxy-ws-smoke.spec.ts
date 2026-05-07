@@ -11,18 +11,36 @@ test("edge proxy websocket hello_ack @smoke @edge-proxy", async ({ page }) => {
       const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
       const url = `${proto}//${window.location.host}/telemetry/realtime/ws`;
       const socket = new WebSocket(url);
+      const seenTypes: string[] = [];
+
       const timer = window.setTimeout(() => {
         socket.close();
-        reject(new Error("websocket handshake timeout"));
+        reject(
+          new Error(
+            `websocket hello_ack timeout; saw message types: ${seenTypes.join(", ") || "(none)"}`
+          )
+        );
       }, 20_000);
+
       socket.addEventListener("open", () => {
         socket.send(JSON.stringify({ type: "hello", client_version: "1.0" }));
       });
+
       socket.addEventListener("message", (event) => {
-        window.clearTimeout(timer);
-        socket.close();
-        resolve(String(event.data));
+        const text = String(event.data);
+        try {
+          const payload = JSON.parse(text) as { type?: string };
+          if (payload.type) seenTypes.push(payload.type);
+          if (payload.type === "hello_ack") {
+            window.clearTimeout(timer);
+            socket.close();
+            resolve(text);
+          }
+        } catch {
+          seenTypes.push("unparseable");
+        }
       });
+
       socket.addEventListener("error", () => {
         window.clearTimeout(timer);
         reject(new Error("websocket error"));
