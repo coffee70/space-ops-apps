@@ -379,6 +379,8 @@ export function useTelemetryInventoryQuery(sourceId: string, enabled = true) {
     queryKey: queryKeys.telemetryInventory(sourceId),
     enabled,
     staleTime: 15 * 1000,
+    refetchInterval: enabled ? 4000 : false,
+    refetchIntervalInBackground: false,
     queryFn: async ({ signal }) => {
       const data = await fetchJson<{ channels?: TelemetryInventoryEntry[] }>(
         `/telemetry/inventory?source_id=${encodeURIComponent(sourceId)}`,
@@ -620,6 +622,7 @@ export function useTelemetryScopedRecentQuery(
   limit = "500",
   enabled = true
 ) {
+  const pollLiveLatest = enabled && scope.mode === "latest";
   const queryParams = telemetryScopeToQueryParams(scope);
   queryParams.set("limit", limit);
   const queryKey = {
@@ -631,6 +634,8 @@ export function useTelemetryScopedRecentQuery(
   return useQuery<TelemetryRecentResponse>({
     queryKey: queryKeys.telemetryRecent(queryKey),
     enabled,
+    refetchInterval: pollLiveLatest ? 4000 : false,
+    refetchIntervalInBackground: false,
     queryFn: async ({ signal }) =>
       fetchJson<TelemetryRecentResponse>(
         `${buildTelemetryApiBase(sourceId, channelName)}/recent?${queryParams.toString()}`,
