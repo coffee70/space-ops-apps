@@ -37,6 +37,7 @@ function renderSplitButton(props: {
   applicationTitle?: string;
   routePath?: string;
   onOpenInShell: () => void;
+  onOpenInNewTabSuccess?: () => void;
   label?: string;
   disabled?: boolean;
   testId?: string;
@@ -102,6 +103,48 @@ test("ApplicationOpenSplitButton right segment opens in new tab without in-shell
     assert.equal(calls[0]?.[0], "https://mission.local/apps/telemetry?view=all");
     assert.equal(calls[0]?.[1], "_blank");
     assert.equal(calls[0]?.[2], "noopener,noreferrer");
+  });
+});
+
+test("ApplicationOpenSplitButton right segment calls success callback after opening new tab", () => {
+  let closed = 0;
+
+  withMockWindow("https://mission.local", (calls) => {
+    const root = renderSplitButton({
+      applicationId: "telemetry",
+      routePath: "/apps/telemetry",
+      onOpenInShell: () => {},
+      onOpenInNewTabSuccess: () => {
+        closed += 1;
+      },
+    });
+
+    const { iconButton } = getSplitButtonSegments(root);
+
+    iconButton.props.onClick();
+
+    assert.equal(calls.length, 1);
+    assert.equal(closed, 1);
+  });
+});
+
+test("ApplicationOpenSplitButton does not call success callback when new-tab open is rejected", () => {
+  let closed = 0;
+
+  withMockWindow("https://mission.local", () => {
+    const root = renderSplitButton({
+      applicationId: "docs",
+      routePath: "/docs",
+      onOpenInShell: () => {},
+      onOpenInNewTabSuccess: () => {
+        closed += 1;
+      },
+    });
+
+    const { iconButton } = getSplitButtonSegments(root);
+    iconButton.props.onClick();
+
+    assert.equal(closed, 0);
   });
 });
 
