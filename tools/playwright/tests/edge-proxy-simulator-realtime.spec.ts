@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { appUrl } from "./support/application-routes";
 import {
   PLAYWRIGHT_API_URL,
@@ -24,31 +24,14 @@ function observeUncaughtPageErrors(page: Page): string[] {
 }
 
 /**
- * End-to-end: simulator start → live feed → telemetry detail Analysis shell loads and header values advance.
- *
- * Hardens simulator Play (API warmup + polled reload until the real enable gate matches `/simulator/status`),
- * requires multiple streamed `data-value` updates on the detail header, feed badge connected once stable,
- * and fails on uncaught page errors (render/runtime crashes during the scenario).
+ * Navigate to the simulator control surface, unblock Play via the same poll/reload circuit as the UI,
+ * and require a Running state once playback starts.
  */
-test("edge proxy: simulator yields live telemetry on channel detail @edge-proxy", async ({
-  page,
-  request,
-}) => {
-  const uncaughtPageErrors = observeUncaughtPageErrors(page);
-
-  const source = await getPreferredTelemetrySource(request, "simulator");
-  const sourceId = source.id;
-
-  const listResp = await request.get(
-    `${PLAYWRIGHT_API_URL}/telemetry/list?source_id=${encodeURIComponent(sourceId)}`
-  );
-  expect(listResp.ok()).toBeTruthy();
-  const listBody = (await listResp.json()) as { channels?: Array<{ name?: string }> };
-  const channelName = (listBody.channels ?? [])
-    .map((c) => c.name)
-    .find((name): name is string => typeof name === "string" && name.length > 0);
-  expect(channelName).toBeTruthy();
-
+async function gotoSimulatorPanelAndStartPlayback(
+  page: Page,
+  request: APIRequestContext,
+  sourceId: string,
+): Promise<void> {
   /**
    * Play stays disabled until the status probe reports connected; cold simulator containers
    * can take a long time. Warm the backend first, then require the DOM to mirror the same gate.
@@ -103,6 +86,35 @@ test("edge proxy: simulator yields live telemetry on channel detail @edge-proxy"
   ).toBeVisible({
     timeout: 120_000,
   });
+}
+
+/**
+ * End-to-end: simulator start → live feed → telemetry detail Analysis shell loads and header values advance.
+ *
+ * Hardens simulator Play (API warmup + polled reload until the real enable gate matches `/simulator/status`),
+ * requires multiple streamed `data-value` updates on the detail header, feed badge connected once stable,
+ * and fails on uncaught page errors (render/runtime crashes during the scenario).
+ */
+test("edge proxy: simulator yields live telemetry on channel detail @edge-proxy", async ({
+  page,
+  request,
+}) => {
+  const uncaughtPageErrors = observeUncaughtPageErrors(page);
+
+  const source = await getPreferredTelemetrySource(request, "simulator");
+  const sourceId = source.id;
+
+  const listResp = await request.get(
+    `${PLAYWRIGHT_API_URL}/telemetry/list?source_id=${encodeURIComponent(sourceId)}`
+  );
+  expect(listResp.ok()).toBeTruthy();
+  const listBody = (await listResp.json()) as { channels?: Array<{ name?: string }> };
+  const channelName = (listBody.channels ?? [])
+    .map((c) => c.name)
+    .find((name): name is string => typeof name === "string" && name.length > 0);
+  expect(channelName).toBeTruthy();
+
+  await gotoSimulatorPanelAndStartPlayback(page, request, sourceId);
 
   await page.goto(appUrl("telemetry", [sourceId, channelName!]));
 
@@ -137,6 +149,25 @@ test("edge proxy: simulator yields live telemetry on channel detail @edge-proxy"
     last = await readDisplayedValue();
     expect(last).toBeTruthy();
   }
+
+  /**
+   * Inventory polls `/telemetry/inventory` but does not mount RealtimeTelemetryProvider; ContextBanner still
+   * must reflect feed health via `/ops/feed-status` so Feed does not fall back to "No data".
+   *
+   * Kept in this test (versus a separate case) so we reuse one Running simulator session: a second cold
+   * Play-enable poll often flakes when playback is already active.
+   */
+  await page.goto(appUrl("telemetry", [], { source: sourceId }));
+
+  /** Fresh inventory timestamps — proves polling sees live telemetry for this scenario. */
+  await expect(page.getByText("just now").first()).toBeVisible({ timeout: 120_000 });
+
+  /** ContextBanner feed badge polls feed-status when realtime context is absent. */
+  await expect(page.getByTestId("telemetry-feed-status")).toHaveAttribute(
+    "data-feed-state",
+    "connected",
+    { timeout: 120_000 }
+  );
 
   expect(uncaughtPageErrors, uncaughtPageErrors.join("\n")).toEqual([]);
 });

@@ -1,4 +1,5 @@
 export const queryKeys = {
+  feedStatus: (sourceId: string) => ["feed-status", sourceId] as const,
   watchlist: (sourceId: string) => ["watchlist", sourceId] as const,
   telemetryList: (sourceId: string) => ["telemetry-list", sourceId] as const,
   telemetryInventory: (sourceId: string) => ["telemetry-inventory", sourceId] as const,

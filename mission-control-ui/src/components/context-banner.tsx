@@ -5,6 +5,7 @@ import { FeedStatusBadge } from "@/components/feed-status-badge";
 import { SimulatorStatusBadge } from "@/components/simulator-status-badge";
 import { useRealtimeFeedStatus } from "@/lib/realtime-telemetry-context";
 import type { FeedState } from "@/lib/feed-status";
+import { useFeedStatusQuery } from "@/lib/query-hooks";
 import {
   useSimulatorRuntime,
   type SimulatorRuntimeStatus,
@@ -75,7 +76,9 @@ export function ContextBanner({
   simulatorStatus,
   isSwitchingStreams = false,
 }: ContextBannerProps) {
-  const feedStatus = useRealtimeFeedStatus();
+  const realtimeFeedStatus = useRealtimeFeedStatus();
+  const feedStatusQuery = useFeedStatusQuery(sourceId, realtimeFeedStatus == null);
+  const feedStatus = realtimeFeedStatus ?? feedStatusQuery.data ?? null;
   const isSimulator =
     sources.find((s) => s.id === sourceId)?.source_type === "simulator";
   const initialSimulatorStatusForSource =

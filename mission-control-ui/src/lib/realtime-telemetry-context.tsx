@@ -304,8 +304,9 @@ export function RealtimeTelemetryProvider({
 
   useEffect(() => {
     let cancelled = false;
+    const ac = new AbortController();
 
-    fetchFeedStatus(sourceId)
+    fetchFeedStatus(sourceId, { signal: ac.signal })
       .then((data) => {
         if (!cancelled && data) {
           setFeedStatusStore({
@@ -318,6 +319,7 @@ export function RealtimeTelemetryProvider({
 
     return () => {
       cancelled = true;
+      ac.abort();
     };
   }, [sourceId]);
 

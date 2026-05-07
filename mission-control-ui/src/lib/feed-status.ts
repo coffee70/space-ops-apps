@@ -47,10 +47,17 @@ export function normalizeFeedStatus(
   };
 }
 
-export async function fetchFeedStatus(sourceId: string): Promise<FeedStatus> {
+export async function fetchFeedStatus(
+  sourceId: string,
+  options?: { signal?: AbortSignal }
+): Promise<FeedStatus> {
   const data = await fetchJson<FeedStatusResponse>(
     `/ops/feed-status?source_id=${encodeURIComponent(sourceId)}`,
-    { useFallback: true, cache: "no-store" }
+    {
+      useFallback: true,
+      cache: "no-store",
+      signal: options?.signal,
+    }
   );
   return normalizeFeedStatus(data);
 }

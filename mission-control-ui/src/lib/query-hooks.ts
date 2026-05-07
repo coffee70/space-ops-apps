@@ -11,6 +11,7 @@ import { auditLog } from "@/lib/audit-log";
 import { fetchJson, fetchVoid } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import type { SimulatorRuntimeStatus } from "@/lib/simulator-runtime";
+import { fetchFeedStatus, type FeedStatus } from "@/lib/feed-status";
 import { buildTelemetryApiBase } from "@/lib/telemetry-routes";
 import {
   telemetryScopeKey,
@@ -252,6 +253,16 @@ function encodePathSegments(path: string): string {
     .filter((segment) => segment.length > 0)
     .map((segment) => encodeURIComponent(segment))
     .join("/");
+}
+
+export function useFeedStatusQuery(sourceId: string, enabled = true) {
+  return useQuery<FeedStatus>({
+    queryKey: queryKeys.feedStatus(sourceId),
+    enabled: enabled && sourceId.length > 0,
+    refetchInterval: 4000,
+    refetchIntervalInBackground: false,
+    queryFn: async ({ signal }) => fetchFeedStatus(sourceId, { signal }),
+  });
 }
 
 export function useWatchlistQuery(sourceId: string, enabled = true) {
