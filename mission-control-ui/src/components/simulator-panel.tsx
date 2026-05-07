@@ -210,6 +210,8 @@ export function SimulatorPanel({ sourceId, onClose }: SimulatorPanelProps) {
     <div
       className={isEmbedded ? "bg-card space-y-6 rounded-lg border p-6" : "space-y-6"}
       data-testid="simulator-panel"
+      data-simulator-connected={connected ? "true" : "false"}
+      data-simulator-run-state={state}
     >
       <div className={isEmbedded ? "space-y-6" : "space-y-8"}>
         <div className="flex items-center justify-between gap-4">

@@ -134,6 +134,18 @@ export function RealtimeTelemetryProvider({
 }: RealtimeTelemetryProviderProps) {
   const [client] = useState(() => new RealtimeWsClient());
   const subscriptionKey = `${sourceId}::${streamId ?? ""}`;
+
+  /** Content key so effects do not churn when parents pass freshly allocated arrays with the same channel names. */
+  const channelNamesKey = useMemo(
+    () => channelNames.join("\u0000"),
+    [channelNames]
+  );
+
+  const stableChannelNames = useMemo(
+    () => channelNames.filter(Boolean),
+    [channelNamesKey]
+  );
+
   const initialChannelState = useMemo(
     () => buildInitialChannelState(initialChannels),
     [initialChannels]
@@ -173,7 +185,7 @@ export function RealtimeTelemetryProvider({
         }
 
         const nextChannelsByName: Record<string, LiveChannelState> = {};
-        for (const name of channelNames) {
+        for (const name of stableChannelNames) {
           const existing = prev.channelsByName[name];
           const initial = initialChannelState[name];
           if (existing) {
@@ -199,7 +211,7 @@ export function RealtimeTelemetryProvider({
       });
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [channelNames, initialChannelState, subscriptionKey]);
+  }, [stableChannelNames, initialChannelState, subscriptionKey]);
 
   const channelsByName =
     channelStore.subscriptionKey === subscriptionKey
@@ -220,10 +232,25 @@ export function RealtimeTelemetryProvider({
             prev.subscriptionKey === activeSubscriptionKey
               ? prev.channelsByName
               : initialChannelStateRef.current;
-          const next = { ...base };
+          let mutated = false;
+          const next: Record<string, LiveChannelState> = { ...base };
           for (const ch of msg.channels) {
             const existing = next[ch.name];
-            next[ch.name] = toLiveState(ch, existing?.liveData);
+            const candidate = toLiveState(ch, existing?.liveData);
+            const sameCore =
+              existing
+              && existing.value === candidate.value
+              && existing.lastTimestamp === candidate.lastTimestamp
+              && existing.state === candidate.state
+              && (existing.stateReason ?? null) === (candidate.stateReason ?? null)
+              && existing.zScore === candidate.zScore;
+            if (!sameCore) {
+              next[ch.name] = candidate;
+              mutated = true;
+            }
+          }
+          if (!mutated) {
+            return prev;
           }
           return {
             subscriptionKey: activeSubscriptionKey,
@@ -272,8 +299,8 @@ export function RealtimeTelemetryProvider({
 
   useEffect(() => {
     if (!enabled) return;
-    client.subscribeWatchlist(channelNames, sourceId, streamId);
-  }, [client, channelNames, enabled, streamId, sourceId]);
+    client.subscribeWatchlist(stableChannelNames, sourceId, streamId);
+  }, [client, stableChannelNames, enabled, streamId, sourceId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -295,9 +322,10 @@ export function RealtimeTelemetryProvider({
   }, [sourceId]);
 
   const channelsArray = useMemo(() => {
-    const order = channelNames.length ? channelNames : Object.keys(channelsByName);
+    const order =
+      stableChannelNames.length > 0 ? stableChannelNames : Object.keys(channelsByName);
     return order.map((name) => channelsByName[name]).filter(Boolean);
-  }, [channelNames, channelsByName]);
+  }, [stableChannelNames, channelsByName]);
 
   const getChannel = useCallback(
     (name: string) => channelsByName[name],

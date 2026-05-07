@@ -3,6 +3,69 @@ import { expect, type APIRequestContext } from "@playwright/test";
 export const PLAYWRIGHT_API_URL =
   process.env.PLAYWRIGHT_API_URL || "http://platform-edge-proxy:8080";
 
+const sleepMs = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Poll simulator health until `/simulator/status` reports reachable (`connected`).
+ * Mirrors the UI gate for enabling Play; avoids racing a cold-managed simulator runtime.
+ */
+export async function waitForSimulatorReachableViaApi(
+  request: APIRequestContext,
+  sourceId: string,
+  options?: { timeoutMs?: number; intervalMs?: number },
+): Promise<void> {
+  const timeoutMs = options?.timeoutMs ?? 180_000;
+  const intervalMs = options?.intervalMs ?? 2_500;
+  const deadline = Date.now() + timeoutMs;
+  let lastSnap: unknown = null;
+
+  while (Date.now() < deadline) {
+    const url = `${PLAYWRIGHT_API_URL}/simulator/status?vehicle_id=${encodeURIComponent(sourceId)}`;
+    const res = await request.get(url);
+
+    if (res.ok()) {
+      try {
+        lastSnap = await res.json();
+      } catch {
+        lastSnap = { parseError: true };
+      }
+      const payload = lastSnap as { connected?: boolean } | null;
+      if (
+        typeof payload === "object"
+        && payload !== null
+        && payload.connected === true
+      ) {
+        return;
+      }
+    } else {
+      lastSnap = { httpStatus: res.status() };
+    }
+
+    await sleepMs(intervalMs);
+  }
+
+  throw new Error(
+    `Simulator unreachable (connected≠true) for vehicle_id=${sourceId} within ${timeoutMs}ms. Last snapshot: ${JSON.stringify(lastSnap)}`,
+  );
+}
+
+/** Latest `/simulator/status` body for diagnostics. */
+export async function fetchSimulatorStatusSnapshot(
+  request: APIRequestContext,
+  sourceId: string,
+): Promise<{ ok: boolean; payload: unknown }> {
+  const url = `${PLAYWRIGHT_API_URL}/simulator/status?vehicle_id=${encodeURIComponent(sourceId)}`;
+  const res = await request.get(url);
+  if (!res.ok()) {
+    return { ok: false, payload: { httpStatus: res.status() } };
+  }
+  try {
+    return { ok: true, payload: await res.json() };
+  } catch {
+    return { ok: true, payload: { parseError: true } };
+  }
+}
+
 export interface TelemetrySource {
   id: string;
   name?: string;

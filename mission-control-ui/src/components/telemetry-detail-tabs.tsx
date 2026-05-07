@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -117,25 +117,40 @@ export function TelemetryDetailTabs({
   initialView,
 }: TelemetryDetailTabsProps) {
   const realtimeEnabled = isRealtimeEligible(scope);
-  const initialChannels = [
-    {
-      name: decodedName,
-      current_value: explain.recent_value,
-      last_timestamp: explain.last_timestamp ?? "",
-      state: explain.state,
-      state_reason: explain.state_reason ?? null,
-      z_score: explain.z_score ?? null,
-      units: explain.units,
-      description: explain.description,
-      subsystem_tag: "",
-      sparkline_data: recentData,
-    },
-  ];
+  const channelNames = useMemo(() => [decodedName], [decodedName]);
+
+  const initialChannels = useMemo(
+    () => [
+      {
+        name: decodedName,
+        current_value: explain.recent_value,
+        last_timestamp: explain.last_timestamp ?? "",
+        state: explain.state,
+        state_reason: explain.state_reason ?? null,
+        z_score: explain.z_score ?? null,
+        units: explain.units,
+        description: explain.description,
+        subsystem_tag: "",
+        sparkline_data: recentData,
+      },
+    ],
+    [
+      decodedName,
+      explain.recent_value,
+      explain.last_timestamp,
+      explain.state,
+      explain.state_reason,
+      explain.z_score,
+      explain.units,
+      explain.description,
+      recentData,
+    ],
+  );
 
   return (
     <RealtimeTelemetryProvider
       key={`${sourceId}:${telemetryScopeKey(scope)}`}
-      channelNames={[decodedName]}
+      channelNames={channelNames}
       sourceId={sourceId}
       enabled={realtimeEnabled}
       initialChannels={initialChannels}
