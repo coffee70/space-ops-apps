@@ -45,6 +45,7 @@ export function ApplicationsLauncher({
           enabledApplications={enabledApplications}
           initialSelectedApplicationId={initialSelectedApplicationId}
           onOpenApplication={onOpenApplication}
+          onClose={() => onOpenChange(false)}
         />
       ) : null}
     </Dialog>
@@ -55,10 +56,12 @@ function ApplicationsLauncherContent({
   enabledApplications,
   initialSelectedApplicationId,
   onOpenApplication,
+  onClose,
 }: {
   enabledApplications: PlatformApplicationDefinition[];
   initialSelectedApplicationId: string | null;
   onOpenApplication: (application: PlatformApplicationDefinition) => void;
+  onClose: () => void;
 }) {
   const [search, setSearch] = useState("");
   const filteredApplications = useMemo(() => {
@@ -81,10 +84,10 @@ function ApplicationsLauncherContent({
     <DialogContent
       showCloseButton
       aria-describedby="applications-launcher-description"
-      className="h-[85vh] min-h-[34rem] w-[min(92vw,80rem)] max-w-none overflow-hidden p-0 md:min-w-[50vw]"
+      className="h-[min(92dvh,52rem)] w-[calc(100vw-1rem)] max-w-none overflow-hidden p-0 sm:w-[calc(100vw-2rem)] sm:max-w-none lg:w-[min(92vw,80rem)]"
     >
       <div className="bg-background/95 flex h-full min-h-0 flex-col">
-        <div className="border-border/70 border-b px-6 py-5">
+        <div className="border-border/70 border-b px-4 py-4 pr-12 sm:px-6 sm:py-5">
           <DialogTitle className="text-left text-xl">Applications</DialogTitle>
           <DialogDescription id="applications-launcher-description" className="mt-1 text-left">
             Search, inspect, and open platform applications.
@@ -103,13 +106,13 @@ function ApplicationsLauncherContent({
           </label>
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-0 md:grid-cols-[minmax(0,1.15fr)_minmax(24rem,0.85fr)]">
-          <div className="border-border/70 min-h-0 overflow-hidden border-r">
+        <div className="grid min-h-0 flex-1 grid-rows-[minmax(12rem,0.9fr)_minmax(14rem,1fr)] gap-0 lg:grid-cols-[minmax(20rem,1.1fr)_minmax(18rem,0.9fr)] lg:grid-rows-1 xl:grid-cols-[minmax(0,1.15fr)_minmax(24rem,0.85fr)]">
+          <div className="border-border/70 min-h-0 overflow-hidden border-b lg:border-r lg:border-b-0">
             <div
               role="listbox"
               aria-label="Applications"
               data-testid="applications-launcher-list"
-              className="flex h-full min-h-0 flex-col overflow-y-auto p-3"
+              className="flex h-full min-h-0 flex-col overflow-y-auto p-2 sm:p-3"
             >
               {filteredApplications.length === 0 ? (
                 <div className="text-muted-foreground flex h-full items-center justify-center rounded-xl border border-dashed p-6 text-sm">
@@ -147,7 +150,7 @@ function ApplicationsLauncherContent({
                       </span>
                       <span className="min-w-0">
                         <span className="block font-medium">{application.title}</span>
-                        <span className="text-muted-foreground mt-1 block text-sm leading-6">
+                        <span className="text-muted-foreground mt-1 line-clamp-2 block text-sm leading-5 sm:leading-6">
                           {application.description}
                         </span>
                       </span>
@@ -158,7 +161,7 @@ function ApplicationsLauncherContent({
             </div>
           </div>
 
-          <div className="min-h-0 overflow-y-auto px-6 py-5">
+          <div className="min-h-0 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
             {selectedApplication ? (
               <div className="space-y-5" data-testid="applications-launcher-details">
                 <div className="flex items-start gap-4">
@@ -217,14 +220,18 @@ function ApplicationsLauncherContent({
                   </div>
                 ) : null}
 
-                <ApplicationOpenSplitButton
-                  label="Open Application"
-                  applicationId={selectedApplication.applicationId}
-                  applicationTitle={selectedApplication.title}
-                  routePath={selectedApplication.routePath}
-                  onOpenInShell={() => onOpenApplication(selectedApplication)}
-                  testId="applications-launcher-open"
-                />
+                <div className="pt-2">
+                  <ApplicationOpenSplitButton
+                    label="Open Application"
+                    applicationId={selectedApplication.applicationId}
+                    applicationTitle={selectedApplication.title}
+                    routePath={selectedApplication.routePath}
+                    onOpenInShell={() => onOpenApplication(selectedApplication)}
+                    onOpenInNewTabSuccess={onClose}
+                    className="w-full sm:w-auto"
+                    testId="applications-launcher-open"
+                  />
+                </div>
               </div>
             ) : (
               <div className="text-muted-foreground flex h-full min-h-[18rem] items-center justify-center rounded-2xl border border-dashed px-6 text-center text-sm">
