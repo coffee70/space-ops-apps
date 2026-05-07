@@ -11,6 +11,7 @@ import { auditLog } from "@/lib/audit-log";
 import { fetchJson, fetchVoid } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import type { SimulatorRuntimeStatus } from "@/lib/simulator-runtime";
+import { fetchFeedStatus, type FeedStatus } from "@/lib/feed-status";
 import { buildTelemetryApiBase } from "@/lib/telemetry-routes";
 import {
   telemetryScopeKey,
@@ -254,6 +255,16 @@ function encodePathSegments(path: string): string {
     .join("/");
 }
 
+export function useFeedStatusQuery(sourceId: string, enabled = true) {
+  return useQuery<FeedStatus>({
+    queryKey: queryKeys.feedStatus(sourceId),
+    enabled: enabled && sourceId.length > 0,
+    refetchInterval: 4000,
+    refetchIntervalInBackground: false,
+    queryFn: async ({ signal }) => fetchFeedStatus(sourceId, { signal }),
+  });
+}
+
 export function useWatchlistQuery(sourceId: string, enabled = true) {
   return useQuery<WatchlistEntry[]>({
     queryKey: queryKeys.watchlist(sourceId),
@@ -379,6 +390,8 @@ export function useTelemetryInventoryQuery(sourceId: string, enabled = true) {
     queryKey: queryKeys.telemetryInventory(sourceId),
     enabled,
     staleTime: 15 * 1000,
+    refetchInterval: enabled ? 4000 : false,
+    refetchIntervalInBackground: false,
     queryFn: async ({ signal }) => {
       const data = await fetchJson<{ channels?: TelemetryInventoryEntry[] }>(
         `/telemetry/inventory?source_id=${encodeURIComponent(sourceId)}`,
@@ -620,6 +633,7 @@ export function useTelemetryScopedRecentQuery(
   limit = "500",
   enabled = true
 ) {
+  const pollLiveLatest = enabled && scope.mode === "latest";
   const queryParams = telemetryScopeToQueryParams(scope);
   queryParams.set("limit", limit);
   const queryKey = {
@@ -631,6 +645,8 @@ export function useTelemetryScopedRecentQuery(
   return useQuery<TelemetryRecentResponse>({
     queryKey: queryKeys.telemetryRecent(queryKey),
     enabled,
+    refetchInterval: pollLiveLatest ? 4000 : false,
+    refetchIntervalInBackground: false,
     queryFn: async ({ signal }) =>
       fetchJson<TelemetryRecentResponse>(
         `${buildTelemetryApiBase(sourceId, channelName)}/recent?${queryParams.toString()}`,

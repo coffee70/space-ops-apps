@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { appUrl } from "./support/application-routes";
 
-const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://mission-control-ui:3000";
+const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://platform-edge-proxy:8080";
 
 test("AI Engineer can send a chat message through the live stack", async ({ page }) => {
   const browserErrors: string[] = [];
@@ -27,12 +27,13 @@ test("AI Engineer can send a chat message through the live stack", async ({ page
 
   await page.goto(appUrl("ai-engineer", [], { conversation_id: conversationId }));
 
-  await expect(page.getByRole("heading", { name: "AI Engineer" })).toBeVisible();
-  await expect(page.getByText("Action Timeline")).toBeVisible();
-  await expect(page.locator("textarea")).toBeVisible();
+  await expect(page.getByTestId("ai-engineer-shell")).toBeVisible();
+  await expect(page.getByTestId("ai-engineer-shell").getByText("AI Engineer", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("ai-engineer-activity-panel")).toBeVisible();
+  await expect(page.getByTestId("ai-engineer-composer")).toBeVisible();
 
-  await page.locator("textarea").fill("Say whether fallback mode is active.");
-  await page.getByRole("button", { name: "Send" }).click();
+  await page.getByTestId("ai-engineer-chat-input").fill("Say whether fallback mode is active.");
+  await page.getByRole("button", { name: "Send message" }).click();
 
   await expect(page.getByText("run.started")).toBeVisible();
   await expect(page.getByText("run.completed")).toBeVisible({ timeout: 30_000 });
@@ -81,7 +82,7 @@ test("AI Engineer can send a chat message through the live stack", async ({ page
   expect(String(detail.messages[1].content).trim().length).toBeGreaterThan(0);
 
   await expect(page.getByText(String(detail.messages[1].content).trim().slice(0, 60)).first()).toBeVisible();
-  await expect(page.getByText("No events yet.")).toHaveCount(0);
+  await expect(page.getByText("No activity yet.")).toHaveCount(0);
 
   expect(browserErrors).toEqual([]);
 });

@@ -7,7 +7,7 @@ RUN npm ci
 
 FROM base AS builder
 WORKDIR /app
-# Empty = same-origin fetches; next.config fallback rewrites to platform-api in Compose.
+# Empty = same-origin fetches; Layer 1 edge proxy routes API families in Compose.
 ARG NEXT_PUBLIC_API_URL=
 ARG NEXT_PUBLIC_CONTROL_PLANE_URL=http://localhost:8100
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL

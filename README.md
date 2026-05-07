@@ -37,7 +37,7 @@ docs/API_TELEMETRY_CONTRACTS.md
 | Suite | Canonical command | Docs |
 |-------|-------------------|------|
 | **Mission Control + agent runtime (`npm`** ***, Linux-native deps)** | `../space-ops-kernel/scripts/validate-node.sh` | Kernel README Testing table |
-| **Playwright (`http://mission-control-ui:3000`, Compose network)** | `../space-ops-kernel/scripts/validate-playwright.sh smoke` (or `test`, etc.) | [tools/playwright/README.md](./tools/playwright/README.md) |
+| **Playwright (`http://platform-edge-proxy:8080`, Compose network)** | `../space-ops-kernel/scripts/validate-playwright.sh smoke` (or `test`, etc.) | [tools/playwright/README.md](./tools/playwright/README.md) |
 | **Platform backend** | `../space-ops-platform/scripts/run-backend-tests.sh` | sibling README |
 
 ## Mission Control UI
@@ -52,7 +52,7 @@ For Compose/build-time URLs and browser validation, pair with `./space-ops-kerne
 
 See also [mission-control-ui/README.md](./mission-control-ui/README.md).
 
-Use `NEXT_PUBLIC_API_URL` for browser calls and `API_SERVER_URL` for server-side calls when running outside the kernel Compose stack.
+For the **official** local stack, use the Layer 1 edge proxy URL as the browser origin and keep **`NEXT_PUBLIC_API_URL` empty** so the UI uses same-origin relative paths. Raw `http://localhost:3000` is Mission Control **without** proxy forwarding of `/telemetry/*`, `/registry/*`, etc.; use **`http://localhost:8080`** for full current-system behavior. `API_SERVER_URL` remains for Next server-side fetches to platform/control plane inside Compose.
 
 ## Simulator
 

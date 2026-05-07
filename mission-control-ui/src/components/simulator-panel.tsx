@@ -207,7 +207,12 @@ export function SimulatorPanel({ sourceId, onClose }: SimulatorPanelProps) {
   const isEmbedded = onClose != null;
 
   return (
-    <div className={isEmbedded ? "bg-card space-y-6 rounded-lg border p-6" : "space-y-6"}>
+    <div
+      className={isEmbedded ? "bg-card space-y-6 rounded-lg border p-6" : "space-y-6"}
+      data-testid="simulator-panel"
+      data-simulator-connected={connected ? "true" : "false"}
+      data-simulator-run-state={state}
+    >
       <div className={isEmbedded ? "space-y-6" : "space-y-8"}>
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-xl font-semibold tracking-tight">Telemetry Simulator</h2>
@@ -354,6 +359,7 @@ export function SimulatorPanel({ sourceId, onClose }: SimulatorPanelProps) {
               onClick={handleStart}
               disabled={!connected || loading || (state !== "idle" && state !== "unknown")}
               variant="default"
+              data-testid="simulator-play-button"
             >
               {loading && state === "idle" ? (
                 <>
