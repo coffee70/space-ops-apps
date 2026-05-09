@@ -12,6 +12,8 @@ import type { AttachmentStatus, ChatEvent, ChatMessage, ChatStreamChunk, Executi
 import { buildApplicationRoute } from "@/platform/registry/application-routes";
 import type { NativeApplicationProps } from "@/platform/sdk/native-application-contract";
 
+const PREVIEW_MESSAGE_PREFIX = "preview-message::";
+
 function createClientId() {
   if (typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -36,6 +38,25 @@ export function AiEngineerApp(props: NativeApplicationProps) {
         const next = previous.filter((existing) => existing.id !== event.id);
         next.push(event);
         return next;
+      });
+    },
+    onPreviewSummaryReceived: ({ previewKey }) => {
+      // Append the lifecycle card as a real assistant chat message so the
+      // deploy/revert decisions appear inline with the rest of the
+      // conversation (instead of in a detached lane below the transcript).
+      setMessages((previous) => {
+        const messageId = `${PREVIEW_MESSAGE_PREFIX}${previewKey}`;
+        if (previous.some((existing) => existing.id === messageId)) return previous;
+        return [
+          ...previous,
+          {
+            id: messageId,
+            role: "assistant",
+            content: "",
+            status: "complete",
+            part: { kind: "change-preview", previewKey },
+          },
+        ];
       });
     },
   });
@@ -206,9 +227,11 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
   const handleOpenApp = useCallback(
     (change: AiEngineerChangeSummary) => {
-      const applicationId = change.targetApplicationId ?? change.targetUnitId;
-      if (!applicationId) return;
-      router.push(buildApplicationRoute(applicationId));
+      // Open app must only navigate to a real application route. Service-only
+      // changes don't have an `/apps/<id>` path, so we no-op rather than
+      // generating an invalid URL.
+      if (!change.targetApplicationId) return;
+      router.push(buildApplicationRoute(change.targetApplicationId));
     },
     [router],
   );
@@ -225,7 +248,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       disabled={isBootstrapping}
       isBootstrapping={isBootstrapping}
       isStreaming={isStreaming}
-      previews={changePreviewFlow.previews}
+      getPreviewState={changePreviewFlow.getStateByKey}
       onDeployChange={changePreviewFlow.deployChange}
       onRevertChange={changePreviewFlow.revertChange}
       onOpenApp={handleOpenApp}

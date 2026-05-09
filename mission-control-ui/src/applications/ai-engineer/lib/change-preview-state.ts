@@ -103,6 +103,19 @@ export function applyDeployUpdate(state: ChangePreviewState, deployment: Deploym
       failureReason: deployment.failure_reason ?? "Deployment failed.",
     };
   }
+  if (deployment.status === "replaced") {
+    // The deployment was superseded before it was promoted to active.
+    // Treat as failed (with a friendlier reason) so the UI never gets stuck
+    // in a deploying spinner waiting for healthy.
+    return {
+      ...state,
+      status: "failed",
+      previewDeployment: deployment,
+      previewDeploymentId: deployment.deployment_id,
+      failureReason:
+        deployment.failure_reason ?? "Preview deployment was replaced before it became active.",
+    };
+  }
   return {
     ...state,
     previewDeployment: deployment,
@@ -144,6 +157,19 @@ export function applyRevertUpdate(state: ChangePreviewState, deployment: Deploym
       revertDeployment: deployment,
       revertDeploymentId: deployment.deployment_id,
       failureReason: deployment.failure_reason ?? "Revert failed.",
+    };
+  }
+  if (deployment.status === "replaced") {
+    // Baseline restoration was superseded before the runtime was activated.
+    // We can't claim the baseline is healthy without explicit confirmation,
+    // so surface this as a failed revert with friendly copy.
+    return {
+      ...state,
+      status: "failed",
+      revertDeployment: deployment,
+      revertDeploymentId: deployment.deployment_id,
+      failureReason:
+        deployment.failure_reason ?? "Baseline deployment was replaced before it became active.",
     };
   }
   return {

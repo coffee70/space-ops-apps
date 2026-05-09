@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiEngineerGreeting } from "@/applications/ai-engineer/components/ai-engineer-greeting";
 import { AiEngineerMessage } from "@/applications/ai-engineer/components/ai-engineer-message";
 import { AiEngineerThinking } from "@/applications/ai-engineer/components/ai-engineer-thinking";
-import { ChangePreviewCardStack } from "@/applications/ai-engineer/components/change-preview-cards";
 import type {
   AiEngineerChangeSummary,
   ChangePreviewState,
@@ -20,7 +19,7 @@ export function AiEngineerMessages({
   isStreaming = false,
   isBootstrapping = false,
   onSuggestionSelect,
-  previews = [],
+  getPreviewState,
   onDeployChange,
   onRevertChange,
   onOpenApp,
@@ -31,7 +30,7 @@ export function AiEngineerMessages({
   isStreaming?: boolean;
   isBootstrapping?: boolean;
   onSuggestionSelect?: (suggestion: string) => void;
-  previews?: ChangePreviewState[];
+  getPreviewState?: (previewKey: string) => ChangePreviewState | null;
   onDeployChange?: (change: AiEngineerChangeSummary) => void;
   onRevertChange?: (change: AiEngineerChangeSummary) => void;
   onOpenApp?: (change: AiEngineerChangeSummary) => void;
@@ -77,24 +76,23 @@ export function AiEngineerMessages({
       ) : null}
       <div ref={scrollRef} className="absolute inset-0 touch-pan-y overflow-y-auto" onScroll={handleScroll} data-testid="ai-engineer-chat-transcript">
         <div className="mx-auto flex min-h-full max-w-4xl min-w-0 flex-col gap-5 px-2 py-6 md:gap-7 md:px-4">
-          {messages.map((message, index) => (
-            <AiEngineerMessage key={message.id} message={message} events={index === messages.length - 1 ? latestRunEvents : []} />
-          ))}
+          {messages.map((message, index) => {
+            const previewKey = message.part?.kind === "change-preview" ? message.part.previewKey : null;
+            const previewState = previewKey && getPreviewState ? getPreviewState(previewKey) : null;
+            return (
+              <AiEngineerMessage
+                key={message.id}
+                message={message}
+                events={index === messages.length - 1 ? latestRunEvents : []}
+                previewState={previewState}
+                onDeployChange={onDeployChange}
+                onRevertChange={onRevertChange}
+                onOpenApp={onOpenApp}
+                isPreviewBusy={isPreviewBusy}
+              />
+            );
+          })}
           {shouldShowThinking ? <AiEngineerThinking /> : null}
-          {previews.length > 0 && onDeployChange && onRevertChange && onOpenApp ? (
-            <div className="flex flex-col gap-3" data-testid="ai-engineer-change-preview-lane">
-              {previews.map((state) => (
-                <ChangePreviewCardStack
-                  key={`${state.change.agentRunId}::${state.change.branch}`}
-                  state={state}
-                  isBusy={isPreviewBusy?.(state.change) ?? false}
-                  onDeploy={onDeployChange}
-                  onRevert={onRevertChange}
-                  onOpenApp={onOpenApp}
-                />
-              ))}
-            </div>
-          ) : null}
           <div ref={endRef} className="min-h-6 min-w-6 shrink-0" />
         </div>
       </div>

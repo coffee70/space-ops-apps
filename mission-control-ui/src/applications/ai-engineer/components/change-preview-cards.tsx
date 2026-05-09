@@ -192,6 +192,7 @@ export interface PreviewLiveCardProps {
 
 export function PreviewLiveCard({ state, onOpenApp, onRevert, isBusy }: PreviewLiveCardProps) {
   if (state.status !== "deployed_preview") return null;
+  const hasApp = Boolean(state.change.targetApplicationId);
   return (
     <CardShell testId="preview-live-card">
       <div className="text-success flex items-center gap-2 text-[12px] font-medium">
@@ -199,21 +200,32 @@ export function PreviewLiveCard({ state, onOpenApp, onRevert, isBusy }: PreviewL
         Preview is live
       </div>
       <p className="text-muted-foreground mt-1 text-[11px]">
-        The updated capability is ready to inspect. The baseline version is paused while the preview is active.
+        {hasApp
+          ? "The updated capability is ready to inspect. The baseline version is paused while the preview is active."
+          : "The service preview is active. Inspect through dependent apps; the baseline version is paused while the preview is active."}
       </p>
       <div className="mt-3">
         <MetadataRow change={state.change} />
       </div>
       <div className="mt-4 flex items-center gap-2">
-        <Button
-          size="sm"
-          variant="default"
-          onClick={() => onOpenApp(state.change)}
-          data-testid="preview-live-open-app"
-        >
-          <ArrowUpRight className="size-3.5" />
-          Open app
-        </Button>
+        {hasApp ? (
+          <Button
+            size="sm"
+            variant="default"
+            onClick={() => onOpenApp(state.change)}
+            data-testid="preview-live-open-app"
+          >
+            <ArrowUpRight className="size-3.5" />
+            Open app
+          </Button>
+        ) : (
+          <span
+            className="text-muted-foreground bg-muted/40 rounded-md px-2 py-1 text-[11px]"
+            data-testid="preview-live-service-active"
+          >
+            Service preview active
+          </span>
+        )}
         <Button
           size="sm"
           variant="outline"

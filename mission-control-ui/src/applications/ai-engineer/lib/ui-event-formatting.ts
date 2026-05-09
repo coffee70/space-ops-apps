@@ -1,7 +1,7 @@
 import type { AttachmentStatus, ChatEvent } from "@/applications/ai-engineer/types";
 
 export type ActivityStatus = "pending" | "running" | "success" | "failed" | "info";
-export type EventIconKind = "run" | "context" | "tool" | "document" | "code" | "navigation" | "message" | "error";
+export type EventIconKind = "run" | "context" | "tool" | "document" | "code" | "navigation" | "message" | "deployment" | "error";
 
 function readString(payload: Record<string, unknown>, key: string) {
   const value = payload[key];
@@ -42,10 +42,53 @@ export function getEventDisplayTitle(event: ChatEvent): string {
     "navigation.requested": "Navigation requested",
     "message.completed": "Message completed",
     "change.summary": "Change preview ready",
+    "deployment.requested": "Deploying preview",
+    "deployment.submitted": "Deployment submitted",
+    "deployment.build_started": "Building preview",
+    "deployment.build_finished": "Preview built",
+    "deployment.health_passed": "Preview healthy",
+    "deployment.failed": "Deployment failed",
+    "preview.active": "Preview is live",
+    "revert.requested": "Reverting preview",
+    "baseline.deployment_submitted": "Restoring baseline",
+    "baseline.build_started": "Building baseline",
+    "baseline.active": "Baseline restored",
+    "revert.failed": "Revert failed",
     error: "Error",
   };
 
   return titles[event.event_type] ?? humanizeEventType(event.event_type);
+}
+
+const DEPLOYMENT_LIFECYCLE_TYPES = new Set([
+  "deployment.requested",
+  "deployment.submitted",
+  "deployment.build_started",
+  "deployment.build_finished",
+  "deployment.health_passed",
+  "deployment.failed",
+  "preview.active",
+  "revert.requested",
+  "baseline.deployment_submitted",
+  "baseline.build_started",
+  "baseline.active",
+  "revert.failed",
+]);
+
+function deploymentLifecycleDescription(event: ChatEvent): string | null {
+  if (!DEPLOYMENT_LIFECYCLE_TYPES.has(event.event_type)) return null;
+  const payload = event.payload;
+  const branch = readString(payload, "branch") ?? readString(payload, "baseline_branch");
+  const unitId = readString(payload, "unit_id");
+  const failureReason = readString(payload, "failure_reason") ?? readString(payload, "message");
+  if (event.event_type.endsWith("failed") && failureReason) {
+    return failureReason;
+  }
+  const parts: string[] = [];
+  if (branch) parts.push(branch);
+  if (unitId) parts.push(`→ ${unitId}`);
+  if (parts.length > 0) return parts.join(" ");
+  return null;
 }
 
 export function getEventDisplayDescription(event: ChatEvent): string {
@@ -69,6 +112,9 @@ export function getEventDisplayDescription(event: ChatEvent): string {
     }
   }
 
+  const lifecycleDescription = deploymentLifecycleDescription(event);
+  if (lifecycleDescription) return lifecycleDescription;
+
   if (message) return message;
   if (toolName) return event.tool_call_id ? `${toolName} (${event.tool_call_id.slice(0, 8)})` : toolName;
   if (repository) return fileCount ? `${repository}, ${fileCount} files indexed` : repository;
@@ -85,6 +131,17 @@ export function getEventDisplayStatus(event: ChatEvent): ActivityStatus {
   if (event.event_type.endsWith(".failed") || event.event_type.endsWith("_failed") || event.event_type === "error") return "failed";
   if (event.event_type.endsWith(".completed") || event.event_type.endsWith("_completed") || event.event_type === "document.uploaded") return "success";
   if (event.event_type.endsWith(".started") || event.event_type.endsWith("_started") || event.event_type === "context.requested") return "running";
+  if (event.event_type === "preview.active" || event.event_type === "baseline.active" || event.event_type === "deployment.health_passed" || event.event_type === "deployment.build_finished") {
+    return "success";
+  }
+  if (
+    event.event_type === "deployment.requested" ||
+    event.event_type === "deployment.submitted" ||
+    event.event_type === "revert.requested" ||
+    event.event_type === "baseline.deployment_submitted"
+  ) {
+    return "running";
+  }
   if (event.event_type === "change.summary") return "info";
   if (event.event_type === "message.delta") return "info";
   return "info";
@@ -99,6 +156,14 @@ export function getEventDisplayIcon(event: ChatEvent): EventIconKind {
   if (event.event_type.startsWith("code.")) return "code";
   if (event.event_type.startsWith("navigation.")) return "navigation";
   if (event.event_type.startsWith("message.")) return "message";
+  if (
+    event.event_type.startsWith("deployment.") ||
+    event.event_type.startsWith("preview.") ||
+    event.event_type.startsWith("revert.") ||
+    event.event_type.startsWith("baseline.")
+  ) {
+    return "deployment";
+  }
   return "run";
 }
 

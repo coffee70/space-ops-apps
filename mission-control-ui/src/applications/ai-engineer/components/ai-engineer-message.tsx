@@ -4,7 +4,12 @@ import { FileText, Sparkles, Wrench } from "lucide-react";
 
 import { AiEngineerMarkdown } from "@/applications/ai-engineer/components/ai-engineer-markdown";
 import { AiEngineerStatusPill } from "@/applications/ai-engineer/components/ai-engineer-status-pill";
+import { ChangePreviewCardStack } from "@/applications/ai-engineer/components/change-preview-cards";
 import { formatFileSize } from "@/applications/ai-engineer/lib/file-formatting";
+import type {
+  AiEngineerChangeSummary,
+  ChangePreviewState,
+} from "@/applications/ai-engineer/lib/change-preview-types";
 import { getEventDisplayDescription, getEventDisplayStatus, getEventDisplayTitle } from "@/applications/ai-engineer/lib/ui-event-formatting";
 import type { ChatEvent, ChatMessage } from "@/applications/ai-engineer/types";
 
@@ -33,19 +38,31 @@ function MessageAttachments({ message }: { message: ChatMessage }) {
   );
 }
 
+const INLINE_EVENT_TYPES = new Set([
+  "tool.started",
+  "tool.completed",
+  "tool.failed",
+  "context.resolved",
+  "document.ingestion_completed",
+  "code.index_completed",
+  "navigation.requested",
+  "change.summary",
+  "deployment.requested",
+  "deployment.submitted",
+  "deployment.build_started",
+  "deployment.build_finished",
+  "deployment.health_passed",
+  "deployment.failed",
+  "preview.active",
+  "revert.requested",
+  "baseline.deployment_submitted",
+  "baseline.build_started",
+  "baseline.active",
+  "revert.failed",
+]);
+
 function InlineEventCards({ events }: { events: ChatEvent[] }) {
-  const inlineEvents = events.filter((event) =>
-    [
-      "tool.started",
-      "tool.completed",
-      "tool.failed",
-      "context.resolved",
-      "document.ingestion_completed",
-      "code.index_completed",
-      "navigation.requested",
-      "change.summary",
-    ].includes(event.event_type),
-  );
+  const inlineEvents = events.filter((event) => INLINE_EVENT_TYPES.has(event.event_type));
   if (inlineEvents.length === 0) return null;
 
   return (
@@ -63,7 +80,25 @@ function InlineEventCards({ events }: { events: ChatEvent[] }) {
   );
 }
 
-export function AiEngineerMessage({ message, events = [] }: { message: ChatMessage; events?: ChatEvent[] }) {
+export interface AiEngineerMessageProps {
+  message: ChatMessage;
+  events?: ChatEvent[];
+  previewState?: ChangePreviewState | null;
+  onDeployChange?: (change: AiEngineerChangeSummary) => void;
+  onRevertChange?: (change: AiEngineerChangeSummary) => void;
+  onOpenApp?: (change: AiEngineerChangeSummary) => void;
+  isPreviewBusy?: (change: AiEngineerChangeSummary) => boolean;
+}
+
+export function AiEngineerMessage({
+  message,
+  events = [],
+  previewState = null,
+  onDeployChange,
+  onRevertChange,
+  onOpenApp,
+  isPreviewBusy,
+}: AiEngineerMessageProps) {
   const isEmptyStreamingAssistant = message.role === "assistant" && message.status === "streaming" && message.content.trim().length === 0;
 
   if (message.role === "user") {
@@ -91,21 +126,37 @@ export function AiEngineerMessage({ message, events = [] }: { message: ChatMessa
     );
   }
 
+  const previewPart = message.part?.kind === "change-preview" ? message.part : undefined;
+  const isChangePreviewMessage =
+    Boolean(previewPart) && previewState && onDeployChange && onRevertChange && onOpenApp;
+
   return (
     <div className="group/message fade-up w-full" data-role="assistant" data-testid="ai-engineer-message-assistant">
       <div className="flex items-start gap-3">
         <AssistantAvatar />
         <div className="flex min-w-0 flex-1 flex-col gap-2 text-[13px] leading-[1.65]">
-          <div data-testid="ai-engineer-assistant-message">
-            {isEmptyStreamingAssistant ? (
-              <div className="flex h-[calc(13px*1.65)] items-center text-[13px] leading-[1.65]">
-                <span className="shimmer font-medium">Thinking...</span>
-              </div>
-            ) : (
-              <AiEngineerMarkdown content={message.content} />
-            )}
-          </div>
-          <InlineEventCards events={events} />
+          {isChangePreviewMessage ? (
+            <div data-testid="ai-engineer-change-preview-message" data-preview-key={previewPart?.previewKey}>
+              <ChangePreviewCardStack
+                state={previewState!}
+                isBusy={isPreviewBusy?.(previewState!.change) ?? false}
+                onDeploy={onDeployChange!}
+                onRevert={onRevertChange!}
+                onOpenApp={onOpenApp!}
+              />
+            </div>
+          ) : (
+            <div data-testid="ai-engineer-assistant-message">
+              {isEmptyStreamingAssistant ? (
+                <div className="flex h-[calc(13px*1.65)] items-center text-[13px] leading-[1.65]">
+                  <span className="shimmer font-medium">Thinking...</span>
+                </div>
+              ) : (
+                <AiEngineerMarkdown content={message.content} />
+              )}
+            </div>
+          )}
+          {!isChangePreviewMessage ? <InlineEventCards events={events} /> : null}
         </div>
       </div>
     </div>

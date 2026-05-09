@@ -157,6 +157,40 @@ test("failPreview transitions any state to failed with reason", () => {
   assert.equal(state.failureReason, "user aborted");
 });
 
+test("deploy replaced before becoming healthy transitions to failed with friendly reason", () => {
+  const summary = changeSummaryFromEvent(buildEvent()) as AiEngineerChangeSummary;
+  let state = createInitialChangePreviewState(summary);
+  state = startDeploying(state);
+  state = applyDeploySubmitted(state, buildDeployment({ status: "pending" }));
+  state = applyDeployUpdate(state, buildDeployment({ status: "replaced" }));
+  assert.equal(state.status, "failed");
+  assert.equal(state.failureReason, "Preview deployment was replaced before it became active.");
+  assert.equal(state.previewDeployment?.status, "replaced");
+});
+
+test("deploy replaced uses backend failure_reason when present", () => {
+  const summary = changeSummaryFromEvent(buildEvent()) as AiEngineerChangeSummary;
+  let state = createInitialChangePreviewState(summary);
+  state = startDeploying(state);
+  state = applyDeploySubmitted(state, buildDeployment({ status: "pending" }));
+  state = applyDeployUpdate(
+    state,
+    buildDeployment({ status: "replaced", failure_reason: "Superseded by dep_xyz" }),
+  );
+  assert.equal(state.status, "failed");
+  assert.equal(state.failureReason, "Superseded by dep_xyz");
+});
+
+test("revert replaced before becoming healthy transitions to failed", () => {
+  const summary = changeSummaryFromEvent(buildEvent()) as AiEngineerChangeSummary;
+  let state = createInitialChangePreviewState(summary);
+  state = startReverting(state);
+  state = applyRevertSubmitted(state, buildDeployment({ deployment_id: "dep_revert", status: "pending" }));
+  state = applyRevertUpdate(state, buildDeployment({ deployment_id: "dep_revert", status: "replaced" }));
+  assert.equal(state.status, "failed");
+  assert.equal(state.failureReason, "Baseline deployment was replaced before it became active.");
+});
+
 test("isTerminalChangePreviewStatus marks deployed/restored/failed as terminal", () => {
   assert.equal(isTerminalChangePreviewStatus("deployed_preview"), true);
   assert.equal(isTerminalChangePreviewStatus("baseline_restored"), true);

@@ -28,6 +28,19 @@ test("AI Engineer chat-native deploy and revert flow @smoke", async ({ page }) =
     browserErrors.push(`pageerror:${error.message}`);
   });
 
+  // Capture the exact baseline commit SHA from the currently-active deployment
+  // of the target service. The revert MUST restore this SHA, not whatever
+  // `main` happens to be after the preview branch advances.
+  const baselineRegistryResponse = await page.request.get(
+    `${baseUrl}/registry/services/derived-telemetry-service`,
+  );
+  expect(baselineRegistryResponse.ok()).toBeTruthy();
+  const baselineRegistry = await baselineRegistryResponse.json();
+  expect(baselineRegistry.branch).toBe("main");
+  const baselineCommitSha: string = baselineRegistry.commitSha ?? baselineRegistry.commit_sha;
+  expect(typeof baselineCommitSha).toBe("string");
+  expect(baselineCommitSha.length).toBeGreaterThan(0);
+
   const createResponse = await page.request.post(`${baseUrl}/intelligence/agent/conversations`, {
     data: {
       title: `AI Engineer Change Preview ${Date.now()}`,
@@ -45,20 +58,30 @@ test("AI Engineer chat-native deploy and revert flow @smoke", async ({ page }) =
 
   await fillAndSend(page, "[scripted:scripted_change_preview] Prepare a scoped change preview.");
 
-  const summaryCard = page.getByTestId("change-summary-card");
+  // The deploy/revert lifecycle must render as an assistant-owned chat message,
+  // not a detached preview lane below the message stream.
+  const previewMessage = page.getByTestId("ai-engineer-change-preview-message").first();
+  await expect(previewMessage).toBeVisible({ timeout: 60_000 });
+
+  const summaryCard = previewMessage.getByTestId("change-summary-card");
   await expect(summaryCard).toBeVisible({ timeout: 60_000 });
   await expect(summaryCard).toContainText("Ready to preview changes");
   await expect(summaryCard).toContainText("preview/derived-telemetry-preview");
 
-  const deployButton = page.getByTestId("change-summary-deploy");
+  const deployButton = previewMessage.getByTestId("change-summary-deploy");
   await expect(deployButton).toBeEnabled();
   await deployButton.click();
 
-  await expect(page.getByTestId("preview-deployment-progress-card")).toBeVisible({ timeout: 30_000 });
+  await expect(previewMessage.getByTestId("preview-deployment-progress-card")).toBeVisible({
+    timeout: 30_000,
+  });
 
-  const previewLiveCard = page.getByTestId("preview-live-card");
+  const previewLiveCard = previewMessage.getByTestId("preview-live-card");
   await expect(previewLiveCard).toBeVisible({ timeout: 150_000 });
   await expect(previewLiveCard).toContainText("Preview is live");
+  // The scripted preview supplies a target_application_id ("telemetry"), so the
+  // Open app button should be visible on the preview-live card.
+  await expect(previewLiveCard.getByTestId("preview-live-open-app")).toBeVisible();
 
   await expect
     .poll(async () => {
@@ -83,12 +106,14 @@ test("AI Engineer chat-native deploy and revert flow @smoke", async ({ page }) =
   await expect(revertButton).toBeEnabled();
   await revertButton.click();
 
-  await expect(page.getByTestId("revert-progress-card")).toBeVisible({ timeout: 30_000 });
+  await expect(previewMessage.getByTestId("revert-progress-card")).toBeVisible({ timeout: 30_000 });
 
-  const baselineCard = page.getByTestId("baseline-restored-card");
+  const baselineCard = previewMessage.getByTestId("baseline-restored-card");
   await expect(baselineCard).toBeVisible({ timeout: 150_000 });
   await expect(baselineCard).toContainText("Baseline restored");
 
+  // The revert deployment must record the exact baseline commit SHA captured
+  // before the preview started, not just "the latest commit on main".
   await expect
     .poll(async () => {
       const response = await page.request.get(`${baseUrl}/registry/services/derived-telemetry-service`);
@@ -98,12 +123,14 @@ test("AI Engineer chat-native deploy and revert flow @smoke", async ({ page }) =
         ok: true,
         branch: payload.branch,
         deploymentStatus: payload.deploymentStatus,
+        commitSha: payload.commitSha ?? payload.commit_sha ?? null,
       };
     }, { timeout: 120_000 })
     .toMatchObject({
       ok: true,
       branch: "main",
       deploymentStatus: "healthy",
+      commitSha: baselineCommitSha,
     });
 
   expect(browserErrors).toEqual([]);

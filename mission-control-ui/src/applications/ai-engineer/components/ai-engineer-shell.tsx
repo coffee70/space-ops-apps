@@ -24,7 +24,7 @@ export function AiEngineerShell({
   isStreaming = false,
   isBootstrapping = false,
   onStop,
-  previews = [],
+  getPreviewState,
   onDeployChange,
   onRevertChange,
   onOpenApp,
@@ -41,7 +41,7 @@ export function AiEngineerShell({
   isStreaming?: boolean;
   isBootstrapping?: boolean;
   onStop?: () => void;
-  previews?: ChangePreviewState[];
+  getPreviewState?: (previewKey: string) => ChangePreviewState | null;
   onDeployChange?: (change: AiEngineerChangeSummary) => void;
   onRevertChange?: (change: AiEngineerChangeSummary) => void;
   onOpenApp?: (change: AiEngineerChangeSummary) => void;
@@ -59,7 +59,7 @@ export function AiEngineerShell({
           isStreaming={isStreaming}
           isBootstrapping={isBootstrapping}
           onSuggestionSelect={setComposerText}
-          previews={previews}
+          getPreviewState={getPreviewState}
           onDeployChange={onDeployChange}
           onRevertChange={onRevertChange}
           onOpenApp={onOpenApp}

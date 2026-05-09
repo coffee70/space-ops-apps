@@ -13,16 +13,19 @@ import { createInitialChangePreviewState } from "../lib/change-preview-state";
 import type { AiEngineerChangeSummary, ChangePreviewState } from "../lib/change-preview-types";
 
 function buildChange(overrides: Partial<AiEngineerChangeSummary> = {}): AiEngineerChangeSummary {
+  // Note: use explicit `in` checks for nullable fields so an override of `null`
+  // is preserved rather than collapsing back to the default via `??`.
   return {
     conversationId: overrides.conversationId ?? "conversation-1",
     agentRunId: overrides.agentRunId ?? "run-1",
     branch: overrides.branch ?? "preview/example",
     baseBranch: overrides.baseBranch ?? "main",
-    baseCommitSha: overrides.baseCommitSha ?? null,
-    commitSha: overrides.commitSha ?? null,
+    baseCommitSha: "baseCommitSha" in overrides ? overrides.baseCommitSha! : null,
+    commitSha: "commitSha" in overrides ? overrides.commitSha! : null,
     changedFiles: overrides.changedFiles ?? ["src/foo.ts", "src/bar.ts"],
-    targetUnitId: overrides.targetUnitId ?? "telemetry-app",
-    targetApplicationId: overrides.targetApplicationId ?? "telemetry",
+    targetUnitId: "targetUnitId" in overrides ? overrides.targetUnitId! : "telemetry-app",
+    targetApplicationId:
+      "targetApplicationId" in overrides ? overrides.targetApplicationId! : "telemetry",
     affectedCapability: overrides.affectedCapability ?? "telemetry-detail",
     riskLevel: overrides.riskLevel ?? "low",
     validationStatus: overrides.validationStatus ?? "not_run",
@@ -83,6 +86,24 @@ test("PreviewLiveCard renders Open app and Revert buttons when preview is live",
   assert.match(markup, /data-testid="preview-live-card"/);
   assert.match(markup, /Preview is live/);
   assert.match(markup, /Open app/);
+  assert.match(markup, /Revert changes/);
+});
+
+test("PreviewLiveCard hides Open app when targetApplicationId is missing", () => {
+  const change = buildChange({ targetApplicationId: null, targetUnitId: "some-service" });
+  const markup = renderToStaticMarkup(
+    <PreviewLiveCard
+      state={withState({ status: "deployed_preview", change })}
+      onOpenApp={() => {}}
+      onRevert={() => {}}
+      isBusy={false}
+    />,
+  );
+  assert.match(markup, /data-testid="preview-live-card"/);
+  assert.match(markup, /Preview is live/);
+  assert.doesNotMatch(markup, /preview-live-open-app/);
+  assert.match(markup, /preview-live-service-active/);
+  assert.match(markup, /Service preview active/);
   assert.match(markup, /Revert changes/);
 });
 

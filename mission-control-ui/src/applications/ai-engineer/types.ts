@@ -22,6 +22,17 @@ export interface ChatMessageAttachment {
   documentId?: string;
 }
 
+/**
+ * Identifies an assistant message that owns a change-preview lifecycle card
+ * stack. The actual card state lives in the `useChangePreviewFlow` hook keyed
+ * by `previewKey`. The chat stream owns the placement: each preview becomes a
+ * real assistant message in transcript order, not a detached floating lane.
+ */
+export interface ChatMessagePreviewPart {
+  kind: "change-preview";
+  previewKey: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "tool";
@@ -29,6 +40,11 @@ export interface ChatMessage {
   status?: "streaming" | "complete";
   createdAt?: string;
   attachments?: ChatMessageAttachment[];
+  /**
+   * When set, the assistant message renders one structured message part in
+   * place of free-form markdown. Used today by the change-preview lifecycle.
+   */
+  part?: ChatMessagePreviewPart;
 }
 
 export interface ChatEventChunk {
