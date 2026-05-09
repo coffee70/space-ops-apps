@@ -6,6 +6,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiEngineerGreeting } from "@/applications/ai-engineer/components/ai-engineer-greeting";
 import { AiEngineerMessage } from "@/applications/ai-engineer/components/ai-engineer-message";
 import { AiEngineerThinking } from "@/applications/ai-engineer/components/ai-engineer-thinking";
+import { ChangePreviewCardStack } from "@/applications/ai-engineer/components/change-preview-cards";
+import type {
+  AiEngineerChangeSummary,
+  ChangePreviewState,
+} from "@/applications/ai-engineer/lib/change-preview-types";
 import type { ChatEvent, ChatMessage } from "@/applications/ai-engineer/types";
 import { cn } from "@/lib/utils";
 
@@ -15,12 +20,22 @@ export function AiEngineerMessages({
   isStreaming = false,
   isBootstrapping = false,
   onSuggestionSelect,
+  previews = [],
+  onDeployChange,
+  onRevertChange,
+  onOpenApp,
+  isPreviewBusy,
 }: {
   messages: ChatMessage[];
   events: ChatEvent[];
   isStreaming?: boolean;
   isBootstrapping?: boolean;
   onSuggestionSelect?: (suggestion: string) => void;
+  previews?: ChangePreviewState[];
+  onDeployChange?: (change: AiEngineerChangeSummary) => void;
+  onRevertChange?: (change: AiEngineerChangeSummary) => void;
+  onOpenApp?: (change: AiEngineerChangeSummary) => void;
+  isPreviewBusy?: (change: AiEngineerChangeSummary) => boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -66,6 +81,20 @@ export function AiEngineerMessages({
             <AiEngineerMessage key={message.id} message={message} events={index === messages.length - 1 ? latestRunEvents : []} />
           ))}
           {shouldShowThinking ? <AiEngineerThinking /> : null}
+          {previews.length > 0 && onDeployChange && onRevertChange && onOpenApp ? (
+            <div className="flex flex-col gap-3" data-testid="ai-engineer-change-preview-lane">
+              {previews.map((state) => (
+                <ChangePreviewCardStack
+                  key={`${state.change.agentRunId}::${state.change.branch}`}
+                  state={state}
+                  isBusy={isPreviewBusy?.(state.change) ?? false}
+                  onDeploy={onDeployChange}
+                  onRevert={onRevertChange}
+                  onOpenApp={onOpenApp}
+                />
+              ))}
+            </div>
+          ) : null}
           <div ref={endRef} className="min-h-6 min-w-6 shrink-0" />
         </div>
       </div>

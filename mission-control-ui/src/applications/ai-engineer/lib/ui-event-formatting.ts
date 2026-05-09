@@ -41,6 +41,7 @@ export function getEventDisplayTitle(event: ChatEvent): string {
     "code.index_failed": "Code index failed",
     "navigation.requested": "Navigation requested",
     "message.completed": "Message completed",
+    "change.summary": "Change preview ready",
     error: "Error",
   };
 
@@ -58,6 +59,16 @@ export function getEventDisplayDescription(event: ChatEvent): string {
   const chunkCount = readNumber(payload, "chunk_count");
   const fileCount = readNumber(payload, "file_count");
 
+  if (event.event_type === "change.summary") {
+    const branch = readString(payload, "branch");
+    const target = readString(payload, "target_unit_id") ?? readString(payload, "target_application_id");
+    const changedFiles = Array.isArray(payload.changed_files) ? (payload.changed_files as unknown[]).length : 0;
+    const fileLabel = changedFiles ? `, ${changedFiles} ${changedFiles === 1 ? "file" : "files"}` : "";
+    if (branch) {
+      return target ? `${branch} → ${target}${fileLabel}` : `${branch}${fileLabel}`;
+    }
+  }
+
   if (message) return message;
   if (toolName) return event.tool_call_id ? `${toolName} (${event.tool_call_id.slice(0, 8)})` : toolName;
   if (repository) return fileCount ? `${repository}, ${fileCount} files indexed` : repository;
@@ -74,6 +85,7 @@ export function getEventDisplayStatus(event: ChatEvent): ActivityStatus {
   if (event.event_type.endsWith(".failed") || event.event_type.endsWith("_failed") || event.event_type === "error") return "failed";
   if (event.event_type.endsWith(".completed") || event.event_type.endsWith("_completed") || event.event_type === "document.uploaded") return "success";
   if (event.event_type.endsWith(".started") || event.event_type.endsWith("_started") || event.event_type === "context.requested") return "running";
+  if (event.event_type === "change.summary") return "info";
   if (event.event_type === "message.delta") return "info";
   return "info";
 }

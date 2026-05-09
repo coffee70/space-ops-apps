@@ -35,9 +35,16 @@ function MessageAttachments({ message }: { message: ChatMessage }) {
 
 function InlineEventCards({ events }: { events: ChatEvent[] }) {
   const inlineEvents = events.filter((event) =>
-    ["tool.started", "tool.completed", "tool.failed", "context.resolved", "document.ingestion_completed", "code.index_completed", "navigation.requested"].includes(
-      event.event_type,
-    ),
+    [
+      "tool.started",
+      "tool.completed",
+      "tool.failed",
+      "context.resolved",
+      "document.ingestion_completed",
+      "code.index_completed",
+      "navigation.requested",
+      "change.summary",
+    ].includes(event.event_type),
   );
   if (inlineEvents.length === 0) return null;
 

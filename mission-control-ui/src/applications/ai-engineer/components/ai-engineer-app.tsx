@@ -1,11 +1,15 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AiEngineerShell } from "@/applications/ai-engineer/components/ai-engineer-shell";
 import { applyAgentEventToAssistantMessage } from "@/applications/ai-engineer/lib/agent-events";
 import { createConversation, getConversation, listConversations, sendChatMessage, uploadDocument } from "@/applications/ai-engineer/lib/ai-engineer-client";
+import type { AiEngineerChangeSummary } from "@/applications/ai-engineer/lib/change-preview-types";
+import { useChangePreviewFlow } from "@/applications/ai-engineer/lib/use-change-preview-flow";
 import type { AttachmentStatus, ChatEvent, ChatMessage, ChatStreamChunk, ExecutionMode } from "@/applications/ai-engineer/types";
+import { buildApplicationRoute } from "@/platform/registry/application-routes";
 import type { NativeApplicationProps } from "@/platform/sdk/native-application-contract";
 
 function createClientId() {
@@ -16,6 +20,7 @@ function createClientId() {
 }
 
 export function AiEngineerApp(props: NativeApplicationProps) {
+  const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [events, setEvents] = useState<ChatEvent[]>([]);
   const [attachments, setAttachments] = useState<AttachmentStatus[]>([]);
@@ -24,6 +29,16 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const conversationIdRef = useRef<string | null>(null);
   const conversationPromiseRef = useRef<Promise<string> | null>(null);
+
+  const changePreviewFlow = useChangePreviewFlow({
+    onTimelineEvent: (event) => {
+      setEvents((previous) => {
+        const next = previous.filter((existing) => existing.id !== event.id);
+        next.push(event);
+        return next;
+      });
+    },
+  });
 
   const setActiveConversationId = (id: string) => {
     conversationIdRef.current = id;
@@ -118,6 +133,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
   const applyStreamChunk = (draftAssistantId: string, chunk: ChatStreamChunk) => {
     appendBackendEvent(chunk.event);
+    changePreviewFlow.ingestEvent(chunk.event);
     setMessages((previous) => applyAgentEventToAssistantMessage(previous, draftAssistantId, chunk.event));
   };
 
@@ -188,6 +204,15 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
   const title = useMemo(() => props.application.title ?? "AI Engineer", [props.application.title]);
 
+  const handleOpenApp = useCallback(
+    (change: AiEngineerChangeSummary) => {
+      const applicationId = change.targetApplicationId ?? change.targetUnitId;
+      if (!applicationId) return;
+      router.push(buildApplicationRoute(applicationId));
+    },
+    [router],
+  );
+
   return (
     <AiEngineerShell
       title={title}
@@ -200,6 +225,11 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       disabled={isBootstrapping}
       isBootstrapping={isBootstrapping}
       isStreaming={isStreaming}
+      previews={changePreviewFlow.previews}
+      onDeployChange={changePreviewFlow.deployChange}
+      onRevertChange={changePreviewFlow.revertChange}
+      onOpenApp={handleOpenApp}
+      isPreviewBusy={changePreviewFlow.isBusyForChange}
     />
   );
 }
