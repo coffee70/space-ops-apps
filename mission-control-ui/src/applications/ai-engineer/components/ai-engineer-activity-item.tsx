@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, FileText, Map, Search, Terminal, TriangleAlert, Wrench } from "lucide-react";
+import { Bot, FileText, Map, Rocket, Search, Terminal, TriangleAlert, Wrench } from "lucide-react";
 
 import { AiEngineerStatusPill } from "@/applications/ai-engineer/components/ai-engineer-status-pill";
 import {
@@ -19,6 +19,7 @@ function ActivityIcon({ event }: { event: ChatEvent }) {
   if (icon === "code") return <Terminal className={className} />;
   if (icon === "navigation") return <Map className={className} />;
   if (icon === "context") return <Search className={className} />;
+  if (icon === "deployment") return <Rocket className={className} />;
   if (icon === "error") return <TriangleAlert className={className} />;
   return <Bot className={className} />;
 }

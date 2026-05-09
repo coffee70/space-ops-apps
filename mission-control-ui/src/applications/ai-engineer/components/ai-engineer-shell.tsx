@@ -6,6 +6,10 @@ import { AiEngineerActivityPanel } from "@/applications/ai-engineer/components/a
 import { AiEngineerComposer } from "@/applications/ai-engineer/components/ai-engineer-composer";
 import { AiEngineerHeader } from "@/applications/ai-engineer/components/ai-engineer-header";
 import { AiEngineerMessages } from "@/applications/ai-engineer/components/ai-engineer-messages";
+import type {
+  AiEngineerChangeSummary,
+  ChangePreviewState,
+} from "@/applications/ai-engineer/lib/change-preview-types";
 import type { AttachmentStatus, ChatEvent, ChatMessage, ExecutionMode } from "@/applications/ai-engineer/types";
 
 export function AiEngineerShell({
@@ -20,6 +24,11 @@ export function AiEngineerShell({
   isStreaming = false,
   isBootstrapping = false,
   onStop,
+  getPreviewState,
+  onDeployChange,
+  onRevertChange,
+  onOpenApp,
+  isPreviewBusy,
 }: {
   title: string;
   messages: ChatMessage[];
@@ -32,6 +41,11 @@ export function AiEngineerShell({
   isStreaming?: boolean;
   isBootstrapping?: boolean;
   onStop?: () => void;
+  getPreviewState?: (previewKey: string) => ChangePreviewState | null;
+  onDeployChange?: (change: AiEngineerChangeSummary) => void;
+  onRevertChange?: (change: AiEngineerChangeSummary) => void;
+  onOpenApp?: (change: AiEngineerChangeSummary) => void;
+  isPreviewBusy?: (change: AiEngineerChangeSummary) => boolean;
 }) {
   const [composerText, setComposerText] = useState("");
 
@@ -45,6 +59,11 @@ export function AiEngineerShell({
           isStreaming={isStreaming}
           isBootstrapping={isBootstrapping}
           onSuggestionSelect={setComposerText}
+          getPreviewState={getPreviewState}
+          onDeployChange={onDeployChange}
+          onRevertChange={onRevertChange}
+          onOpenApp={onOpenApp}
+          isPreviewBusy={isPreviewBusy}
         />
         <div className="bg-background sticky bottom-0 z-10 mx-auto flex w-full max-w-4xl gap-2 px-2 pb-3 md:px-4 md:pb-4">
           <AiEngineerComposer

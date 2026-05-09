@@ -6,6 +6,7 @@ const artifactRoot = path.join(workspaceRoot, "tmp/playwright");
 
 export default defineConfig({
   testDir: "./tests",
+  globalSetup: "./tests/support/global-setup.ts",
   timeout: 30_000,
   workers: process.env.CI ? undefined : 4,
   expect: {

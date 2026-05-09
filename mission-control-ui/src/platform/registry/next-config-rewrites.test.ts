@@ -4,48 +4,29 @@ import { join } from "node:path";
 import test from "node:test";
 
 const projectRoot = process.cwd();
-const configSource = readFileSync(join(process.cwd(), "next.config.ts"), "utf8");
+const configSource = readFileSync(join(projectRoot, "next.config.ts"), "utf8");
 
-test("next config rewrites expose application and managed service registry routes", () => {
-  assert.match(configSource, /source:\s*"\/registry\/applications"/);
-  assert.match(configSource, /source:\s*"\/registry\/applications\/:applicationId"/);
-  assert.match(configSource, /source:\s*"\/registry\/services"/);
-  assert.match(configSource, /source:\s*"\/registry\/services\/:serviceSlug"/);
-  assert.doesNotMatch(configSource, /source:\s*"\/registry\/:path\*"/);
-  assert.doesNotMatch(configSource, /source:\s*"\/registry\/units/);
+/**
+ * Routing for platform/registry/runtime-application/telemetry traffic now lives in the
+ * Layer 1 platform-edge-proxy (Caddy). The Next.js application config must stay free of
+ * those rewrites so the edge proxy is the only place that owns API path-to-host wiring.
+ */
+
+test("next config does not own platform API rewrites (now provided by the edge proxy)", () => {
+  assert.doesNotMatch(configSource, /async\s+rewrites/);
+  assert.doesNotMatch(configSource, /afterFiles:/);
+  assert.doesNotMatch(configSource, /fallback:/);
+  assert.doesNotMatch(configSource, /\$\{apiServerUrl\}/);
+  assert.doesNotMatch(configSource, /\$\{controlPlaneServerUrl\}/);
 });
 
-test("next config rewrites expose only managed runtime service proxy routes", () => {
-  assert.doesNotMatch(configSource, /source:\s*"\/internal\/:path\*"/);
-  assert.match(configSource, /source:\s*"\/internal\/runtime-services\/:serviceSlug\/:path\*"/);
-});
-
-test("next config proxies telemetry position API in afterFiles (before dynamic telemetry pages)", () => {
-  assert.match(configSource, /afterFiles:/);
-  const positionConfigIdx = configSource.indexOf('/telemetry/position/config"');
-  const telemetryFallbackIdx = configSource.search(/fallback:\s*\[[\s\S]*source:\s*"\/telemetry\/:path\*"/);
-  assert.ok(positionConfigIdx > 0, "missing /telemetry/position/config rewrite");
-  assert.ok(telemetryFallbackIdx > 0, "missing fallback telemetry proxy");
-  assert.ok(
-    positionConfigIdx < telemetryFallbackIdx,
-    "position config rewrite must appear before fallback so it is not shadowed by afterFiles routing to pages incorrectly — check order",
-  );
-  assert.match(configSource, /source:\s*"\/telemetry\/position\/config"/);
-  assert.match(configSource, /\$\{apiServerUrl\}\/telemetry\/position\/config/);
-  assert.match(configSource, /source:\s*"\/telemetry\/position\/config\/:path\*"/);
-  assert.match(configSource, /source:\s*"\/telemetry\/position\/latest"/);
-  assert.match(configSource, /source:\s*"\/telemetry\/orbit\/status"/);
-});
-
-test("next config fallback rewrites proxy platform API paths without shadowing telemetry pages", () => {
-  assert.match(configSource, /fallback:/);
-  assert.match(configSource, /source:\s*"\/telemetry"/);
-  assert.match(configSource, /source:\s*"\/telemetry\/:path\*"/);
-  assert.match(configSource, /source:\s*"\/vehicle-configs"/);
-  assert.match(configSource, /source:\s*"\/vehicle-configs\/:path\*"/);
-  assert.match(configSource, /source:\s*"\/ops\/:path\*"/);
-  assert.match(configSource, /source:\s*"\/simulator\/:path\*"/);
-  assert.match(configSource, /\$\{apiServerUrl\}\/telemetry\/:path\*/);
+test("next config does not expose registry, telemetry, or runtime-service rewrites", () => {
+  assert.doesNotMatch(configSource, /source:\s*"\/registry\//);
+  assert.doesNotMatch(configSource, /source:\s*"\/telemetry/);
+  assert.doesNotMatch(configSource, /source:\s*"\/internal\/runtime-services/);
+  assert.doesNotMatch(configSource, /source:\s*"\/runtime-applications/);
+  assert.doesNotMatch(configSource, /source:\s*"\/vehicle-configs/);
+  assert.doesNotMatch(configSource, /source:\s*"\/simulator/);
 });
 
 test("next config does not expose direct embedded transport rewrites", () => {
@@ -54,9 +35,7 @@ test("next config does not expose direct embedded transport rewrites", () => {
   assert.doesNotMatch(configSource, /openvscode-server/);
 });
 
-test("next config keeps generic runtime application proxy routes", () => {
-  assert.match(configSource, /source:\s*"\/runtime-applications\/:applicationId"/);
-  assert.match(configSource, /source:\s*"\/runtime-applications\/:applicationId\/:path\*"/);
+test("next config does not introduce Next.js middleware or proxy entry points", () => {
   assert.equal(existsSync(join(projectRoot, "src", "middleware.ts")), false);
   assert.equal(existsSync(join(projectRoot, "src", "proxy.ts")), false);
   assert.equal(existsSync(join(projectRoot, "middleware.ts")), false);

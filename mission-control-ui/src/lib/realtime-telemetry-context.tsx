@@ -141,8 +141,13 @@ export function RealtimeTelemetryProvider({
     [channelNames]
   );
 
+  /**
+   * channelNamesKey is the joined-string identity of `channelNames`; we memoize on it so we only
+   * recompute the filtered list when the actual values change, not on every parent re-render.
+   */
   const stableChannelNames = useMemo(
     () => channelNames.filter(Boolean),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [channelNamesKey]
   );
 

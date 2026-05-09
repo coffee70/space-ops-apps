@@ -6,6 +6,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiEngineerGreeting } from "@/applications/ai-engineer/components/ai-engineer-greeting";
 import { AiEngineerMessage } from "@/applications/ai-engineer/components/ai-engineer-message";
 import { AiEngineerThinking } from "@/applications/ai-engineer/components/ai-engineer-thinking";
+import type {
+  AiEngineerChangeSummary,
+  ChangePreviewState,
+} from "@/applications/ai-engineer/lib/change-preview-types";
 import type { ChatEvent, ChatMessage } from "@/applications/ai-engineer/types";
 import { cn } from "@/lib/utils";
 
@@ -15,12 +19,22 @@ export function AiEngineerMessages({
   isStreaming = false,
   isBootstrapping = false,
   onSuggestionSelect,
+  getPreviewState,
+  onDeployChange,
+  onRevertChange,
+  onOpenApp,
+  isPreviewBusy,
 }: {
   messages: ChatMessage[];
   events: ChatEvent[];
   isStreaming?: boolean;
   isBootstrapping?: boolean;
   onSuggestionSelect?: (suggestion: string) => void;
+  getPreviewState?: (previewKey: string) => ChangePreviewState | null;
+  onDeployChange?: (change: AiEngineerChangeSummary) => void;
+  onRevertChange?: (change: AiEngineerChangeSummary) => void;
+  onOpenApp?: (change: AiEngineerChangeSummary) => void;
+  isPreviewBusy?: (change: AiEngineerChangeSummary) => boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -62,9 +76,22 @@ export function AiEngineerMessages({
       ) : null}
       <div ref={scrollRef} className="absolute inset-0 touch-pan-y overflow-y-auto" onScroll={handleScroll} data-testid="ai-engineer-chat-transcript">
         <div className="mx-auto flex min-h-full max-w-4xl min-w-0 flex-col gap-5 px-2 py-6 md:gap-7 md:px-4">
-          {messages.map((message, index) => (
-            <AiEngineerMessage key={message.id} message={message} events={index === messages.length - 1 ? latestRunEvents : []} />
-          ))}
+          {messages.map((message, index) => {
+            const previewKey = message.part?.kind === "change-preview" ? message.part.previewKey : null;
+            const previewState = previewKey && getPreviewState ? getPreviewState(previewKey) : null;
+            return (
+              <AiEngineerMessage
+                key={message.id}
+                message={message}
+                events={index === messages.length - 1 ? latestRunEvents : []}
+                previewState={previewState}
+                onDeployChange={onDeployChange}
+                onRevertChange={onRevertChange}
+                onOpenApp={onOpenApp}
+                isPreviewBusy={isPreviewBusy}
+              />
+            );
+          })}
           {shouldShowThinking ? <AiEngineerThinking /> : null}
           <div ref={endRef} className="min-h-6 min-w-6 shrink-0" />
         </div>
