@@ -28,30 +28,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-type FilterKey =
-  | "all"
-  | "enabled"
-  | "disabled"
-  | "recommended"
-  | "fast"
-  | "reasoning"
-  | "coding"
-  | "long_context"
-  | "vision"
-  | "local";
-
-const FILTER_LABELS: Record<FilterKey, string> = {
-  all: "All",
-  enabled: "Enabled",
-  disabled: "Disabled",
-  recommended: "Recommended",
-  fast: "Fast",
-  reasoning: "Reasoning",
-  coding: "Coding / tools",
-  long_context: "Long context",
-  vision: "Vision",
-  local: "Local / air-gapped",
-};
+import {
+  AI_ENGINEER_MODEL_FILTER_LABELS,
+  filterAiEngineerModels,
+  formatAiEngineerModelDetailLines,
+  trySelectAiEngineerModel,
+  type AiEngineerModelFilterKey,
+} from "./model-picker-filter";
 
 function CostDots({ tier }: { tier: AiEngineerModelOption["costTier"] }) {
   const map: Record<string, number> = {
@@ -132,7 +115,7 @@ export function AiEngineerModelPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<FilterKey>("all");
+  const [filter, setFilter] = useState<AiEngineerModelFilterKey>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [providerRail, setProviderRail] = useState<string | null>(null);
 
@@ -154,41 +137,10 @@ export function AiEngineerModelPicker({
     return [{ id: "__recommended", label: "Recommended" }, ...list];
   }, [models]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return models.filter((m) => {
-      if (providerRail === "__recommended") {
-        if (!(m.recommendedFor.includes("demo-safe") || m.recommendedFor.includes("coding") || m.isDefault)) return false;
-      } else if (providerRail) {
-        if (m.providerRef !== providerRail) return false;
-      }
-
-      if (filter === "enabled" && (!m.enabled || !m.isAvailable)) return false;
-      if (filter === "disabled" && m.enabled) return false;
-      if (filter === "recommended" && !(m.recommendedFor.includes("demo-safe") || m.isDefault)) return false;
-      if (filter === "fast" && m.speedTier !== "fast") return false;
-      if (filter === "reasoning" && m.reasoningTier !== "strong" && m.reasoningTier !== "light") return false;
-      if (filter === "coding" && !m.recommendedFor.includes("coding") && !m.capabilities.includes("tool-use")) return false;
-      if (filter === "long_context" && (m.contextWindow ?? 0) < 100_000) return false;
-      if (filter === "vision" && !m.capabilities.includes("vision")) return false;
-      if (filter === "local" && m.governance.dataBoundary !== "local_airgapped") return false;
-
-      if (!q) return true;
-      const hay = [
-        m.id,
-        m.providerModelId,
-        m.name,
-        m.provider,
-        m.description ?? "",
-        ...m.capabilities,
-        ...m.recommendedFor,
-        m.governance.dataBoundary,
-      ]
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    });
-  }, [models, query, filter, providerRail]);
+  const filtered = useMemo(
+    () => filterAiEngineerModels(models, query, filter, providerRail),
+    [models, query, filter, providerRail],
+  );
 
   const chipLabel = loadError ? "Model unavailable" : isLoading ? "Loading models…" : selected?.name ?? "Select model";
 
@@ -239,7 +191,7 @@ export function AiEngineerModelPicker({
             />
           </div>
           <div className="mt-2 flex flex-wrap gap-1">
-            {(Object.keys(FILTER_LABELS) as FilterKey[]).map((key) => (
+            {(Object.keys(AI_ENGINEER_MODEL_FILTER_LABELS) as AiEngineerModelFilterKey[]).map((key) => (
               <button
                 key={key}
                 type="button"
@@ -249,7 +201,7 @@ export function AiEngineerModelPicker({
                   filter === key ? "bg-foreground text-background" : "bg-muted/50 text-muted-foreground hover:bg-muted",
                 )}
               >
-                {FILTER_LABELS[key]}
+                {AI_ENGINEER_MODEL_FILTER_LABELS[key]}
               </button>
             ))}
           </div>
@@ -287,18 +239,14 @@ export function AiEngineerModelPicker({
                       className={cn(
                         "border-border/40 flex flex-col gap-1 rounded-xl border px-3 py-2 transition-colors",
                         isSelected && "border-primary/50 bg-primary/5",
-                        dim && "opacity-45",
                       )}
                     >
-                      <div className="flex items-start gap-2">
+                      <div className={cn("flex items-start gap-2", dim && "opacity-45")}>
                         <button
                           type="button"
                           disabled={!canSelect}
                           onClick={() => {
-                            if (!canSelect) return;
-                            onSelect(m.id);
-                            localStorage.setItem("ai-engineer.selectedModelId", m.id);
-                            setOpen(false);
+                            trySelectAiEngineerModel(m, onSelect, () => setOpen(false));
                           }}
                           className="flex min-w-0 flex-1 flex-col items-start text-left"
                           data-testid={`ai-engineer-model-row-${m.id}`}
@@ -340,16 +288,9 @@ export function AiEngineerModelPicker({
                           className="border-border/30 bg-muted/20 mt-1 rounded-lg border p-2 text-[10px]"
                           data-testid={`ai-engineer-model-details-${m.id}`}
                         >
-                          <div>Provider model id: {m.providerModelId}</div>
-                          <div>Context: {m.contextWindow ?? "unknown"}</div>
-                          <div>Max output: {m.maxOutputTokens ?? "unknown"}</div>
-                          <div>
-                            Pricing in/out per 1M: {m.pricing.inputPerMillionTokens ?? "—"} / {m.pricing.outputPerMillionTokens ?? "—"}{" "}
-                            {m.pricing.currency ?? ""}
-                          </div>
-                          <div>Allowed modes: {m.governance.allowedModes.join(", ")}</div>
-                          <div>Data boundary: {m.governance.dataBoundary}</div>
-                          <div>Metadata sources: {m.metadataSources.join(", ")}</div>
+                          {formatAiEngineerModelDetailLines(m).map((line, idx) => (
+                            <div key={idx}>{line}</div>
+                          ))}
                         </div>
                       ) : null}
                     </div>

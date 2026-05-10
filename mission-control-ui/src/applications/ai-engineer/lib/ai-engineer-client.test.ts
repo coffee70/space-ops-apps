@@ -50,3 +50,66 @@ test("ai-engineer client uses clean gateway routes for agent, chat, and document
   assert.equal(urls.some((url) => url.includes("/tool-execution")), false);
   assert.equal(urls.some((url) => url.includes("/internal/runtime-services/tool-execution-service")), false);
 });
+
+test("sendChatMessage JSON body includes model_id when modelId is provided", async () => {
+  let captured: string | null = null;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
+    captured = typeof init?.body === "string" ? init.body : null;
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.close();
+        },
+      }),
+      { status: 200, headers: { "x-agent-run-id": "run-x", "x-request-id": "req-x" } },
+    );
+  }) as typeof fetch;
+
+  try {
+    await sendChatMessage({
+      conversationId: "conv-1",
+      message: "ping",
+      modelId: "openai-gpt-5-5",
+      onChunk: () => {},
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.ok(captured);
+  const body = JSON.parse(captured!) as { model_id?: string; conversation_id?: string };
+  assert.equal(body.model_id, "openai-gpt-5-5");
+  assert.equal(body.conversation_id, "conv-1");
+});
+
+test("sendChatMessage omits model_id when modelId is undefined", async () => {
+  let captured: string | null = null;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
+    captured = typeof init?.body === "string" ? init.body : null;
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.close();
+        },
+      }),
+      { status: 200, headers: { "x-agent-run-id": "run-x", "x-request-id": "req-x" } },
+    );
+  }) as typeof fetch;
+
+  try {
+    await sendChatMessage({
+      conversationId: "conv-1",
+      message: "ping",
+      onChunk: () => {},
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.ok(captured);
+  const body = JSON.parse(captured!) as Record<string, unknown>;
+  assert.equal(body.model_id, undefined);
+  assert.ok(!Object.prototype.hasOwnProperty.call(body, "model_id"));
+});
