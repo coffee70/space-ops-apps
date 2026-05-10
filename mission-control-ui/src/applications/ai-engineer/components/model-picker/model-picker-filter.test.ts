@@ -6,6 +6,8 @@ import type { AiEngineerModelOption } from "@/applications/ai-engineer/types";
 import {
   filterAiEngineerModels,
   formatAiEngineerModelDetailLines,
+  getActiveModelFilterCount,
+  toggleAiEngineerModelFilter,
   trySelectAiEngineerModel,
 } from "./model-picker-filter";
 
@@ -53,22 +55,58 @@ const disabledAnthropic: AiEngineerModelOption = {
   recommendedFor: [],
 };
 
-test("search filters models by id substring", () => {
-  const out = filterAiEngineerModels([enabledOpenAi, disabledAnthropic], "anthropic", "all", null);
+const fastEnabled: AiEngineerModelOption = {
+  ...enabledOpenAi,
+  id: "fast-openai",
+  speedTier: "fast",
+  reasoningTier: "none",
+};
+
+test("search filters models by id substring with empty active filters", () => {
+  const out = filterAiEngineerModels([enabledOpenAi, disabledAnthropic], "anthropic", [], null);
   assert.equal(out.length, 1);
   assert.equal(out[0]?.id, "anthropic-test");
 });
 
 test("disabled filter keeps only disabled rows", () => {
-  const out = filterAiEngineerModels([enabledOpenAi, disabledAnthropic], "", "disabled", null);
+  const out = filterAiEngineerModels([enabledOpenAi, disabledAnthropic], "", ["disabled"], null);
   assert.equal(out.length, 1);
   assert.equal(out[0]?.id, "anthropic-test");
 });
 
 test("provider rail restricts by providerRef", () => {
-  const out = filterAiEngineerModels([enabledOpenAi, disabledAnthropic], "", "all", "anthropic-main");
+  const out = filterAiEngineerModels([enabledOpenAi, disabledAnthropic], "", [], "anthropic-main");
   assert.equal(out.length, 1);
   assert.equal(out[0]?.id, "anthropic-test");
+});
+
+test("multiple filters combine with AND", () => {
+  const out = filterAiEngineerModels([enabledOpenAi, fastEnabled], "", ["enabled", "reasoning"], null);
+  assert.equal(out.length, 1);
+  assert.equal(out[0]?.id, "openai-test");
+
+  const noFastReason = filterAiEngineerModels([enabledOpenAi], "", ["enabled", "fast"], null);
+  assert.equal(noFastReason.length, 0);
+
+  const fastOnly = filterAiEngineerModels([fastEnabled], "", ["enabled", "fast"], null);
+  assert.equal(fastOnly.length, 1);
+});
+
+test("enabled and disabled together yields no rows", () => {
+  const out = filterAiEngineerModels([enabledOpenAi, disabledAnthropic], "", ["enabled", "disabled"], null);
+  assert.equal(out.length, 0);
+});
+
+test("getActiveModelFilterCount and toggleAiEngineerModelFilter", () => {
+  assert.equal(getActiveModelFilterCount([]), 0);
+  let f = toggleAiEngineerModelFilter([], "vision");
+  assert.deepEqual(f, ["vision"]);
+  assert.equal(getActiveModelFilterCount(f), 1);
+  f = toggleAiEngineerModelFilter(f, "coding");
+  assert.deepEqual(f, ["coding", "vision"]);
+  assert.equal(getActiveModelFilterCount(f), 2);
+  f = toggleAiEngineerModelFilter(f, "vision");
+  assert.deepEqual(f, ["coding"]);
 });
 
 test("details lines include context, pricing boundary, modes, metadata sources", () => {

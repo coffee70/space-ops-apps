@@ -1,7 +1,7 @@
 import type { AiEngineerModelOption } from "@/applications/ai-engineer/types";
 
+/** Toggleable filters (multi-select). Empty array means “all models” for filter predicates. */
 export type AiEngineerModelFilterKey =
-  | "all"
   | "enabled"
   | "disabled"
   | "recommended"
@@ -12,8 +12,20 @@ export type AiEngineerModelFilterKey =
   | "vision"
   | "local";
 
+/** Stable order for toggling and display. */
+export const AI_ENGINEER_MODEL_FILTER_ORDER: readonly AiEngineerModelFilterKey[] = [
+  "enabled",
+  "disabled",
+  "recommended",
+  "fast",
+  "reasoning",
+  "coding",
+  "long_context",
+  "vision",
+  "local",
+] as const;
+
 export const AI_ENGINEER_MODEL_FILTER_LABELS: Record<AiEngineerModelFilterKey, string> = {
-  all: "All",
   enabled: "Enabled",
   disabled: "Disabled",
   recommended: "Recommended",
@@ -25,11 +37,36 @@ export const AI_ENGINEER_MODEL_FILTER_LABELS: Record<AiEngineerModelFilterKey, s
   local: "Local / air-gapped",
 };
 
-/** Pure filter logic shared with tests (picker UI applies the same rules). */
+function passesSingleModelFilter(m: AiEngineerModelOption, key: AiEngineerModelFilterKey): boolean {
+  switch (key) {
+    case "enabled":
+      return m.enabled && m.isAvailable;
+    case "disabled":
+      return !m.enabled;
+    case "recommended":
+      return m.recommendedFor.includes("demo-safe") || m.isDefault;
+    case "fast":
+      return m.speedTier === "fast";
+    case "reasoning":
+      return m.reasoningTier === "strong" || m.reasoningTier === "light";
+    case "coding":
+      return m.recommendedFor.includes("coding") || m.capabilities.includes("tool-use");
+    case "long_context":
+      return (m.contextWindow ?? 0) >= 100_000;
+    case "vision":
+      return m.capabilities.includes("vision");
+    case "local":
+      return m.governance.dataBoundary === "local_airgapped";
+    default:
+      return true;
+  }
+}
+
+/** Pure filter logic shared with tests (picker UI applies the same rules). `activeFilters` uses AND semantics. */
 export function filterAiEngineerModels(
   models: AiEngineerModelOption[],
   query: string,
-  filter: AiEngineerModelFilterKey,
+  activeFilters: AiEngineerModelFilterKey[],
   providerRail: string | null,
 ): AiEngineerModelOption[] {
   const q = query.trim().toLowerCase();
@@ -40,15 +77,9 @@ export function filterAiEngineerModels(
       if (m.providerRef !== providerRail) return false;
     }
 
-    if (filter === "enabled" && (!m.enabled || !m.isAvailable)) return false;
-    if (filter === "disabled" && m.enabled) return false;
-    if (filter === "recommended" && !(m.recommendedFor.includes("demo-safe") || m.isDefault)) return false;
-    if (filter === "fast" && m.speedTier !== "fast") return false;
-    if (filter === "reasoning" && m.reasoningTier !== "strong" && m.reasoningTier !== "light") return false;
-    if (filter === "coding" && !m.recommendedFor.includes("coding") && !m.capabilities.includes("tool-use")) return false;
-    if (filter === "long_context" && (m.contextWindow ?? 0) < 100_000) return false;
-    if (filter === "vision" && !m.capabilities.includes("vision")) return false;
-    if (filter === "local" && m.governance.dataBoundary !== "local_airgapped") return false;
+    for (const key of activeFilters) {
+      if (!passesSingleModelFilter(m, key)) return false;
+    }
 
     if (!q) return true;
     const hay = [
@@ -65,6 +96,21 @@ export function filterAiEngineerModels(
       .toLowerCase();
     return hay.includes(q);
   });
+}
+
+export function getActiveModelFilterCount(activeFilters: AiEngineerModelFilterKey[]): number {
+  return activeFilters.length;
+}
+
+/** Toggle one filter key; returns a new array in `AI_ENGINEER_MODEL_FILTER_ORDER`. */
+export function toggleAiEngineerModelFilter(
+  activeFilters: AiEngineerModelFilterKey[],
+  key: AiEngineerModelFilterKey,
+): AiEngineerModelFilterKey[] {
+  const next = new Set(activeFilters);
+  if (next.has(key)) next.delete(key);
+  else next.add(key);
+  return AI_ENGINEER_MODEL_FILTER_ORDER.filter((k) => next.has(k));
 }
 
 export function formatAiEngineerModelDetailLines(model: AiEngineerModelOption): string[] {
