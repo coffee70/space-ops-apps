@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Viewer, Entity } from "resium";
 import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
@@ -43,14 +43,17 @@ function configureCesium() {
         "[EarthOverviewGlobe] Cesium.buildModuleUrl.setBaseUrl is not available; static assets may fail to load and the globe may not render correctly."
       );
     }
+
+    const ionToken = process.env.NEXT_PUBLIC_CESIUM_ION_TOKEN;
+    if (ionToken) {
+      Cesium.Ion.defaultAccessToken = ionToken;
+    }
   } catch (e) {
     console.error("[EarthOverviewGlobe] Failed to set Cesium base URL:", e);
   }
 
   cesiumConfigured = true;
 }
-
-configureCesium();
 
 const terrainProvider = new Cesium.EllipsoidTerrainProvider();
 
@@ -67,13 +70,58 @@ export function EarthOverviewGlobe({
     () => false
   );
 
+  // Must run before imagery/network code: Resium creates Cesium.Viewer in an effect, but the
+  // base layer is chosen during construction. Ion token must be set before that (user token
+  // overrides Cesium's built-in read-only default when present).
+  configureCesium();
+
+  const [globeBaseLayer, setGlobeBaseLayer] = useState<
+    Cesium.ImageryLayer | undefined
+  >(undefined);
+  const [globeBaseLayerFailed, setGlobeBaseLayerFailed] = useState(false);
+
   useEffect(() => {
+    let cancelled = false;
     configureCesium();
-    const token = process.env.NEXT_PUBLIC_CESIUM_ION_TOKEN;
-    if (token) {
-      Cesium.Ion.defaultAccessToken = token;
-    }
-    // Hide the long default Ion warning text and keep the scene clean.
+
+    (async () => {
+      try {
+        const provider = await Cesium.createWorldImageryAsync({
+          style: Cesium.IonWorldImageryStyle.AERIAL,
+        });
+        if (!cancelled) {
+          setGlobeBaseLayer(new Cesium.ImageryLayer(provider));
+        }
+      } catch (primaryErr) {
+        console.warn(
+          "[EarthOverviewGlobe] Ion aerial imagery unavailable, using bundled fallback:",
+          primaryErr
+        );
+        try {
+          const fallback = await Cesium.TileMapServiceImageryProvider.fromUrl(
+            Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII")
+          );
+          if (!cancelled) {
+            setGlobeBaseLayer(new Cesium.ImageryLayer(fallback));
+          }
+        } catch (fallbackErr) {
+          console.error(
+            "[EarthOverviewGlobe] Bundled globe imagery also failed:",
+            fallbackErr
+          );
+          if (!cancelled) {
+            setGlobeBaseLayerFailed(true);
+          }
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (typeof document !== "undefined") {
       const style = document.createElement("style");
       style.textContent =
@@ -86,6 +134,27 @@ export function EarthOverviewGlobe({
     return (
       <div className="flex h-full w-full items-center justify-center bg-black/80">
         <div className="text-muted-foreground text-sm">Preparing globe…</div>
+      </div>
+    );
+  }
+
+  if (globeBaseLayerFailed) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-black/80 px-4">
+        <p className="text-destructive text-center text-sm">
+          Globe imagery failed to load. Check that{" "}
+          <code className="text-xs">/cesium/</code> static files are deployed and that the
+          browser can reach Cesium Ion. Optional: set{" "}
+          <code className="text-xs">NEXT_PUBLIC_CESIUM_ION_TOKEN</code> for your own Ion token.
+        </p>
+      </div>
+    );
+  }
+
+  if (!globeBaseLayer) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-black/80">
+        <div className="text-muted-foreground text-sm">Loading globe imagery…</div>
       </div>
     );
   }
@@ -106,6 +175,7 @@ export function EarthOverviewGlobe({
       <Viewer
         full
         style={{ width: "100%", height: "100%" }}
+        baseLayer={globeBaseLayer}
         terrainProvider={terrainProvider}
         selectionIndicator={false}
         infoBox={false}
