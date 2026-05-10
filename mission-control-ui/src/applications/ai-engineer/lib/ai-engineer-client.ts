@@ -1,4 +1,4 @@
-import type { AttachmentStatus, ChatStreamChunk } from "@/applications/ai-engineer/types";
+import type { AttachmentStatus, ChatStreamChunk, ListAiEngineerModelsResponse } from "@/applications/ai-engineer/types";
 import { chunkFromEvent, normalizeStreamLine } from "@/applications/ai-engineer/lib/agent-events";
 
 const ROUTES = {
@@ -6,8 +6,15 @@ const ROUTES = {
   listConversations: "/intelligence/agent/conversations",
   getConversation: (conversationId: string) => `/intelligence/agent/conversations/${conversationId}`,
   chat: "/intelligence/agent/chat",
+  models: "/intelligence/agent/models",
   uploadDocument: "/intelligence/documents",
 } as const;
+
+export async function listModels(): Promise<ListAiEngineerModelsResponse> {
+  const response = await fetch(ROUTES.models);
+  if (!response.ok) throw new Error("Failed to list AI models");
+  return response.json();
+}
 
 export async function createConversation(payload: { title?: string; mission_id?: string; vehicle_id?: string; execution_mode?: string }) {
   const response = await fetch(ROUTES.createConversation, {
@@ -35,6 +42,7 @@ export async function sendChatMessage(params: {
   conversationId: string;
   message: string;
   executionMode?: string;
+  modelId?: string;
   onChunk: (chunk: ChatStreamChunk) => void;
 }) {
   const response = await fetch(ROUTES.chat, {
@@ -43,6 +51,7 @@ export async function sendChatMessage(params: {
     body: JSON.stringify({
       conversation_id: params.conversationId,
       execution_mode: params.executionMode ?? "read_only",
+      model_id: params.modelId ?? undefined,
       messages: [{ role: "user", content: params.message }],
     }),
   });

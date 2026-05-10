@@ -4,7 +4,8 @@ import { ArrowUp, Paperclip, Square } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { AiEngineerAttachmentPreview } from "@/applications/ai-engineer/components/ai-engineer-attachment-preview";
-import type { ExecutionMode } from "@/applications/ai-engineer/types";
+import { AiEngineerModelPicker } from "@/applications/ai-engineer/components/model-picker/ai-engineer-model-picker";
+import type { AiEngineerModelOption, ExecutionMode } from "@/applications/ai-engineer/types";
 import { cn } from "@/lib/utils";
 
 const modes: Array<{ value: ExecutionMode; label: string; title: string }> = [
@@ -22,6 +23,11 @@ export function AiEngineerComposer({
   onSend,
   isStreaming = false,
   onStop,
+  models = [],
+  selectedModelId = null,
+  onModelSelect,
+  isLoadingModels = false,
+  modelLoadError = null,
 }: {
   input: string;
   onInputChange: (value: string) => void;
@@ -31,6 +37,11 @@ export function AiEngineerComposer({
   onSend: (message: string, files: File[]) => Promise<void>;
   isStreaming?: boolean;
   onStop?: () => void;
+  models?: AiEngineerModelOption[];
+  selectedModelId?: string | null;
+  onModelSelect?: (modelId: string) => void;
+  isLoadingModels?: boolean;
+  modelLoadError?: string | null;
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -125,6 +136,14 @@ export function AiEngineerComposer({
             >
               <Paperclip className="size-3.5" />
             </button>
+            <AiEngineerModelPicker
+              models={models}
+              selectedModelId={selectedModelId}
+              onSelect={(id) => onModelSelect?.(id)}
+              disabled={disabled || isSubmitting || isStreaming}
+              isLoading={isLoadingModels}
+              loadError={modelLoadError}
+            />
             <div className="border-border/40 bg-background/60 flex items-center rounded-lg border p-0.5" aria-label="Execution mode" role="group">
               {modes.map((mode) => (
                 <button
