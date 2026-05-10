@@ -31,6 +31,19 @@ test("classifies xAI / Grok", () => {
   assertKind({ railId: "openrouter-xai", providerLabel: "Grok" }, "xai");
 });
 
+test("classifies Mistral", () => {
+  assertKind({ railId: "mistral-main", providerLabel: "Mistral AI", providerType: "openai-compatible" }, "mistral");
+});
+
+test("classifies Moonshot / Kimi", () => {
+  assertKind({ railId: "moonshot-cn", providerLabel: "Moonshot", providerType: "openai-compatible" }, "moonshot");
+  assertKind({ railId: "kimi", providerLabel: "Kimi k2", providerType: "openai-compatible" }, "moonshot");
+});
+
+test("classifies Meta / Llama", () => {
+  assertKind({ railId: "meta-llama", providerLabel: "Meta Llama", providerType: "openai-compatible" }, "meta");
+});
+
 test("classifies bare metal / local stack endpoints", () => {
   assertKind({ railId: "local-baremetal", providerLabel: "Local Bare Metal", providerType: "openai-compatible" }, "local_hardware");
 });

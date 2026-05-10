@@ -2,7 +2,6 @@
 
 import {
   Ban,
-  Bot,
   Brain,
   CheckCircle2,
   ChevronDown,
@@ -48,7 +47,8 @@ import {
   trySelectAiEngineerModel,
   type AiEngineerModelFilterKey,
 } from "./model-picker-filter";
-import { classifyProviderRailEntry, type ProviderRailKind } from "./provider-rail-meta";
+import { ProviderRailBrandIcon } from "./provider-brand-icon";
+import { classifyProviderRailEntry } from "./provider-rail-meta";
 
 const FILTER_ROW_ICONS = {
   enabled: CheckCircle2,
@@ -126,40 +126,6 @@ function BoundaryBadge({ boundary }: { boundary: AiEngineerModelOption["governan
       {label}
     </span>
   );
-}
-
-const railGlyphFrame =
-  "flex size-7 shrink-0 items-center justify-center rounded-md border border-border/50 bg-muted/40 text-[10px] font-semibold leading-none";
-
-function ProviderRailGlyph({ kind }: { kind: ProviderRailKind }) {
-  switch (kind) {
-    case "recommended":
-      return <Star className="size-4 fill-amber-400 text-amber-400" aria-hidden />;
-    case "openai":
-      return (
-        <span className={railGlyphFrame} aria-hidden>
-          OA
-        </span>
-      );
-    case "anthropic":
-      return (
-        <span className={railGlyphFrame} aria-hidden>
-          A
-        </span>
-      );
-    case "google":
-      return <Sparkles className="size-4 text-sky-400" aria-hidden />;
-    case "xai":
-      return (
-        <span className={railGlyphFrame} aria-hidden>
-          xA
-        </span>
-      );
-    case "local_hardware":
-      return <Cpu className="size-4 text-emerald-400" aria-hidden />;
-    default:
-      return <Bot className="text-muted-foreground size-4" aria-hidden />;
-  }
 }
 
 export function AiEngineerModelPicker({
@@ -394,7 +360,7 @@ export function AiEngineerModelPicker({
                       : "border-transparent text-muted-foreground hover:bg-muted/70 hover:text-foreground",
                   )}
                 >
-                  <ProviderRailGlyph kind={kind} />
+                  <ProviderRailBrandIcon kind={kind} />
                 </button>
               );
             })}
@@ -408,16 +374,43 @@ export function AiEngineerModelPicker({
             ) : (
               <ul className="flex flex-col gap-1 overflow-y-auto p-2" data-testid="ai-engineer-model-list">
                 {filtered.map((m) => {
+                  const rowProviderKind = classifyProviderRailEntry({
+                    railId: m.providerRef,
+                    providerLabel: m.provider,
+                    providerType: m.providerType,
+                  });
                   const isSelected = selectedModelId === m.id;
                   const dim = !m.enabled || !m.isAvailable;
                   const canSelect = m.enabled && m.isAvailable;
                   return (
                     <li key={m.id}>
                       <div
+                        data-testid={`ai-engineer-model-row-${m.id}`}
+                        role={canSelect ? "button" : undefined}
+                        tabIndex={canSelect ? 0 : undefined}
+                        aria-label={canSelect ? `Select model ${m.name}` : undefined}
+                        aria-disabled={!canSelect || undefined}
+                        onClick={
+                          canSelect
+                            ? () => {
+                                trySelectAiEngineerModel(m, onSelect, () => setOpen(false));
+                              }
+                            : undefined
+                        }
+                        onKeyDown={
+                          canSelect
+                            ? (e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  trySelectAiEngineerModel(m, onSelect, () => setOpen(false));
+                                }
+                              }
+                            : undefined
+                        }
                         className={cn(
                           "flex flex-col gap-1 rounded-xl border px-3 py-2 transition-colors",
                           canSelect &&
-                            "border-border/35 hover:border-border/60 hover:bg-muted/45 active:bg-muted/65 cursor-default",
+                            "border-border/35 hover:border-border/60 hover:bg-muted/45 active:bg-muted/65 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                           canSelect &&
                             isSelected &&
                             "border-primary/55 bg-primary/10 shadow-sm hover:bg-primary/14 hover:border-primary/45",
@@ -425,20 +418,14 @@ export function AiEngineerModelPicker({
                         )}
                       >
                         <div className="flex items-start gap-2">
-                          <button
-                            type="button"
-                            disabled={!canSelect}
-                            onClick={() => {
-                              trySelectAiEngineerModel(m, onSelect, () => setOpen(false));
-                            }}
+                          <div
                             className={cn(
-                              "flex min-w-0 flex-1 flex-col items-start rounded-lg border border-transparent px-1 py-0.5 text-left transition-colors",
-                              canSelect && "cursor-pointer hover:bg-transparent active:bg-transparent",
+                              "flex min-w-0 flex-1 flex-col items-start rounded-lg px-1 py-0.5 text-left",
                               !canSelect && "cursor-not-allowed",
                             )}
-                            data-testid={`ai-engineer-model-row-${m.id}`}
                           >
                             <div className="flex w-full flex-wrap items-center gap-2">
+                              <ProviderRailBrandIcon kind={rowProviderKind} density="inline" />
                               <span className="text-[13px] font-medium">{m.name}</span>
                               <span className="text-muted-foreground text-[11px]">{m.provider}</span>
                               <CostDots tier={m.costTier} />
@@ -451,7 +438,7 @@ export function AiEngineerModelPicker({
                             {m.description ? (
                               <p className="text-muted-foreground mt-0.5 line-clamp-2 text-[11px]">{m.description}</p>
                             ) : null}
-                          </button>
+                          </div>
                           <div className="flex shrink-0 flex-col items-end gap-1">
                             <div className="flex flex-wrap justify-end gap-0.5">
                               {m.capabilities.slice(0, 6).map((c) => (
@@ -466,6 +453,7 @@ export function AiEngineerModelPicker({
                                   className="text-muted-foreground hover:text-foreground rounded-sm p-0.5"
                                   aria-label={`Technical details for ${m.name}`}
                                   onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => e.stopPropagation()}
                                 >
                                   <Info className="size-4" />
                                 </button>

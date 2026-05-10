@@ -5,6 +5,9 @@ export type ProviderRailKind =
   | "openai"
   | "anthropic"
   | "google"
+  | "meta"
+  | "mistral"
+  | "moonshot"
   | "xai"
   | "local_hardware"
   | "unknown";
@@ -25,6 +28,20 @@ export function classifyProviderRailEntry(params: {
   if (pt === "openai") return "openai";
 
   if (label.includes("xai") || label.includes("grok") || ref.includes("xai")) return "xai";
+
+  if (/\bmistral\b/.test(label) || ref.includes("mistral")) return "mistral";
+  if (label.includes("moonshot") || label.includes("kimi") || ref.includes("moonshot") || ref.includes("kimi")) {
+    return "moonshot";
+  }
+  if (
+    /\bmeta\b/.test(label) ||
+    /\bllama\b/.test(label) ||
+    ref.includes("meta-llama") ||
+    ref.includes("meta_llama")
+  ) {
+    return "meta";
+  }
+
   if (label.includes("gemini") || /\bgoogle\b/.test(label)) return "google";
   if (label.includes("anthropic") || label.includes("claude")) return "anthropic";
 
