@@ -1,16 +1,34 @@
-import type { AttachmentStatus, ChatStreamChunk } from "@/applications/ai-engineer/types";
+"use client";
+
+import type { AttachmentStatus, ChatStreamChunk, ListAiEngineerModelsResponse } from "@/applications/ai-engineer/types";
 import { chunkFromEvent, normalizeStreamLine } from "@/applications/ai-engineer/lib/agent-events";
+import { resolvePublicApiUrl } from "@/lib/public-api-origin";
 
 const ROUTES = {
   createConversation: "/intelligence/agent/conversations",
   listConversations: "/intelligence/agent/conversations",
   getConversation: (conversationId: string) => `/intelligence/agent/conversations/${conversationId}`,
   chat: "/intelligence/agent/chat",
+  models: "/intelligence/agent/models",
   uploadDocument: "/intelligence/documents",
 } as const;
 
+/** Prefix intelligence routes; base is same-origin when NEXT_PUBLIC_API_URL is unset (edge proxy). */
+function apiUrl(path: string): string {
+  const base = resolvePublicApiUrl().replace(/\/$/, "");
+  return `${base}${path}`;
+}
+
+export async function listModels(): Promise<ListAiEngineerModelsResponse> {
+  const response = await fetch(apiUrl(ROUTES.models));
+  if (!response.ok) {
+    throw new Error(`Failed to load model catalog (${response.status}). Is the platform gateway up?`);
+  }
+  return response.json();
+}
+
 export async function createConversation(payload: { title?: string; mission_id?: string; vehicle_id?: string; execution_mode?: string }) {
-  const response = await fetch(ROUTES.createConversation, {
+  const response = await fetch(apiUrl(ROUTES.createConversation), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -20,13 +38,13 @@ export async function createConversation(payload: { title?: string; mission_id?:
 }
 
 export async function listConversations() {
-  const response = await fetch(ROUTES.listConversations);
+  const response = await fetch(apiUrl(ROUTES.listConversations));
   if (!response.ok) throw new Error("Failed to list conversations");
   return response.json();
 }
 
 export async function getConversation(conversationId: string) {
-  const response = await fetch(ROUTES.getConversation(conversationId));
+  const response = await fetch(apiUrl(ROUTES.getConversation(conversationId)));
   if (!response.ok) throw new Error("Failed to load conversation");
   return response.json();
 }
@@ -35,14 +53,16 @@ export async function sendChatMessage(params: {
   conversationId: string;
   message: string;
   executionMode?: string;
+  modelId?: string;
   onChunk: (chunk: ChatStreamChunk) => void;
 }) {
-  const response = await fetch(ROUTES.chat, {
+  const response = await fetch(apiUrl(ROUTES.chat), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       conversation_id: params.conversationId,
       execution_mode: params.executionMode ?? "read_only",
+      model_id: params.modelId ?? undefined,
       messages: [{ role: "user", content: params.message }],
     }),
   });
@@ -109,7 +129,7 @@ export async function uploadDocument(params: {
   if (params.description) formData.set("description", params.description);
   if (params.conversationId) formData.set("conversation_id", params.conversationId);
 
-  const response = await fetch(ROUTES.uploadDocument, {
+  const response = await fetch(apiUrl(ROUTES.uploadDocument), {
     method: "POST",
     body: formData,
   });

@@ -21,7 +21,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000`. By default browser calls use `NEXT_PUBLIC_API_URL` (see `.env` / shell). Server-side fetches use **`API_SERVER_URL`** when running outside Compose.
+Open `http://localhost:3000` for standalone dev, or **`http://localhost:8080`** via the Layer 1 edge proxy (leave `NEXT_PUBLIC_API_URL` empty for same-origin `/intelligence/*`). Override `NEXT_PUBLIC_API_URL` only when the UI is not served behind the proxy. Server-side fetches use **`API_SERVER_URL`** when running outside Compose.
 
 **Quality gate (host):**
 

@@ -7,9 +7,9 @@ RUN npm ci
 
 FROM base AS builder
 WORKDIR /app
-# Empty = same-origin fetches; Layer 1 edge proxy routes API families in Compose.
-ARG NEXT_PUBLIC_API_URL=
-ARG NEXT_PUBLIC_CONTROL_PLANE_URL=http://localhost:8100
+# Defaults: empty = same-origin (browser uses Layer 1 edge proxy :8080). Override when running MC on :3000 alone.
+ARG NEXT_PUBLIC_API_URL=""
+ARG NEXT_PUBLIC_CONTROL_PLANE_URL=""
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_CONTROL_PLANE_URL=$NEXT_PUBLIC_CONTROL_PLANE_URL
 COPY --from=deps /app/node_modules ./node_modules

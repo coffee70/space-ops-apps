@@ -6,11 +6,8 @@ import { AiEngineerActivityPanel } from "@/applications/ai-engineer/components/a
 import { AiEngineerComposer } from "@/applications/ai-engineer/components/ai-engineer-composer";
 import { AiEngineerHeader } from "@/applications/ai-engineer/components/ai-engineer-header";
 import { AiEngineerMessages } from "@/applications/ai-engineer/components/ai-engineer-messages";
-import type {
-  AiEngineerChangeSummary,
-  ChangePreviewState,
-} from "@/applications/ai-engineer/lib/change-preview-types";
-import type { AttachmentStatus, ChatEvent, ChatMessage, ExecutionMode } from "@/applications/ai-engineer/types";
+import type { AiEngineerChangeSummary, ChangePreviewState } from "@/applications/ai-engineer/lib/change-preview-types";
+import type { AiEngineerModelOption, AttachmentStatus, ChatEvent, ChatMessage, ExecutionMode } from "@/applications/ai-engineer/types";
 
 export function AiEngineerShell({
   title,
@@ -29,6 +26,12 @@ export function AiEngineerShell({
   onRevertChange,
   onOpenApp,
   isPreviewBusy,
+  models,
+  selectedModelId,
+  onModelSelect,
+  isLoadingModels = false,
+  modelLoadError,
+  selectedModelName,
 }: {
   title: string;
   messages: ChatMessage[];
@@ -46,13 +49,19 @@ export function AiEngineerShell({
   onRevertChange?: (change: AiEngineerChangeSummary) => void;
   onOpenApp?: (change: AiEngineerChangeSummary) => void;
   isPreviewBusy?: (change: AiEngineerChangeSummary) => boolean;
+  models?: AiEngineerModelOption[];
+  selectedModelId?: string | null;
+  onModelSelect?: (modelId: string) => void;
+  isLoadingModels?: boolean;
+  modelLoadError?: string | null;
+  selectedModelName?: string | null;
 }) {
   const [composerText, setComposerText] = useState("");
 
   return (
     <div className="bg-sidebar flex h-full min-h-[calc(100vh-5rem)] w-full overflow-hidden" data-testid="ai-engineer-shell">
       <main className="bg-background md:border-border/40 relative flex min-w-0 flex-1 flex-col overflow-hidden md:rounded-tl-xl md:border-t md:border-l">
-        <AiEngineerHeader title={title} executionMode={executionMode} />
+        <AiEngineerHeader title={title} executionMode={executionMode} selectedModelName={selectedModelName} />
         <AiEngineerMessages
           messages={messages}
           events={events}
@@ -75,6 +84,11 @@ export function AiEngineerShell({
             onSend={onSend}
             isStreaming={isStreaming}
             onStop={onStop}
+            models={models ?? []}
+            selectedModelId={selectedModelId ?? null}
+            onModelSelect={onModelSelect}
+            isLoadingModels={isLoadingModels}
+            modelLoadError={modelLoadError ?? null}
           />
         </div>
       </main>

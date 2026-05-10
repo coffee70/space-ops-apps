@@ -5,14 +5,28 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AiEngineerShell } from "@/applications/ai-engineer/components/ai-engineer-shell";
 import { applyAgentEventToAssistantMessage } from "@/applications/ai-engineer/lib/agent-events";
-import { createConversation, getConversation, listConversations, sendChatMessage, uploadDocument } from "@/applications/ai-engineer/lib/ai-engineer-client";
+import { createConversation, getConversation, listConversations, listModels, sendChatMessage, uploadDocument } from "@/applications/ai-engineer/lib/ai-engineer-client";
 import type { AiEngineerChangeSummary } from "@/applications/ai-engineer/lib/change-preview-types";
 import { useChangePreviewFlow } from "@/applications/ai-engineer/lib/use-change-preview-flow";
-import type { AttachmentStatus, ChatEvent, ChatMessage, ChatStreamChunk, ExecutionMode } from "@/applications/ai-engineer/types";
+import type { AiEngineerModelOption, AttachmentStatus, ChatEvent, ChatMessage, ChatStreamChunk, ExecutionMode } from "@/applications/ai-engineer/types";
 import { buildApplicationRoute } from "@/platform/registry/application-routes";
 import type { NativeApplicationProps } from "@/platform/sdk/native-application-contract";
 
 const PREVIEW_MESSAGE_PREFIX = "preview-message::";
+const SELECTED_MODEL_STORAGE_KEY = "ai-engineer.selectedModelId";
+
+function resolveInitialModelId(models: AiEngineerModelOption[], defaultModelId: string): string | null {
+  const available = models.filter((m) => m.enabled && m.isAvailable);
+  if (available.length === 0) return null;
+  if (typeof window === "undefined") return available[0]?.id ?? null;
+  const stored = localStorage.getItem(SELECTED_MODEL_STORAGE_KEY);
+  if (stored && available.some((m) => m.id === stored)) return stored;
+  const def = models.find((m) => m.id === defaultModelId);
+  if (def?.enabled && def.isAvailable) return defaultModelId;
+  const demo = available.find((m) => m.recommendedFor.includes("demo-safe"));
+  if (demo) return demo.id;
+  return available[0]?.id ?? null;
+}
 
 function createClientId() {
   if (typeof crypto.randomUUID === "function") {
@@ -29,6 +43,10 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const [executionMode, setExecutionMode] = useState<ExecutionMode>("read_only");
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [models, setModels] = useState<AiEngineerModelOption[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  const [isLoadingModels, setIsLoadingModels] = useState(true);
+  const [modelLoadError, setModelLoadError] = useState<string | null>(null);
   const conversationIdRef = useRef<string | null>(null);
   const conversationPromiseRef = useRef<Promise<string> | null>(null);
 
@@ -125,6 +143,36 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     });
   }, [ensureConversation]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoadingModels(true);
+    setModelLoadError(null);
+    listModels()
+      .then((data) => {
+        if (cancelled) return;
+        setModels(data.models);
+        setSelectedModelId(resolveInitialModelId(data.models, data.default_model_id));
+      })
+      .catch((error) => {
+        if (!cancelled) setModelLoadError(error instanceof Error ? error.message : "Failed to load models");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingModels(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleModelSelect = useCallback((modelId: string) => {
+    setSelectedModelId(modelId);
+    try {
+      localStorage.setItem(SELECTED_MODEL_STORAGE_KEY, modelId);
+    } catch {
+      /* ignore quota / privacy mode */
+    }
+  }, []);
+
   const uploadFiles = async (files: File[], activeConversationId: string) => {
     for (const file of files) {
       const localAttachmentId = createClientId();
@@ -199,6 +247,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
         conversationId: activeConversationId,
         message: trimmed,
         executionMode,
+        modelId: selectedModelId ?? undefined,
         onChunk: (chunk) => applyStreamChunk(assistantDraftId, chunk),
       });
     } catch (error) {
@@ -224,6 +273,11 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   };
 
   const title = useMemo(() => props.application.title ?? "AI Engineer", [props.application.title]);
+
+  const selectedModelName = useMemo(() => {
+    if (!selectedModelId) return null;
+    return models.find((m) => m.id === selectedModelId)?.name ?? null;
+  }, [models, selectedModelId]);
 
   const handleOpenApp = useCallback(
     (change: AiEngineerChangeSummary) => {
@@ -253,6 +307,12 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       onRevertChange={changePreviewFlow.revertChange}
       onOpenApp={handleOpenApp}
       isPreviewBusy={changePreviewFlow.isBusyForChange}
+      models={models}
+      selectedModelId={selectedModelId}
+      onModelSelect={handleModelSelect}
+      isLoadingModels={isLoadingModels}
+      modelLoadError={modelLoadError}
+      selectedModelName={selectedModelName}
     />
   );
 }

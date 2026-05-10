@@ -63,3 +63,72 @@ export interface AttachmentStatus {
 }
 
 export type ExecutionMode = "read_only" | "suggest" | "execute";
+
+export type ModelProviderType =
+  | "openai"
+  | "anthropic"
+  | "openai-compatible"
+  | "google"
+  | "azure-openai"
+  | "bedrock"
+  | "vertex"
+  | "vercel-gateway";
+
+export type ModelDataBoundary = "external_api" | "private_cloud" | "local_airgapped" | "unknown";
+
+export type ModelCapability =
+  | "text"
+  | "vision"
+  | "tool-use"
+  | "reasoning"
+  | "json"
+  | "file-input"
+  | "web-search"
+  | "code";
+
+export interface AiEngineerModelOption {
+  id: string;
+  providerRef: string;
+  providerType: ModelProviderType;
+  providerModelId: string;
+  name: string;
+  provider: string;
+  description: string | null;
+  enabled: boolean;
+  isAvailable: boolean;
+  disabledReason: string | null;
+  isDefault: boolean;
+  defaultFor: string[];
+  governance: {
+    allowedModes: string[];
+    dataBoundary: ModelDataBoundary;
+  };
+  contextWindow: number | null;
+  maxOutputTokens: number | null;
+  inputModalities: string[];
+  outputModalities: string[];
+  supportedParameters: string[];
+  capabilities: ModelCapability[];
+  pricing: {
+    inputPerMillionTokens: number | null;
+    outputPerMillionTokens: number | null;
+    currency: "USD" | "internal" | null;
+  };
+  qualityTier: "standard" | "advanced" | "frontier" | "unknown";
+  costTier: "$" | "$$" | "$$$" | "$$$$" | "internal" | "unknown";
+  speedTier: "fast" | "balanced" | "deep" | "unknown";
+  reasoningTier: "none" | "light" | "strong" | "unknown";
+  recommendedFor: string[];
+  metadataSources: string[];
+}
+
+export interface ListAiEngineerModelsResponse {
+  default_model_id: string;
+  models: AiEngineerModelOption[];
+  metadata: {
+    registrySource: "config";
+    metadataResolvers: string[];
+    cached: boolean;
+    updatedAt: string;
+  };
+}

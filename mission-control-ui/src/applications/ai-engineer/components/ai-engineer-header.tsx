@@ -11,7 +11,15 @@ const modeLabel: Record<ExecutionMode, string> = {
   execute: "Execute",
 };
 
-export function AiEngineerHeader({ title, executionMode }: { title: string; executionMode: ExecutionMode }) {
+export function AiEngineerHeader({
+  title,
+  executionMode,
+  selectedModelName,
+}: {
+  title: string;
+  executionMode: ExecutionMode;
+  selectedModelName?: string | null;
+}) {
   return (
     <div className="border-border/40 flex h-12 shrink-0 items-center justify-between border-b px-4">
       <div className="flex min-w-0 items-center gap-2">
@@ -20,7 +28,9 @@ export function AiEngineerHeader({ title, executionMode }: { title: string; exec
         </div>
         <div className="min-w-0">
           <div className="truncate text-sm font-medium">{title}</div>
-          <div className="text-muted-foreground hidden text-[11px] sm:block">Platform-native engineering interface</div>
+          <div className="text-muted-foreground hidden text-[11px] sm:block">
+            {selectedModelName ? `${selectedModelName} · Platform-native engineering interface` : "Platform-native engineering interface"}
+          </div>
         </div>
       </div>
       <div className="flex items-center gap-2">
