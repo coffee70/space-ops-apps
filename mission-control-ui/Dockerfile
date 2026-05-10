@@ -7,8 +7,8 @@ RUN npm ci
 
 FROM base AS builder
 WORKDIR /app
-# Empty = same-origin fetches; Layer 1 edge proxy routes API families in Compose.
-ARG NEXT_PUBLIC_API_URL=
+# Default points the browser at platform-api on the host (:8000). Use empty string for strict same-origin (e.g. only via edge :8080).
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
 ARG NEXT_PUBLIC_CONTROL_PLANE_URL=http://localhost:8100
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_CONTROL_PLANE_URL=$NEXT_PUBLIC_CONTROL_PLANE_URL

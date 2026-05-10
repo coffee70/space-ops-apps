@@ -3,6 +3,14 @@ import test from "node:test";
 
 import { createConversation, getConversation, listConversations, sendChatMessage, uploadDocument } from "./ai-engineer-client";
 
+function pathnameOfFetchUrl(url: string): string {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return url.startsWith("/") ? url : `/${url}`;
+  }
+}
+
 test("ai-engineer client uses clean gateway routes for agent, chat, and document upload", async () => {
   const FileCtor =
     globalThis.File ??
@@ -44,8 +52,11 @@ test("ai-engineer client uses clean gateway routes for agent, chat, and document
   }
 
   const agentUrls = urls.filter((url) => url.includes("/intelligence/agent/"));
-  assert.ok(agentUrls.every((url) => url.startsWith("/intelligence/agent/")));
-  assert.equal(urls.filter((url) => url === "/intelligence/documents").length, 1);
+  assert.ok(agentUrls.every((url) => pathnameOfFetchUrl(url).startsWith("/intelligence/agent/")));
+  assert.equal(
+    urls.filter((url) => pathnameOfFetchUrl(url) === "/intelligence/documents").length,
+    1,
+  );
   assert.equal(urls.some((url) => url.includes("/intelligence/documents/documents")), false);
   assert.equal(urls.some((url) => url.includes("/tool-execution")), false);
   assert.equal(urls.some((url) => url.includes("/internal/runtime-services/tool-execution-service")), false);

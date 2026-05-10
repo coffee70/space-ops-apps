@@ -142,7 +142,13 @@ export function AiEngineerModelPicker({
     [models, query, filter, providerRail],
   );
 
-  const chipLabel = loadError ? "Model unavailable" : isLoading ? "Loading models…" : selected?.name ?? "Select model";
+  const chipLabel = loadError
+    ? "Model unavailable"
+    : isLoading
+      ? "Loading models…"
+      : models.length === 0
+        ? "No models available"
+        : selected?.name ?? "Select model";
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -229,6 +235,13 @@ export function AiEngineerModelPicker({
 
           <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto p-2">
             <ul className="flex flex-col gap-1" data-testid="ai-engineer-model-list">
+              {filtered.length === 0 ? (
+                <li className="text-muted-foreground px-2 py-6 text-center text-[11px] leading-relaxed">
+                  {models.length === 0
+                    ? "No models were returned from the stack catalog. Confirm agent-runtime is running, the model registry file is mounted in the container, and GET /intelligence/agent/models succeeds."
+                    : "No models match your search or filters. Clear the search box or reset filters."}
+                </li>
+              ) : null}
               {filtered.map((m) => {
                 const isSelected = selectedModelId === m.id;
                 const dim = !m.enabled || !m.isAvailable;
