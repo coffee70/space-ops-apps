@@ -1,31 +1,36 @@
 "use client";
 
 import {
+  Bot,
   Brain,
   ChevronDown,
   Code,
+  Cpu,
   Eye,
   FileText,
   Globe,
   Info,
   Lock,
+  SlidersHorizontal,
   Sparkles,
+  Star,
   Terminal,
   Wrench,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { AiEngineerModelOption, ModelCapability } from "@/applications/ai-engineer/types";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 import {
@@ -35,6 +40,7 @@ import {
   trySelectAiEngineerModel,
   type AiEngineerModelFilterKey,
 } from "./model-picker-filter";
+import { classifyProviderRailEntry, type ProviderRailKind } from "./provider-rail-meta";
 
 function CostDots({ tier }: { tier: AiEngineerModelOption["costTier"] }) {
   const map: Record<string, number> = {
@@ -71,7 +77,7 @@ function CapabilityIcon({ cap }: { cap: ModelCapability }) {
   }
 }
 
-/** Presentational; exported for static markup tests (dialog content is portaled and not in SSR string). */
+/** Presentational; exported for static markup tests. */
 export function AiEngineerModelDisabledReason({ modelId, reason }: { modelId: string; reason: string }) {
   return (
     <p className="text-muted-foreground text-[10px]" data-testid={`ai-engineer-model-disabled-${modelId}`}>
@@ -98,6 +104,40 @@ function BoundaryBadge({ boundary }: { boundary: AiEngineerModelOption["governan
   );
 }
 
+const railGlyphFrame =
+  "flex size-7 shrink-0 items-center justify-center rounded-md border border-border/50 bg-muted/40 text-[10px] font-semibold leading-none";
+
+function ProviderRailGlyph({ kind }: { kind: ProviderRailKind }) {
+  switch (kind) {
+    case "recommended":
+      return <Star className="size-4 fill-amber-400 text-amber-400" aria-hidden />;
+    case "openai":
+      return (
+        <span className={railGlyphFrame} aria-hidden>
+          OA
+        </span>
+      );
+    case "anthropic":
+      return (
+        <span className={railGlyphFrame} aria-hidden>
+          A
+        </span>
+      );
+    case "google":
+      return <Sparkles className="size-4 text-sky-400" aria-hidden />;
+    case "xai":
+      return (
+        <span className={railGlyphFrame} aria-hidden>
+          xA
+        </span>
+      );
+    case "local_hardware":
+      return <Cpu className="size-4 text-emerald-400" aria-hidden />;
+    default:
+      return <Bot className="text-muted-foreground size-4" aria-hidden />;
+  }
+}
+
 export function AiEngineerModelPicker({
   models,
   selectedModelId,
@@ -116,16 +156,24 @@ export function AiEngineerModelPicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<AiEngineerModelFilterKey>("all");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [providerRail, setProviderRail] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const id = requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [open]);
 
   const selected = models.find((m) => m.id === selectedModelId);
 
   const providers = useMemo(() => {
-    const map = new Map<string, { id: string; label: string }>();
+    const map = new Map<string, { id: string; label: string; providerType?: string }>();
     for (const m of models) {
       if (!map.has(m.providerRef)) {
-        map.set(m.providerRef, { id: m.providerRef, label: m.provider });
+        map.set(m.providerRef, { id: m.providerRef, label: m.provider, providerType: m.providerType });
       }
     }
     const list = [...map.values()];
@@ -134,7 +182,7 @@ export function AiEngineerModelPicker({
       const bi = b.label.toLowerCase().includes("openai") ? 0 : b.label.toLowerCase().includes("anthropic") ? 1 : 2;
       return ai - bi || a.label.localeCompare(b.label);
     });
-    return [{ id: "__recommended", label: "Recommended" }, ...list];
+    return [{ id: "__recommended", label: "Recommended", providerType: undefined }, ...list];
   }, [models]);
 
   const filtered = useMemo(
@@ -143,16 +191,44 @@ export function AiEngineerModelPicker({
   );
 
   const chipLabel = loadError
-    ? "Model unavailable"
+    ? "Models are temporarily unavailable"
     : isLoading
-      ? "Loading models…"
+      ? "Loading available models…"
       : models.length === 0
         ? "No models available"
         : selected?.name ?? "Select model";
 
+  const emptyListMessage = () => {
+    if (loadError) {
+      return (
+        <>
+          <p>Models are temporarily unavailable.</p>
+          <p className="text-muted-foreground mt-1">Try again in a moment or contact your system administrator.</p>
+        </>
+      );
+    }
+    if (isLoading && models.length === 0) {
+      return <p>Loading available models…</p>;
+    }
+    if (models.length === 0) {
+      return (
+        <>
+          <p>No models are available for this workspace.</p>
+          <p className="text-muted-foreground mt-1">Contact your system administrator if you expected to see a model here.</p>
+        </>
+      );
+    }
+    return (
+      <>
+        <p>No models match your search.</p>
+        <p className="text-muted-foreground mt-1">Try a different search or filter.</p>
+      </>
+    );
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
+      <PopoverTrigger asChild>
         <Button
           type="button"
           variant="outline"
@@ -172,75 +248,102 @@ export function AiEngineerModelPicker({
           ) : null}
           <ChevronDown className="size-3 shrink-0 opacity-60" />
         </Button>
-      </DialogTrigger>
-      <DialogContent
-        showCloseButton
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        sideOffset={6}
+        collisionPadding={12}
+        onOpenAutoFocus={(e) => e.preventDefault()}
         className={cn(
-          "border-border/40 bg-background/95 gap-0 overflow-hidden p-0 shadow-2xl backdrop-blur-md sm:max-w-none",
-          "w-[min(92vw,780px)] max-h-[min(80vh,720px)]",
+          "border-border/40 bg-background/95 z-50 flex max-h-[min(80vh,720px)] w-[min(calc(100vw-1rem),780px)] flex-col overflow-hidden rounded-2xl border p-0 shadow-xl backdrop-blur-md",
+          "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         )}
       >
-        <div className="from-primary/25 via-background to-background border-border/30 border-b bg-gradient-to-r px-4 py-3">
-          <DialogHeader className="space-y-1">
-            <DialogTitle className="text-base">Mission stack models</DialogTitle>
-            <DialogDescription className="text-muted-foreground text-xs">
-              Approved models for this deployment. Disabled entries are visible but not selectable.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-3 flex flex-col gap-2 md:flex-row md:items-center">
+        <div className="border-border/30 flex flex-col gap-2 border-b px-3 py-2.5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Input
+              ref={searchInputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search models, providers, capabilities…"
-              className="bg-background/60 border-border/40 h-8 text-xs"
+              placeholder="Search models…"
+              className="bg-background/60 border-border/40 h-8 flex-1 text-xs"
               data-testid="ai-engineer-model-search"
+              aria-label="Search models"
             />
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1">
-            {(Object.keys(AI_ENGINEER_MODEL_FILTER_LABELS) as AiEngineerModelFilterKey[]).map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setFilter(key)}
-                className={cn(
-                  "rounded-full px-2 py-0.5 text-[10px] transition-colors",
-                  filter === key ? "bg-foreground text-background" : "bg-muted/50 text-muted-foreground hover:bg-muted",
-                )}
-              >
-                {AI_ENGINEER_MODEL_FILTER_LABELS[key]}
-              </button>
-            ))}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "border-border/50 h-8 shrink-0 gap-1.5 px-2 text-[11px]",
+                    filter !== "all" && "border-primary/60 bg-muted/80 text-foreground",
+                  )}
+                  aria-label={`Filter models: ${AI_ENGINEER_MODEL_FILTER_LABELS[filter]}`}
+                >
+                  <SlidersHorizontal className="size-3.5 shrink-0 opacity-80" aria-hidden />
+                  <span className="max-w-[140px] truncate">{AI_ENGINEER_MODEL_FILTER_LABELS[filter]}</span>
+                  {filter !== "all" ? (
+                    <span className="bg-primary size-1.5 shrink-0 rounded-full" aria-hidden />
+                  ) : null}
+                  <ChevronDown className="size-3 shrink-0 opacity-60" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[12rem]">
+                <DropdownMenuRadioGroup
+                  value={filter}
+                  onValueChange={(v) => setFilter(v as AiEngineerModelFilterKey)}
+                >
+                  {(Object.keys(AI_ENGINEER_MODEL_FILTER_LABELS) as AiEngineerModelFilterKey[]).map((key) => (
+                    <DropdownMenuRadioItem key={key} value={key} className="text-xs">
+                      {AI_ENGINEER_MODEL_FILTER_LABELS[key]}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           <aside
-            className="border-border/30 bg-card/40 flex shrink-0 flex-row gap-1 overflow-x-auto border-b p-2 md:w-44 md:flex-col md:overflow-y-auto md:border-r md:border-b-0"
+            className="border-border/30 bg-card/30 flex shrink-0 flex-row gap-1 overflow-x-auto border-b px-2 py-2 md:w-[52px] md:flex-col md:overflow-y-auto md:border-r md:border-b-0"
             aria-label="Providers"
           >
-            {providers.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setProviderRail(p.id === providerRail ? null : p.id)}
-                className={cn(
-                  "rounded-lg px-2 py-1 text-left text-[11px] whitespace-nowrap transition-colors md:whitespace-normal",
-                  providerRail === p.id ? "bg-foreground text-background" : "hover:bg-muted/60 text-muted-foreground",
-                )}
-              >
-                {p.label}
-              </button>
-            ))}
+            {providers.map((p) => {
+              const kind = classifyProviderRailEntry({
+                railId: p.id,
+                providerLabel: p.label,
+                providerType: p.providerType,
+              });
+              const railActive = providerRail === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  title={p.label}
+                  aria-label={p.label}
+                  aria-pressed={railActive}
+                  onClick={() => setProviderRail(p.id === providerRail ? null : p.id)}
+                  className={cn(
+                    "flex size-9 shrink-0 items-center justify-center rounded-xl border transition-colors",
+                    railActive
+                      ? "border-primary bg-primary/15 text-foreground shadow-sm"
+                      : "border-transparent text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+                  )}
+                >
+                  <ProviderRailGlyph kind={kind} />
+                </button>
+              );
+            })}
           </aside>
 
           <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto p-2">
             <ul className="flex flex-col gap-1" data-testid="ai-engineer-model-list">
               {filtered.length === 0 ? (
-                <li className="text-muted-foreground px-2 py-6 text-center text-[11px] leading-relaxed">
-                  {models.length === 0
-                    ? "No models were returned from the stack catalog. Confirm agent-runtime is running, the model registry file is mounted in the container, and GET /intelligence/agent/models succeeds."
-                    : "No models match your search or filters. Clear the search box or reset filters."}
-                </li>
+                <li className="text-muted-foreground px-2 py-6 text-center text-[11px] leading-relaxed">{emptyListMessage()}</li>
               ) : null}
               {filtered.map((m) => {
                 const isSelected = selectedModelId === m.id;
@@ -269,7 +372,7 @@ export function AiEngineerModelPicker({
                             <span className="text-muted-foreground text-[11px]">{m.provider}</span>
                             <CostDots tier={m.costTier} />
                             {(m.recommendedFor.includes("demo-safe") || m.recommendedFor.includes("coding") || m.isDefault) && (
-                              <span className="text-amber-400 text-[11px]" aria-hidden>
+                              <span className="text-[11px] text-amber-400" aria-hidden>
                                 ★
                               </span>
                             )}
@@ -285,27 +388,26 @@ export function AiEngineerModelPicker({
                             ))}
                           </div>
                           <BoundaryBadge boundary={m.governance.dataBoundary} />
-                          <button
-                            type="button"
-                            className="text-muted-foreground hover:text-foreground"
-                            aria-label="Details"
-                            onClick={() => setExpandedId(expandedId === m.id ? null : m.id)}
-                          >
-                            <Info className="size-4" />
-                          </button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                className="text-muted-foreground hover:text-foreground rounded-sm p-0.5"
+                                aria-label={`Technical details for ${m.name}`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Info className="size-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left" className="max-w-[320px] space-y-1 px-3 py-2 text-left text-[11px] leading-snug">
+                              {formatAiEngineerModelDetailLines(m).map((line, idx) => (
+                                <div key={idx}>{line}</div>
+                              ))}
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                       </div>
                       {dim && m.disabledReason ? <AiEngineerModelDisabledReason modelId={m.id} reason={m.disabledReason} /> : null}
-                      {expandedId === m.id ? (
-                        <div
-                          className="border-border/30 bg-muted/20 mt-1 rounded-lg border p-2 text-[10px]"
-                          data-testid={`ai-engineer-model-details-${m.id}`}
-                        >
-                          {formatAiEngineerModelDetailLines(m).map((line, idx) => (
-                            <div key={idx}>{line}</div>
-                          ))}
-                        </div>
-                      ) : null}
                     </div>
                   </li>
                 );
@@ -313,7 +415,7 @@ export function AiEngineerModelPicker({
             </ul>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </PopoverContent>
+    </Popover>
   );
 }

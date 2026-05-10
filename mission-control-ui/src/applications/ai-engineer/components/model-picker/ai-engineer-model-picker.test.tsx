@@ -42,6 +42,23 @@ test("model trigger shows selected model name", () => {
   assert.match(markup, /ai-engineer-model-trigger/);
 });
 
+test("picker does not render legacy modal header or debug endpoint copy", () => {
+  const markup = renderToStaticMarkup(
+    <AiEngineerModelPicker models={[SAMPLE_OPENAI]} selectedModelId="openai-test" onSelect={() => {}} isLoading={false} loadError={null} />,
+  );
+  assert.equal(markup.includes("Mission stack models"), false);
+  assert.equal(markup.includes("Approved models for this deployment"), false);
+  assert.equal(markup.includes("/intelligence/agent/models"), false);
+  assert.equal(markup.includes("agent-runtime"), false);
+});
+
+test("load error trigger uses operator-facing chip label", () => {
+  const markup = renderToStaticMarkup(
+    <AiEngineerModelPicker models={[]} selectedModelId={null} onSelect={() => {}} isLoading={false} loadError="upstream failure" />,
+  );
+  assert.match(markup, /Models are temporarily unavailable/);
+});
+
 test("disabled model rows expose disabled reason text", () => {
   const markup = renderToStaticMarkup(<AiEngineerModelDisabledReason modelId="anthropic-test" reason="No key" />);
   assert.match(markup, /ai-engineer-model-disabled-anthropic-test/);
