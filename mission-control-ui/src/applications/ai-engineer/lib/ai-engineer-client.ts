@@ -13,7 +13,7 @@ const ROUTES = {
   uploadDocument: "/intelligence/documents",
 } as const;
 
-/** Prefix paths so Mission Control on :3000 reaches the platform gateway (see NEXT_PUBLIC_API_URL). */
+/** Prefix intelligence routes; base is same-origin when NEXT_PUBLIC_API_URL is unset (edge proxy). */
 function apiUrl(path: string): string {
   const base = resolvePublicApiUrl().replace(/\/$/, "");
   return `${base}${path}`;

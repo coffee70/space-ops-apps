@@ -16,7 +16,7 @@
     "pretypecheck": "npm run check:application-loaders && node scripts/prepare-next-typecheck.mjs && npm run typegen",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "pretest:runtime": "npm run check:application-loaders",
-    "test:runtime": "tsx --test $(find src/platform src/applications/ai-engineer \\( -name '*.test.ts' -o -name '*.test.tsx' \\))",
+    "test:runtime": "tsx --test $(find src/platform src/applications/ai-engineer src/lib \\( -name '*.test.ts' -o -name '*.test.tsx' \\))",
     "validate": "npm run check:application-loaders && npm run lint && npm run typecheck && npm run test:runtime"
   },
   "dependencies": {
