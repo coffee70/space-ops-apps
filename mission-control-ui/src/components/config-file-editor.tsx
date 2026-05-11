@@ -39,7 +39,7 @@ function fallbackModelPath(path: string, language: string): string {
   return "untitled.txt";
 }
 
-type VehicleConfigEditorProps = {
+export type ConfigFileEditorProps = {
   value: string;
   onChange: (value: string) => void;
   path: string;
@@ -49,14 +49,14 @@ type VehicleConfigEditorProps = {
   className?: string;
 };
 
-export function VehicleConfigEditor({
+export function ConfigFileEditor({
   value,
   onChange,
   path,
   readOnly = false,
   height = "100%",
   className,
-}: VehicleConfigEditorProps) {
+}: ConfigFileEditorProps) {
   const language = detectLanguage(path);
 
   return (

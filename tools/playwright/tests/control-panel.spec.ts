@@ -40,20 +40,20 @@ const registryPayload = [
     deploymentStatus: "seeded",
   },
   {
-    applicationId: "sources",
+    applicationId: "control-panel",
     title: "Control Panel",
     description: "Source registry, vehicle configuration, and AI Engineer control settings.",
     iconKey: "settings",
     iconColor: "#fb7185",
     iconBackground: "rgba(251, 113, 133, 0.16)",
     applicationType: "native",
-    routePath: "/apps/sources",
-    loaderKey: "sources",
+    routePath: "/apps/control-panel",
+    loaderKey: "control-panel",
     version: "0.1.0",
     enabled: true,
     sortOrder: 40,
     owner: "space-ops-apps",
-    capabilities: ["source-management", "ai-engineer-configuration"],
+    capabilities: ["source-management", "vehicle-configuration", "ai-engineer-configuration"],
     healthStatus: "unknown",
     deploymentStatus: "seeded",
   },
@@ -71,7 +71,7 @@ test("launcher lists Control Panel instead of Sources @control-panel", async ({ 
   await page.goto(appUrl("overview"));
   await page.getByTestId("applications-nav-item").click();
   await page.getByTestId("applications-launcher-search").fill("Control Panel");
-  await expect(page.getByTestId("application-option-sources")).toBeVisible();
+  await expect(page.getByTestId("application-option-control-panel")).toBeVisible();
   await expect(page.getByTestId("applications-launcher-details")).toContainText("Control Panel");
 });
 
@@ -90,8 +90,8 @@ test("Control Panel sources tab shows telemetry chrome @control-panel", async ({
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ connected: false }) });
   });
 
-  await page.goto(appUrl("sources"));
-  await expect(page).toHaveURL(/\/apps\/sources(?:\?.*)?$/);
+  await page.goto(appUrl("control-panel"));
+  await expect(page).toHaveURL(/\/apps\/control-panel(?:\?.*)?$/);
   await expect(page.getByTestId("control-panel-shell")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Sources" })).toBeVisible();
 });
@@ -140,7 +140,8 @@ test("AI Engineer tab shows model config editor shell @control-panel", async ({ 
     });
   });
 
-  await page.goto(appUrl("sources", ["ai-engineer"]));
+  await page.goto(appUrl("control-panel", ["ai-engineer"]));
+  await expect(page).toHaveURL(/\/apps\/control-panel\/ai-engineer/);
   await expect(page.getByTestId("ai-engineer-model-config-editor")).toBeVisible();
   await expect(page.getByRole("button", { name: "Validate" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Save" })).toBeVisible();

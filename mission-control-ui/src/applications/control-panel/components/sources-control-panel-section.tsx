@@ -203,7 +203,7 @@ export function SourcesControlPanelSection() {
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Sources</h1>
           <div className="flex gap-2">
             <Button variant="outline" asChild>
-              <Link href={buildApplicationRoute("sources", ["configs"])}>Vehicle Configurations</Link>
+              <Link href={buildApplicationRoute("control-panel", ["configs"])}>Vehicle Configurations</Link>
             </Button>
             <Button onClick={openWizard}>Add source</Button>
           </div>
@@ -376,7 +376,7 @@ export function SourcesControlPanelSection() {
                                 Edit
                               </Button>
                               <Button variant="default" size="sm" asChild>
-                                <Link href={buildApplicationRoute("sources", ["simulator", s.id])}>
+                                <Link href={buildApplicationRoute("control-panel", ["simulator", s.id])}>
                                   Manage
                                 </Link>
                               </Button>

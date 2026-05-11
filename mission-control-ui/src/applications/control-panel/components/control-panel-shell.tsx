@@ -13,11 +13,11 @@ type ControlPanelShellProps = {
 };
 
 const TABS: { id: ControlPanelTabId; label: string; href: string; testId: string }[] = [
-  { id: "sources", label: "Sources", href: buildApplicationRoute("sources"), testId: "control-panel-tab-sources" },
+  { id: "sources", label: "Sources", href: buildApplicationRoute("control-panel"), testId: "control-panel-tab-sources" },
   {
     id: "ai-engineer",
     label: "AI Engineer",
-    href: buildApplicationRoute("sources", ["ai-engineer"]),
+    href: buildApplicationRoute("control-panel", ["ai-engineer"]),
     testId: "control-panel-tab-ai-engineer",
   },
 ];

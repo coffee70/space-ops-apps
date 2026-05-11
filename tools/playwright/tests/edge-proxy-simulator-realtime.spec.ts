@@ -38,7 +38,7 @@ async function gotoSimulatorPanelAndStartPlayback(
    */
   await waitForSimulatorReachableViaApi(request, sourceId);
 
-  await page.goto(`/apps/sources/simulator/${encodeURIComponent(sourceId)}`);
+  await page.goto(`/apps/control-panel/simulator/${encodeURIComponent(sourceId)}`);
   const simulatorPanel = page.getByTestId("simulator-panel");
   await expect(simulatorPanel).toBeVisible({ timeout: 90_000 });
 

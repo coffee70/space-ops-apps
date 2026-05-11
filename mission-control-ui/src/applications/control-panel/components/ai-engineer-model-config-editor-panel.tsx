@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EditorStatusNotice, type EditorStatusNoticeData } from "@/components/editor-status-notice";
 import { Spinner } from "@/components/ui/spinner";
-import { VehicleConfigEditor } from "@/components/vehicle-config-editor";
+import { ConfigFileEditor } from "@/components/config-file-editor";
 import { getErrorErrors, getErrorMessage } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -193,7 +193,12 @@ function AiEngineerModelConfigEditorBody({ document }: EditorBodyProps) {
         ) : null}
 
         <div className="min-h-[min(70vh,560px)] flex-1 p-4 pt-3">
-          <VehicleConfigEditor path={loadedPath || "models.local.yaml"} value={content} onChange={setContent} height="100%" />
+          <ConfigFileEditor
+            path={loadedPath || "models.local.yaml"}
+            value={content}
+            onChange={setContent}
+            height="100%"
+          />
         </div>
 
         {notice ? <EditorStatusNotice key={notice.id} notice={notice} onClear={() => setNotice(null)} /> : null}

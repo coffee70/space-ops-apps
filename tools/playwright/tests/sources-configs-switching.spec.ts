@@ -72,7 +72,7 @@ test("vehicle config explorer switches files and keeps the workspace interactive
     });
   });
 
-  await page.goto(appUrl("sources", ["configs"]));
+  await page.goto(appUrl("control-panel", ["configs"]));
 
   const fileButtons = page.getByTestId("vehicle-config-file-button");
   await expect.poll(async () => fileButtons.count()).toBeGreaterThanOrEqual(2);
@@ -85,7 +85,7 @@ test("vehicle config explorer switches files and keeps the workspace interactive
   await secondButton.evaluate((element: HTMLButtonElement) => element.click());
 
   await expect(page.getByTestId("vehicle-config-loading-shell")).toContainText(`Loading ${secondPath}...`);
-  await expect(page).toHaveURL(/\/apps\/sources\/configs$/);
+  await expect(page).toHaveURL(/\/apps\/control-panel\/configs$/);
   await expect(page.getByTestId("vehicle-config-path-display")).toContainText(secondPath);
   await expect(page.getByTestId("vehicle-config-loading-shell")).toHaveCount(0, {
     timeout: 30_000,
@@ -146,7 +146,7 @@ test("vehicle config explorer switches files and keeps the workspace interactive
   await expect(notice).toContainText("Validation Failed");
 
   await firstButton.evaluate((element: HTMLButtonElement) => element.click());
-  await expect(page).toHaveURL(/\/apps\/sources\/configs$/);
+  await expect(page).toHaveURL(/\/apps\/control-panel\/configs$/);
   await expect(page.getByTestId("vehicle-config-path-display")).toContainText(
     ((await firstButton.getAttribute("data-path")) ?? "")
   );

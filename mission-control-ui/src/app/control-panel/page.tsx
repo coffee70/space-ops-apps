@@ -3,7 +3,7 @@
 import { ControlPanelShell } from "@/applications/control-panel/components/control-panel-shell";
 import { SourcesControlPanelSection } from "@/applications/control-panel/components/sources-control-panel-section";
 
-export function SourcesPage() {
+export function ControlPanelHomePage() {
   return (
     <ControlPanelShell activeTab="sources">
       <SourcesControlPanelSection />
@@ -11,4 +11,4 @@ export function SourcesPage() {
   );
 }
 
-export default SourcesPage;
+export default ControlPanelHomePage;

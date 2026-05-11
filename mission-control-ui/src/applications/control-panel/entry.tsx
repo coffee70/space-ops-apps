@@ -1,12 +1,11 @@
 import { AiEngineerModelConfigEditorPanel } from "@/applications/control-panel/components/ai-engineer-model-config-editor-panel";
 import { ControlPanelShell } from "@/applications/control-panel/components/control-panel-shell";
 import { SourcesControlPanelSection } from "@/applications/control-panel/components/sources-control-panel-section";
-import { SimulatorManagePageClient } from "@/app/sources/simulator/[sourceId]/simulator-manage-page-client";
-import { VehicleConfigsPage } from "@/app/sources/configs/page";
-import { SourcesPage } from "@/app/sources/page";
+import { SimulatorManagePageClient } from "@/app/control-panel/simulator/[sourceId]/simulator-manage-page-client";
+import { VehicleConfigsPage } from "@/app/control-panel/configs/page";
 import type { NativeApplicationEntry, NativeApplicationProps } from "@/platform/sdk/native-application-contract";
 
-function SourcesApplication({ appPath }: NativeApplicationProps) {
+function ControlPanelApplication({ appPath }: NativeApplicationProps) {
   if (appPath[0] === "configs") {
     return <VehicleConfigsPage />;
   }
@@ -23,17 +22,13 @@ function SourcesApplication({ appPath }: NativeApplicationProps) {
     );
   }
 
-  if (appPath[0] === "sources") {
-    return (
-      <ControlPanelShell activeTab="sources">
-        <SourcesControlPanelSection />
-      </ControlPanelShell>
-    );
-  }
-
-  return <SourcesPage />;
+  return (
+    <ControlPanelShell activeTab="sources">
+      <SourcesControlPanelSection />
+    </ControlPanelShell>
+  );
 }
 
 export const applicationEntry: NativeApplicationEntry = {
-  Component: SourcesApplication,
+  Component: ControlPanelApplication,
 };

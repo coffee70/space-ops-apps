@@ -8,9 +8,9 @@ import { applicationLoaderManifest } from "./application-loader-manifest.generat
 test("application loader manifest includes retained native applications", () => {
   assert.deepEqual(Object.keys(applicationLoaderManifest).sort(), [
     "ai-engineer",
+    "control-panel",
     "overview",
     "planning",
-    "sources",
     "telemetry",
   ]);
 });
