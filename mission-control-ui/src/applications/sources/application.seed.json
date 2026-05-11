@@ -1,8 +1,8 @@
 {
   "applicationId": "sources",
-  "title": "Sources",
-  "description": "Source registry and vehicle configuration tools.",
-  "iconKey": "server",
+  "title": "Control Panel",
+  "description": "Source registry, vehicle configuration, and AI Engineer control settings.",
+  "iconKey": "settings",
   "iconColor": "#fb7185",
   "iconBackground": "rgba(251, 113, 133, 0.16)",
   "applicationType": "native",
@@ -12,5 +12,5 @@
   "enabled": true,
   "sortOrder": 40,
   "owner": "space-ops-apps",
-  "capabilities": ["source-management"]
+  "capabilities": ["source-management", "ai-engineer-configuration"]
 }

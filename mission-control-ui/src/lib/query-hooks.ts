@@ -112,6 +112,30 @@ export interface VehicleConfigDocument {
   validation_errors: VehicleConfigValidationError[];
 }
 
+export interface AiEngineerModelConfigParsedSummary {
+  provider_count: number;
+  model_count: number;
+  enabled_model_count: number;
+  default_model_id?: string | null;
+  provider_types: string[];
+  missing_api_key_envs: string[];
+  warnings?: string[];
+}
+
+export interface AiEngineerModelConfigValidationError {
+  loc: string[];
+  message: string;
+  type: string;
+}
+
+export interface AiEngineerModelConfigDocument {
+  path: string;
+  content: string;
+  format: "yaml";
+  parsed?: AiEngineerModelConfigParsedSummary | null;
+  validation_errors: AiEngineerModelConfigValidationError[];
+}
+
 export interface SearchResult {
   name: string;
   aliases?: string[];
@@ -542,6 +566,49 @@ export function useUpdateVehicleConfigMutation() {
     onSettled: async (_data, _error, variables) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicleConfigs });
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicleConfig(variables.path) });
+    },
+  });
+}
+
+export function useAiEngineerModelConfigQuery(enabled = true) {
+  return useQuery<AiEngineerModelConfigDocument>({
+    queryKey: queryKeys.aiEngineerModelConfig,
+    enabled,
+    staleTime: 30 * 1000,
+    queryFn: async ({ signal }) =>
+      fetchJson<AiEngineerModelConfigDocument>("/intelligence/agent/model-config", { signal, cache: "no-store" }),
+  });
+}
+
+export function useValidateAiEngineerModelConfigMutation() {
+  return useMutation({
+    mutationFn: async (content: string) =>
+      fetchJson<{
+        valid: boolean;
+        parsed?: AiEngineerModelConfigParsedSummary | null;
+        errors: AiEngineerModelConfigValidationError[];
+      }>("/intelligence/agent/model-config/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      }),
+  });
+}
+
+export function useUpdateAiEngineerModelConfigMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (content: string) =>
+      fetchJson<{ path: string; parsed: AiEngineerModelConfigParsedSummary; saved: boolean }>(
+        "/intelligence/agent/model-config",
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content }),
+        },
+      ),
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerModelConfig });
     },
   });
 }
