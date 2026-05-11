@@ -228,7 +228,7 @@ export function AiEngineerModelConfigEditorPanel() {
           <CardTitle>Model registry unavailable</CardTitle>
           <CardDescription>
             {loadError?.message ||
-              "The platform could not load the model registry file. Ensure MODEL_CONFIG_PATH is set and the file exists (see models.local.yaml.example in agent-runtime)."}
+              "The platform could not load the model registry file. Ensure MODEL_CONFIG_PATH is set and the file exists (see models.local.yaml.example in model-registry-service)."}
           </CardDescription>
         </CardHeader>
       </Card>
