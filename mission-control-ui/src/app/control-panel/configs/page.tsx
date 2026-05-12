@@ -20,7 +20,7 @@ import {
   type EditorStatusNoticeData,
 } from "@/components/editor-status-notice";
 import { Spinner } from "@/components/ui/spinner";
-import { VehicleConfigEditor } from "@/components/vehicle-config-editor";
+import { ConfigFileEditor } from "@/components/config-file-editor";
 import { getErrorErrors, getErrorMessage } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -461,7 +461,7 @@ function VehicleConfigEditorWorkspace({
         ) : (
           <div className="relative h-full min-h-0" data-testid="vehicle-config-editor-stage">
             {notice ? <EditorStatusNotice key={notice.id} notice={notice} onClear={() => setNotice(null)} /> : null}
-            <VehicleConfigEditor
+            <ConfigFileEditor
               value={content}
               onChange={setContent}
               path={draftPath}
@@ -598,7 +598,7 @@ export function VehicleConfigsPage() {
       <div className="px-4 pt-3 pb-2 sm:px-5">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" className="text-muted-foreground" asChild>
-            <Link href={buildApplicationRoute("sources")}>
+            <Link href={buildApplicationRoute("control-panel")}>
               <ArrowLeft className="size-4" />
               Back to Sources
             </Link>

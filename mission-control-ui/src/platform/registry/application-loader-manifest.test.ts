@@ -8,11 +8,24 @@ import { applicationLoaderManifest } from "./application-loader-manifest.generat
 test("application loader manifest includes retained native applications", () => {
   assert.deepEqual(Object.keys(applicationLoaderManifest).sort(), [
     "ai-engineer",
+    "control-panel",
     "overview",
     "planning",
-    "sources",
     "telemetry",
   ]);
+});
+
+test("control-panel seed loaderKey matches generated loader manifest key", () => {
+  const seedPath = resolve(process.cwd(), "src/applications/control-panel/application.seed.json");
+  const seed = JSON.parse(readFileSync(seedPath, "utf-8")) as {
+    applicationId: string;
+    routePath: string;
+    loaderKey: string;
+  };
+  assert.equal(seed.applicationId, "control-panel");
+  assert.equal(seed.routePath, "/apps/control-panel");
+  assert.equal(seed.loaderKey, "control-panel");
+  assert.equal(typeof applicationLoaderManifest[seed.loaderKey], "function");
 });
 
 test("ai-engineer seed loaderKey matches generated loader manifest key", () => {

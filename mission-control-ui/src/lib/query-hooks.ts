@@ -112,6 +112,94 @@ export interface VehicleConfigDocument {
   validation_errors: VehicleConfigValidationError[];
 }
 
+export interface AiEngineerModelConfigParsedSummary {
+  provider_count: number;
+  model_count: number;
+  enabled_model_count: number;
+  default_model_id?: string | null;
+  provider_types: string[];
+  missing_api_key_envs: string[];
+  warnings?: string[];
+}
+
+export interface AiEngineerModelConfigValidationError {
+  loc: string[];
+  message: string;
+  type: string;
+}
+
+export interface AiEngineerModelConfigDocument {
+  path: string;
+  content: string;
+  format: "yaml";
+  parsed?: AiEngineerModelConfigParsedSummary | null;
+  validation_errors: AiEngineerModelConfigValidationError[];
+}
+
+export type DeploymentUiState =
+  | "healthy"
+  | "deploying"
+  | "stale"
+  | "missing"
+  | "failed"
+  | "crashed"
+  | "unknown"
+  | "skipped";
+
+export interface ServiceStatusItem {
+  id: string;
+  display_name: string;
+  group: "core" | "runtime";
+  expected: boolean;
+  exists: boolean;
+  ui_state: DeploymentUiState;
+  health_status?: string | null;
+  deployment_status?: string | null;
+  bootstrap_status?: string | null;
+  container_state?: string | null;
+  container_status?: string | null;
+  active_deployment_id?: string | null;
+  latest_deployment_id?: string | null;
+  service_slug?: string | null;
+  runtime_kind?: string | null;
+  runtime_template?: string | null;
+  branch?: string | null;
+  commit_sha?: string | null;
+  updated_at?: string | null;
+  last_checked_at?: string | null;
+  failure_reason?: string | null;
+  latest_error?: string | null;
+  logs_url?: string | null;
+  details: Record<string, unknown>;
+}
+
+export interface ServiceGroupSummary {
+  expected_count: number;
+  existing_count: number;
+  healthy_count: number;
+  warning_count: number;
+  broken_count: number;
+  missing_count: number;
+  services: ServiceStatusItem[];
+}
+
+export interface BootstrapSummary {
+  run_id?: number | null;
+  status: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  failure_reason?: string | null;
+  summary: Record<string, number>;
+}
+
+export interface SystemDeploymentOverviewResponse {
+  generated_at: string;
+  overall_state: "healthy" | "degraded" | "broken" | "unknown";
+  core: ServiceGroupSummary;
+  runtime: ServiceGroupSummary;
+  bootstrap?: BootstrapSummary | null;
+}
+
 export interface SearchResult {
   name: string;
   aliases?: string[];
@@ -542,6 +630,67 @@ export function useUpdateVehicleConfigMutation() {
     onSettled: async (_data, _error, variables) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicleConfigs });
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicleConfig(variables.path) });
+    },
+  });
+}
+
+export function useAiEngineerModelConfigQuery(enabled = true) {
+  return useQuery<AiEngineerModelConfigDocument>({
+    queryKey: queryKeys.aiEngineerModelConfig,
+    enabled,
+    staleTime: 30 * 1000,
+    queryFn: async ({ signal }) =>
+      fetchJson<AiEngineerModelConfigDocument>("/intelligence/agent/model-config", { signal, cache: "no-store" }),
+  });
+}
+
+function isBootstrapRunning(data?: SystemDeploymentOverviewResponse) {
+  return data?.bootstrap?.status === "running";
+}
+
+export function useDeploymentOverviewQuery() {
+  return useQuery<SystemDeploymentOverviewResponse>({
+    queryKey: queryKeys.deploymentOverview,
+    refetchInterval: (query) => (isBootstrapRunning(query.state.data) ? 1000 : 2000),
+    refetchIntervalInBackground: true,
+    queryFn: async ({ signal }) =>
+      fetchJson<SystemDeploymentOverviewResponse>("/system/deployments/overview", {
+        signal,
+        cache: "no-store",
+        useFallback: true,
+      }),
+  });
+}
+
+export function useValidateAiEngineerModelConfigMutation() {
+  return useMutation({
+    mutationFn: async (content: string) =>
+      fetchJson<{
+        valid: boolean;
+        parsed?: AiEngineerModelConfigParsedSummary | null;
+        errors: AiEngineerModelConfigValidationError[];
+      }>("/intelligence/agent/model-config/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      }),
+  });
+}
+
+export function useUpdateAiEngineerModelConfigMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (content: string) =>
+      fetchJson<{ path: string; parsed: AiEngineerModelConfigParsedSummary; saved: boolean }>(
+        "/intelligence/agent/model-config",
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content }),
+        },
+      ),
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerModelConfig });
     },
   });
 }

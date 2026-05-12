@@ -70,7 +70,7 @@ function historyModeLabel(value?: HistoryMode) {
   return "Time window replay";
 }
 
-export function SourcesPage() {
+export function SourcesControlPanelSection() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState<1 | 2>(1);
   const [wizardType, setWizardType] = useState<"vehicle" | "simulator">("simulator");
@@ -197,13 +197,13 @@ export function SourcesPage() {
   }
 
   return (
-    <div className="min-h-full p-4 sm:p-6 lg:p-8">
+    <div className="min-h-full w-full">
       <div className="mx-auto max-w-2xl space-y-8">
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Sources</h1>
           <div className="flex gap-2">
             <Button variant="outline" asChild>
-              <Link href={buildApplicationRoute("sources", ["configs"])}>Vehicle Configurations</Link>
+              <Link href={buildApplicationRoute("control-panel", ["configs"])}>Vehicle Configurations</Link>
             </Button>
             <Button onClick={openWizard}>Add source</Button>
           </div>
@@ -376,7 +376,7 @@ export function SourcesPage() {
                                 Edit
                               </Button>
                               <Button variant="default" size="sm" asChild>
-                                <Link href={buildApplicationRoute("sources", ["simulator", s.id])}>
+                                <Link href={buildApplicationRoute("control-panel", ["simulator", s.id])}>
                                   Manage
                                 </Link>
                               </Button>
@@ -610,5 +610,3 @@ export function SourcesPage() {
     </div>
   );
 }
-
-export default SourcesPage;

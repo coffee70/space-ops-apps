@@ -13,13 +13,14 @@ import {
   LayoutDashboard,
   Menu,
   SatelliteDish,
-  Server,
+  Settings,
   X,
 } from "lucide-react";
 import { OperatorModeToggle } from "@/components/operator-mode-toggle";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { buildApplicationRoute } from "@/platform/registry/application-routes";
 import {
   Tooltip,
   TooltipContent,
@@ -30,7 +31,7 @@ const NAV_LINKS = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
   { href: "/telemetry", label: "Telemetry", icon: ChartNoAxesCombined },
   { href: "/planning", label: "Planning", icon: SatelliteDish },
-  { href: "/sources", label: "Source", icon: Server },
+  { href: buildApplicationRoute("control-panel"), label: "Control Panel", icon: Settings },
 ] as const;
 
 const SIDEBAR_EXPANDED_W = "md:w-52";

@@ -29,7 +29,7 @@ export function SimulatorManagePageClient({ sourceId }: { sourceId: string }) {
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Link
-                  href={buildApplicationRoute("sources")}
+                  href={buildApplicationRoute("control-panel")}
                   className="text-primary underline-offset-4 hover:underline"
                 >
                   Sources
