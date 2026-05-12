@@ -141,23 +141,25 @@ function ServiceGroupPanel({ title, summary }: { title: string; summary: Service
 
 function ServiceStatusTable({ services }: { services: ServiceStatusItem[] }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="min-w-52">Service</TableHead>
-          <TableHead>State</TableHead>
-          <TableHead>Deployment</TableHead>
-          <TableHead>Bootstrap</TableHead>
-          <TableHead>Container</TableHead>
-          <TableHead>Updated</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {services.map((service) => (
-          <ServiceStatusRow key={`${service.group}-${service.id}`} service={service} />
-        ))}
-      </TableBody>
-    </Table>
+    <div className="overflow-x-auto">
+      <Table className="min-w-[900px]">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="min-w-52">Service</TableHead>
+            <TableHead>State</TableHead>
+            <TableHead>Deployment</TableHead>
+            <TableHead>Bootstrap</TableHead>
+            <TableHead>Container</TableHead>
+            <TableHead>Updated</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {services.map((service) => (
+            <ServiceStatusRow key={`${service.group}-${service.id}`} service={service} />
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
@@ -199,7 +201,19 @@ function ServiceStatusRow({ service }: { service: ServiceStatusItem }) {
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
                   {service.active_deployment_id ? <span>active: {service.active_deployment_id}</span> : null}
                   {service.latest_deployment_id ? <span>latest: {service.latest_deployment_id}</span> : null}
-                  {service.logs_url ? <span>logs: {service.logs_url}</span> : null}
+                  {service.logs_url ? (
+                    <span>
+                      logs:{" "}
+                      <a
+                        href={service.logs_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary underline underline-offset-4"
+                      >
+                        {service.logs_url}
+                      </a>
+                    </span>
+                  ) : null}
                   {service.branch ? <span>branch: {service.branch}</span> : null}
                   {service.commit_sha ? <span>commit: {service.commit_sha.slice(0, 12)}</span> : null}
                 </div>
