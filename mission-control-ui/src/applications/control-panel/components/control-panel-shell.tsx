@@ -31,7 +31,7 @@ const TABS: { id: ControlPanelTabId; label: string; href: string; testId: string
 export function ControlPanelShell({ activeTab, children }: ControlPanelShellProps) {
   return (
     <div
-      className="mx-auto grid h-[calc(100dvh-3.5rem)] w-full max-w-[96rem] flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-2 overflow-hidden p-2 sm:p-4 md:h-dvh lg:grid-cols-[15.5rem_minmax(0,1fr)] lg:grid-rows-1"
+      className="grid h-[calc(100dvh-3.5rem)] w-full flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-2 overflow-hidden p-2 sm:p-4 md:h-dvh lg:grid-cols-[15.5rem_minmax(0,1fr)] lg:grid-rows-1"
       data-testid="control-panel-shell"
     >
       <aside className="border-border/70 bg-card/70 flex min-w-0 flex-col gap-3 rounded-2xl border p-3 shadow-xs backdrop-blur lg:h-full lg:min-h-0">
