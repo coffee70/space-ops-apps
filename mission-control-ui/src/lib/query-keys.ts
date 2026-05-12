@@ -7,6 +7,7 @@ export const queryKeys = {
   vehicleConfigs: ["vehicle-configs"] as const,
   vehicleConfig: (path: string) => ["vehicle-config", path] as const,
   aiEngineerModelConfig: ["ai-engineer-model-config"] as const,
+  deploymentOverview: ["deployment-overview"] as const,
   telemetrySourceRuns: (sourceId: string) => ["telemetry-source-runs", sourceId] as const,
   telemetryChannelRuns: (channelName: string, sourceId: string) =>
     ["telemetry-channel-runs", channelName, sourceId] as const,

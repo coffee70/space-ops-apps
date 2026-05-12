@@ -1,5 +1,6 @@
 import { AiEngineerModelConfigEditorPanel } from "@/applications/control-panel/components/ai-engineer-model-config-editor-panel";
 import { ControlPanelShell } from "@/applications/control-panel/components/control-panel-shell";
+import { DeploymentsControlPanelSection } from "@/applications/control-panel/components/deployments-control-panel-section";
 import { SourcesControlPanelSection } from "@/applications/control-panel/components/sources-control-panel-section";
 import { SimulatorManagePageClient } from "@/app/control-panel/simulator/[sourceId]/simulator-manage-page-client";
 import { VehicleConfigsPage } from "@/app/control-panel/configs/page";
@@ -18,6 +19,14 @@ function ControlPanelApplication({ appPath }: NativeApplicationProps) {
     return (
       <ControlPanelShell activeTab="ai-engineer">
         <AiEngineerModelConfigEditorPanel />
+      </ControlPanelShell>
+    );
+  }
+
+  if (appPath[0] === "deployments") {
+    return (
+      <ControlPanelShell activeTab="deployments">
+        <DeploymentsControlPanelSection />
       </ControlPanelShell>
     );
   }

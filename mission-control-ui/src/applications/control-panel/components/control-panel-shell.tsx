@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { buildApplicationRoute } from "@/platform/registry/application-routes";
 
-export type ControlPanelTabId = "sources" | "ai-engineer";
+export type ControlPanelTabId = "sources" | "deployments" | "ai-engineer";
 
 type ControlPanelShellProps = {
   activeTab: ControlPanelTabId;
@@ -14,6 +14,12 @@ type ControlPanelShellProps = {
 
 const TABS: { id: ControlPanelTabId; label: string; href: string; testId: string }[] = [
   { id: "sources", label: "Sources", href: buildApplicationRoute("control-panel"), testId: "control-panel-tab-sources" },
+  {
+    id: "deployments",
+    label: "Deployments",
+    href: buildApplicationRoute("control-panel", ["deployments"]),
+    testId: "control-panel-tab-deployments",
+  },
   {
     id: "ai-engineer",
     label: "AI Engineer",
@@ -32,7 +38,7 @@ export function ControlPanelShell({ activeTab, children }: ControlPanelShellProp
         <div className="mb-2">
           <h1 className="text-foreground text-xl font-semibold tracking-tight">Control Panel</h1>
           <p className="text-muted-foreground mt-1 text-xs leading-snug">
-            Telemetry sources, vehicle configs, and AI Engineer model registry.
+            Telemetry sources, deployments, vehicle configs, and AI Engineer settings.
           </p>
         </div>
         <nav
