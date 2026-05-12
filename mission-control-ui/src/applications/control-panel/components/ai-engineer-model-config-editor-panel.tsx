@@ -192,11 +192,12 @@ function AiEngineerModelConfigEditorBody({ document }: EditorBodyProps) {
           </div>
         ) : null}
 
-        <div className="min-h-[min(70vh,560px)] flex-1 p-4 pt-3">
+        <div className="flex h-[min(70vh,560px)] min-h-[28rem] flex-col p-4 pt-3">
           <ConfigFileEditor
             path={loadedPath || "models.local.yaml"}
             value={content}
             onChange={setContent}
+            className="flex-1"
             height="100%"
           />
         </div>

@@ -43,11 +43,6 @@ function formatTime(value?: string | null) {
   return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" }).format(new Date(value));
 }
 
-function formatDateTime(value?: string | null) {
-  if (!value) return "Not available";
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
-}
-
 function statusIcon(state: DeploymentUiState) {
   if (state === "healthy") return <CheckCircle2 className="size-3.5" />;
   if (state === "failed" || state === "crashed" || state === "missing") return <XCircle className="size-3.5" />;
@@ -65,64 +60,68 @@ function StatusBadge({ state }: { state: DeploymentUiState }) {
   );
 }
 
-function SummaryCard({ title, value, detail, state }: { title: string; value: string; detail: string; state?: string }) {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-muted-foreground text-sm font-medium">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-baseline justify-between gap-3">
-          <div className="text-2xl font-semibold tracking-tight">{value}</div>
-          {state ? <Badge variant="secondary" className="capitalize">{state.replaceAll("_", " ")}</Badge> : null}
-        </div>
-        <p className="text-muted-foreground mt-2 text-xs leading-relaxed">{detail}</p>
-      </CardContent>
-    </Card>
-  );
+function formatStatusLabel(value?: string | null): string {
+  if (!value) return "Not started";
+  return value
+    .replaceAll("_", " ")
+    .replaceAll("-", " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^./, (first) => first.toUpperCase());
 }
 
-function summaryDetail(summary: ServiceGroupSummary, runtime = false) {
-  const middle = runtime
-    ? `${summary.healthy_count} healthy/current, ${summary.warning_count} pending/degraded`
-    : `${summary.healthy_count} healthy, ${summary.warning_count} warning`;
-  return `${middle}, ${summary.broken_count} broken`;
-}
-
-function DeploymentSummaryCards({ overview }: { overview: SystemDeploymentOverviewResponse }) {
-  const bootstrap = overview.bootstrap;
-  const failedUnits = bootstrap?.summary?.failed ?? 0;
+function SummaryPill({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "success" | "warning" | "danger";
+}) {
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-      <SummaryCard
-        title="Overall state"
-        value={overview.overall_state.replaceAll("_", " ")}
-        detail="Aggregated from expected core services, runtime services, and bootstrap state."
-        state={overview.overall_state}
-      />
-      <SummaryCard
-        title="Core services"
-        value={`${overview.core.existing_count} / ${overview.core.expected_count}`}
-        detail={summaryDetail(overview.core)}
-      />
-      <SummaryCard
-        title="Runtime services"
-        value={`${overview.runtime.existing_count} / ${overview.runtime.expected_count}`}
-        detail={summaryDetail(overview.runtime, true)}
-      />
-      <SummaryCard
-        title="Bootstrap"
-        value={bootstrap?.status?.replaceAll("_", " ") ?? "not started"}
-        detail={`${formatDateTime(bootstrap?.started_at)} start, ${failedUnits} failed units`}
-        state={bootstrap?.status}
-      />
+    <div
+      className={cn(
+        "bg-background/80 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 rounded-lg border px-3 py-2 text-sm shadow-xs",
+        tone === "success" && "border-emerald-500/30 bg-emerald-500/10",
+        tone === "warning" && "border-amber-500/30 bg-amber-500/10",
+        tone === "danger" && "border-red-500/30 bg-red-500/10",
+      )}
+    >
+      <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</span>
+      <span className="text-foreground min-w-0 font-semibold break-words whitespace-normal">{value}</span>
     </div>
   );
 }
 
-function ServiceGroupPanel({ title, summary }: { title: string; summary: ServiceGroupSummary }) {
+function stateTone(state?: string | null): "default" | "success" | "warning" | "danger" {
+  if (state === "healthy" || state === "completed") return "success";
+  if (state === "broken" || state === "failed" || state === "crashed" || state === "missing") return "danger";
+  if (state === "degraded" || state === "completed_with_failures" || state === "deploying" || state === "running") return "warning";
+  return "default";
+}
+
+function DeploymentSummaryStrip({ overview }: { overview: SystemDeploymentOverviewResponse }) {
+  const bootstrap = overview.bootstrap;
+  const failedUnits = bootstrap?.summary?.failed ?? 0;
+  const bootstrapValue = [
+    formatStatusLabel(bootstrap?.status),
+    failedUnits > 0 ? `${failedUnits} failed` : null,
+  ].filter(Boolean).join(" · ");
+
   return (
-    <Card>
+    <div className="border-border/70 bg-muted/20 flex flex-wrap gap-2 rounded-2xl border p-3" data-testid="deployment-summary-strip">
+      <SummaryPill label="System" value={formatStatusLabel(overview.overall_state)} tone={stateTone(overview.overall_state)} />
+      <SummaryPill label="Core" value={`${overview.core.existing_count} / ${overview.core.expected_count} existing`} />
+      <SummaryPill label="Runtime" value={`${overview.runtime.existing_count} / ${overview.runtime.expected_count} existing`} />
+      <SummaryPill label="Bootstrap" value={bootstrapValue} tone={stateTone(bootstrap?.status)} />
+    </div>
+  );
+}
+
+function ServiceGroupPanel({ title, summary, group }: { title: string; summary: ServiceGroupSummary; group: "core" | "runtime" }) {
+  return (
+    <Card data-testid={`${group}-services-panel`}>
       <CardHeader className="gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle>{title}</CardTitle>
@@ -133,13 +132,40 @@ function ServiceGroupPanel({ title, summary }: { title: string; summary: Service
         <Badge variant="outline">{summary.existing_count} / {summary.expected_count}</Badge>
       </CardHeader>
       <CardContent>
-        <ServiceStatusTable services={summary.services} />
+        {group === "core" ? (
+          <CoreServiceStatusTable services={summary.services} />
+        ) : (
+          <RuntimeServiceStatusTable services={summary.services} />
+        )}
       </CardContent>
     </Card>
   );
 }
 
-function ServiceStatusTable({ services }: { services: ServiceStatusItem[] }) {
+function CoreServiceStatusTable({ services }: { services: ServiceStatusItem[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <Table className="min-w-[760px]">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="min-w-52">Service</TableHead>
+            <TableHead>State</TableHead>
+            <TableHead>Container</TableHead>
+            <TableHead>Health</TableHead>
+            <TableHead>Checked</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {services.map((service) => (
+            <CoreServiceStatusRow key={`${service.group}-${service.id}`} service={service} />
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+function RuntimeServiceStatusTable({ services }: { services: ServiceStatusItem[] }) {
   return (
     <div className="overflow-x-auto">
       <Table className="min-w-[900px]">
@@ -155,7 +181,7 @@ function ServiceStatusTable({ services }: { services: ServiceStatusItem[] }) {
         </TableHeader>
         <TableBody>
           {services.map((service) => (
-            <ServiceStatusRow key={`${service.group}-${service.id}`} service={service} />
+            <RuntimeServiceStatusRow key={`${service.group}-${service.id}`} service={service} />
           ))}
         </TableBody>
       </Table>
@@ -163,65 +189,104 @@ function ServiceStatusTable({ services }: { services: ServiceStatusItem[] }) {
   );
 }
 
-function ServiceStatusRow({ service }: { service: ServiceStatusItem }) {
+function ServiceNameCell({ service }: { service: ServiceStatusItem }) {
+  const showFallbackId = !service.display_name || service.display_name === service.id;
+  return (
+    <TableCell>
+      <div className="font-medium" title={service.id}>{service.display_name || service.id}</div>
+      {showFallbackId && service.service_slug && service.service_slug !== service.id ? (
+        <div className="text-muted-foreground font-mono text-xs">{service.service_slug}</div>
+      ) : null}
+    </TableCell>
+  );
+}
+
+function detailsColSpan(service: ServiceStatusItem) {
+  return service.group === "core" ? 5 : 6;
+}
+
+function ServiceDetailsRow({ service }: { service: ServiceStatusItem }) {
   const hasDetails = Boolean(service.failure_reason || service.latest_error || service.active_deployment_id || service.latest_deployment_id);
+  if (!hasDetails) return null;
+  return (
+    <TableRow>
+      <TableCell colSpan={detailsColSpan(service)} className="bg-muted/20">
+        <details className="group">
+          <summary className="text-muted-foreground group-open:text-foreground cursor-pointer text-xs font-medium">
+            Details and latest error context
+          </summary>
+          <div className="text-muted-foreground mt-2 grid gap-2 text-xs">
+            {service.failure_reason ? <p className="text-red-600 dark:text-red-300">{service.failure_reason}</p> : null}
+            {service.latest_error && service.latest_error !== service.failure_reason ? (
+              <pre className="bg-background max-h-40 overflow-auto rounded-md p-3 whitespace-pre-wrap">{service.latest_error}</pre>
+            ) : null}
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <span>unit id: {service.id}</span>
+              {service.active_deployment_id ? <span>active: {service.active_deployment_id}</span> : null}
+              {service.latest_deployment_id ? <span>latest: {service.latest_deployment_id}</span> : null}
+              {service.logs_url ? (
+                <span>
+                  logs:{" "}
+                  <a
+                    href={service.logs_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary underline underline-offset-4"
+                  >
+                    {service.logs_url}
+                  </a>
+                </span>
+              ) : null}
+              {service.branch ? <span>branch: {service.branch}</span> : null}
+              {service.commit_sha ? <span>commit: {service.commit_sha.slice(0, 12)}</span> : null}
+            </div>
+          </div>
+        </details>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function CoreServiceStatusRow({ service }: { service: ServiceStatusItem }) {
   return (
     <>
       <TableRow data-testid={`deployment-service-${service.id}`}>
-        <TableCell>
-          <div className="font-medium">{service.display_name}</div>
-          <div className="text-muted-foreground text-xs">{service.id}</div>
-        </TableCell>
+        <ServiceNameCell service={service} />
         <TableCell>
           <StatusBadge state={service.ui_state} />
         </TableCell>
         <TableCell>
-          <div>{service.deployment_status ?? "n/a"}</div>
+          <div>{service.container_state ?? (service.exists ? "recorded" : "missing")}</div>
+          <div className="text-muted-foreground max-w-64 truncate text-xs">{service.container_status ?? service.service_slug ?? "Not available"}</div>
+        </TableCell>
+        <TableCell>{service.health_status ?? "health unknown"}</TableCell>
+        <TableCell>{formatTime(service.last_checked_at ?? service.updated_at)}</TableCell>
+      </TableRow>
+      <ServiceDetailsRow service={service} />
+    </>
+  );
+}
+
+function RuntimeServiceStatusRow({ service }: { service: ServiceStatusItem }) {
+  return (
+    <>
+      <TableRow data-testid={`deployment-service-${service.id}`}>
+        <ServiceNameCell service={service} />
+        <TableCell>
+          <StatusBadge state={service.ui_state} />
+        </TableCell>
+        <TableCell>
+          <div>{service.deployment_status ?? "Not available"}</div>
           <div className="text-muted-foreground text-xs">{service.health_status ?? "health unknown"}</div>
         </TableCell>
-        <TableCell>{service.bootstrap_status ?? "n/a"}</TableCell>
+        <TableCell>{service.bootstrap_status ?? "Not available"}</TableCell>
         <TableCell>
           <div>{service.container_state ?? (service.exists ? "recorded" : "missing")}</div>
-          <div className="text-muted-foreground max-w-64 truncate text-xs">{service.container_status ?? service.service_slug ?? "n/a"}</div>
+          <div className="text-muted-foreground max-w-64 truncate text-xs">{service.container_status ?? service.service_slug ?? "Not available"}</div>
         </TableCell>
         <TableCell>{formatTime(service.last_checked_at ?? service.updated_at)}</TableCell>
       </TableRow>
-      {hasDetails ? (
-        <TableRow>
-          <TableCell colSpan={6} className="bg-muted/20">
-            <details className="group">
-              <summary className="text-muted-foreground group-open:text-foreground cursor-pointer text-xs font-medium">
-                Details and latest error context
-              </summary>
-              <div className="text-muted-foreground mt-2 grid gap-2 text-xs">
-                {service.failure_reason ? <p className="text-red-600 dark:text-red-300">{service.failure_reason}</p> : null}
-                {service.latest_error && service.latest_error !== service.failure_reason ? (
-                  <pre className="bg-background max-h-40 overflow-auto rounded-md p-3 whitespace-pre-wrap">{service.latest_error}</pre>
-                ) : null}
-                <div className="flex flex-wrap gap-x-4 gap-y-1">
-                  {service.active_deployment_id ? <span>active: {service.active_deployment_id}</span> : null}
-                  {service.latest_deployment_id ? <span>latest: {service.latest_deployment_id}</span> : null}
-                  {service.logs_url ? (
-                    <span>
-                      logs:{" "}
-                      <a
-                        href={service.logs_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-primary underline underline-offset-4"
-                      >
-                        {service.logs_url}
-                      </a>
-                    </span>
-                  ) : null}
-                  {service.branch ? <span>branch: {service.branch}</span> : null}
-                  {service.commit_sha ? <span>commit: {service.commit_sha.slice(0, 12)}</span> : null}
-                </div>
-              </div>
-            </details>
-          </TableCell>
-        </TableRow>
-      ) : null}
+      <ServiceDetailsRow service={service} />
     </>
   );
 }
@@ -268,9 +333,9 @@ export function DeploymentsControlPanelSection() {
 
         {overview ? (
           <>
-            <DeploymentSummaryCards overview={overview} />
-            <ServiceGroupPanel title="Core Services" summary={overview.core} />
-            <ServiceGroupPanel title="Runtime Services" summary={overview.runtime} />
+            <DeploymentSummaryStrip overview={overview} />
+            <ServiceGroupPanel title="Core Services" summary={overview.core} group="core" />
+            <ServiceGroupPanel title="Runtime Services" summary={overview.runtime} group="runtime" />
           </>
         ) : null}
       </div>

@@ -31,15 +31,12 @@ const TABS: { id: ControlPanelTabId; label: string; href: string; testId: string
 export function ControlPanelShell({ activeTab, children }: ControlPanelShellProps) {
   return (
     <div
-      className="flex min-h-full flex-1 flex-col gap-6 p-4 sm:p-6 lg:flex-row lg:gap-8 lg:p-8"
+      className="mx-auto grid min-h-full w-full max-w-[96rem] flex-1 grid-cols-1 gap-5 p-4 sm:p-6 lg:grid-cols-[15.5rem_minmax(0,1fr)] lg:gap-6 lg:p-8"
       data-testid="control-panel-shell"
     >
-      <div className="lg:border-border flex shrink-0 flex-col gap-2 lg:w-52 lg:border-r lg:pr-6">
-        <div className="mb-2">
+      <aside className="border-border/70 bg-card/70 flex min-w-0 flex-col gap-3 rounded-2xl border p-3 shadow-xs backdrop-blur">
+        <div className="px-1 pt-1">
           <h1 className="text-foreground text-xl font-semibold tracking-tight">Control Panel</h1>
-          <p className="text-muted-foreground mt-1 text-xs leading-snug">
-            Telemetry sources, deployments, vehicle configs, and AI Engineer settings.
-          </p>
         </div>
         <nav
           className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0"
@@ -53,9 +50,9 @@ export function ControlPanelShell({ activeTab, children }: ControlPanelShellProp
                 href={tab.href}
                 data-testid={tab.testId}
                 className={cn(
-                  "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "border border-transparent px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors lg:w-full",
                   selected
-                    ? "bg-accent text-accent-foreground"
+                    ? "border-border/80 bg-background text-foreground shadow-xs"
                     : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                 )}
               >
@@ -64,8 +61,8 @@ export function ControlPanelShell({ activeTab, children }: ControlPanelShellProp
             );
           })}
         </nav>
-      </div>
-      <div className="min-h-0 min-w-0 flex-1">{children}</div>
+      </aside>
+      <main className="min-h-0 min-w-0">{children}</main>
     </div>
   );
 }
