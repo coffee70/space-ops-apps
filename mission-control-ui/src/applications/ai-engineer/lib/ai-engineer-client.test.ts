@@ -37,7 +37,7 @@ test("ai-engineer client uses clean gateway routes for agent, chat, and document
   }) as typeof fetch;
 
   try {
-    await createConversation({ title: "Session" });
+    await createConversation({ title: "Session", initial_message: { role: "user", content: "Hello" } });
     await listConversations();
     await getConversation("conversation-1");
     await sendChatMessage({

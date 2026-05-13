@@ -7,6 +7,9 @@ export const queryKeys = {
   vehicleConfigs: ["vehicle-configs"] as const,
   vehicleConfig: (path: string) => ["vehicle-config", path] as const,
   aiEngineerModelConfig: ["ai-engineer-model-config"] as const,
+  aiEngineerConversations: ["ai-engineer-conversations"] as const,
+  aiEngineerConversation: (conversationId: string) => ["ai-engineer-conversation", conversationId] as const,
+  aiEngineerModels: ["ai-engineer-models"] as const,
   deploymentOverview: ["deployment-overview"] as const,
   telemetrySourceRuns: (sourceId: string) => ["telemetry-source-runs", sourceId] as const,
   telemetryChannelRuns: (channelName: string, sourceId: string) =>

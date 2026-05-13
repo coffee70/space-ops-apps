@@ -27,7 +27,13 @@ export async function listModels(): Promise<ListAiEngineerModelsResponse> {
   return response.json();
 }
 
-export async function createConversation(payload: { title?: string; mission_id?: string; vehicle_id?: string; execution_mode?: string }) {
+export async function createConversation(payload: {
+  title?: string;
+  mission_id?: string;
+  vehicle_id?: string;
+  execution_mode?: string;
+  initial_message: { role: "user"; content: string; metadata?: Record<string, unknown> };
+}) {
   const response = await fetch(apiUrl(ROUTES.createConversation), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -54,6 +60,7 @@ export async function sendChatMessage(params: {
   message: string;
   executionMode?: string;
   modelId?: string;
+  persistedUserMessageId?: string;
   onChunk: (chunk: ChatStreamChunk) => void;
 }) {
   const response = await fetch(apiUrl(ROUTES.chat), {
@@ -63,6 +70,7 @@ export async function sendChatMessage(params: {
       conversation_id: params.conversationId,
       execution_mode: params.executionMode ?? "read_only",
       model_id: params.modelId ?? undefined,
+      persisted_user_message_id: params.persistedUserMessageId ?? undefined,
       messages: [{ role: "user", content: params.message }],
     }),
   });

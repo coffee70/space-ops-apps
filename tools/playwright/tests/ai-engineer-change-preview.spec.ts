@@ -41,17 +41,7 @@ test("AI Engineer chat-native deploy and revert flow @smoke", async ({ page }) =
   expect(typeof baselineCommitSha).toBe("string");
   expect(baselineCommitSha.length).toBeGreaterThan(0);
 
-  const createResponse = await page.request.post(`${baseUrl}/intelligence/agent/conversations`, {
-    data: {
-      title: `AI Engineer Change Preview ${Date.now()}`,
-      execution_mode: "execute",
-    },
-  });
-  expect(createResponse.ok()).toBeTruthy();
-  const createdConversation = await createResponse.json();
-  const conversationId = String(createdConversation.id);
-
-  await page.goto(appUrl("ai-engineer", [], { conversation_id: conversationId }));
+  await page.goto(appUrl("ai-engineer"));
 
   await expect(page.getByTestId("ai-engineer-shell")).toBeVisible();
   await page.getByTestId("ai-engineer-composer").getByRole("button", { name: "Execute" }).click();
