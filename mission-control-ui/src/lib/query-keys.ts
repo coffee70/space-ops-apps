@@ -10,6 +10,7 @@ export const queryKeys = {
   aiEngineerConversations: ["ai-engineer-conversations"] as const,
   aiEngineerConversation: (conversationId: string) => ["ai-engineer-conversation", conversationId] as const,
   aiEngineerModels: ["ai-engineer-models"] as const,
+  knowledgeDocuments: ["knowledge-documents"] as const,
   deploymentOverview: ["deployment-overview"] as const,
   telemetrySourceRuns: (sourceId: string) => ["telemetry-source-runs", sourceId] as const,
   telemetryChannelRuns: (channelName: string, sourceId: string) =>

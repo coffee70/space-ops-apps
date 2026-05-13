@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   AppWindow,
   Battery,
+  Brain,
   ChartNoAxesCombined,
   FolderCode,
   LayoutDashboard,
@@ -14,6 +15,7 @@ import {
 const ICONS: Record<string, LucideIcon> = {
   "app-window": AppWindow,
   battery: Battery,
+  brain: Brain,
   "chart-no-axes-combined": ChartNoAxesCombined,
   "folder-code": FolderCode,
   "layout-dashboard": LayoutDashboard,

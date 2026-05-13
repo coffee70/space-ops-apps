@@ -20,6 +20,11 @@ import type {
   ExecutionMode,
   ListAiEngineerModelsResponse,
 } from "@/applications/ai-engineer/types";
+import {
+  listKnowledgeDocuments,
+  uploadKnowledgeDocument,
+} from "@/applications/knowledge/lib/knowledge-client";
+import type { KnowledgeDocument, KnowledgeUploadInput, KnowledgeUploadResponse } from "@/applications/knowledge/types";
 import { auditLog } from "@/lib/audit-log";
 import { fetchJson, fetchVoid } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -205,6 +210,24 @@ export function useCreateAiEngineerConversationMutation() {
         return [summary, ...withoutCreated];
       });
       await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversations });
+    },
+  });
+}
+
+export function useKnowledgeDocumentsQuery() {
+  return useQuery<KnowledgeDocument[]>({
+    queryKey: queryKeys.knowledgeDocuments,
+    staleTime: 15 * 1000,
+    queryFn: async ({ signal }) => listKnowledgeDocuments(signal),
+  });
+}
+
+export function useUploadKnowledgeDocumentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation<KnowledgeUploadResponse, Error, KnowledgeUploadInput>({
+    mutationFn: uploadKnowledgeDocument,
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.knowledgeDocuments });
     },
   });
 }

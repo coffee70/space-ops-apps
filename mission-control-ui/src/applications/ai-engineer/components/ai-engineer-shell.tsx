@@ -46,7 +46,7 @@ export function AiEngineerShell({
   attachments: AttachmentStatus[];
   executionMode: ExecutionMode;
   onExecutionModeChange: (mode: ExecutionMode) => void;
-  onSend: (message: string, files: File[]) => Promise<void>;
+  onSend: (message: string) => Promise<void>;
   disabled?: boolean;
   isStreaming?: boolean;
   isBootstrapping?: boolean;

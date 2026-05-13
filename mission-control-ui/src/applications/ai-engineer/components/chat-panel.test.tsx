@@ -42,7 +42,8 @@ test("ChatPanel renders greeting and Vercel-style composer controls", () => {
   assert.match(markup, /What should we inspect or build/);
   assert.match(markup, /data-testid="ai-engineer-composer"/);
   assert.match(markup, /data-testid="ai-engineer-chat-input"/);
-  assert.match(markup, /aria-label="Attach mission or vehicle documents"/);
+  assert.doesNotMatch(markup, /aria-label="Attach mission or vehicle documents"/);
+  assert.doesNotMatch(markup, /type="file"/);
   assert.match(markup, /aria-label="Send message"/);
   assert.match(markup, /Read/);
   assert.match(markup, /Suggest/);

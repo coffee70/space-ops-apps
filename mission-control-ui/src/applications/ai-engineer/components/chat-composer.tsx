@@ -7,7 +7,7 @@ import type { ExecutionMode } from "@/applications/ai-engineer/types";
 
 interface ChatComposerProps {
   uploadedCount: number;
-  onSend: (message: string, files: File[]) => Promise<void>;
+  onSend: (message: string) => Promise<void>;
   onFilesSelected?: (files: File[]) => Promise<void>;
   executionMode: ExecutionMode;
   onExecutionModeChange: (mode: ExecutionMode) => void;

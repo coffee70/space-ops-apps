@@ -9,6 +9,7 @@ test("application loader manifest includes retained native applications", () => 
   assert.deepEqual(Object.keys(applicationLoaderManifest).sort(), [
     "ai-engineer",
     "control-panel",
+    "knowledge",
     "overview",
     "planning",
     "telemetry",
@@ -32,5 +33,22 @@ test("ai-engineer seed loaderKey matches generated loader manifest key", () => {
   const seedPath = resolve(process.cwd(), "src/applications/ai-engineer/application.seed.json");
   const seed = JSON.parse(readFileSync(seedPath, "utf-8")) as { loaderKey: string };
   assert.equal(seed.loaderKey, "ai-engineer");
+  assert.equal(typeof applicationLoaderManifest[seed.loaderKey], "function");
+});
+
+test("knowledge seed loaderKey matches generated loader manifest key", () => {
+  const seedPath = resolve(process.cwd(), "src/applications/knowledge/application.seed.json");
+  const seed = JSON.parse(readFileSync(seedPath, "utf-8")) as {
+    applicationId: string;
+    iconKey: string;
+    loaderKey: string;
+    routePath: string;
+    title: string;
+  };
+  assert.equal(seed.applicationId, "knowledge");
+  assert.equal(seed.title, "Knowledge");
+  assert.equal(seed.iconKey, "brain");
+  assert.equal(seed.routePath, "/apps/knowledge");
+  assert.equal(seed.loaderKey, "knowledge");
   assert.equal(typeof applicationLoaderManifest[seed.loaderKey], "function");
 });
