@@ -1,6 +1,6 @@
 "use client";
 
-import type { KnowledgeDocument, KnowledgeUploadInput, KnowledgeUploadResponse } from "@/applications/knowledge/types";
+import type { KnowledgeDeleteResponse, KnowledgeDocument, KnowledgeUploadInput, KnowledgeUploadResponse } from "@/applications/knowledge/types";
 import { fetchJson } from "@/lib/api-client";
 
 const DOCUMENTS_ROUTE = "/intelligence/documents";
@@ -38,6 +38,12 @@ export async function uploadKnowledgeDocument(input: KnowledgeUploadInput): Prom
   return fetchJson<KnowledgeUploadResponse>(DOCUMENTS_ROUTE, {
     method: "POST",
     body: formData,
+  });
+}
+
+export async function deleteKnowledgeDocument(documentId: string): Promise<KnowledgeDeleteResponse> {
+  return fetchJson<KnowledgeDeleteResponse>(`${DOCUMENTS_ROUTE}/${encodeURIComponent(documentId)}`, {
+    method: "DELETE",
   });
 }
 

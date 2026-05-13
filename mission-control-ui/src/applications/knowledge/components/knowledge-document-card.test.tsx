@@ -42,10 +42,28 @@ test("Knowledge document card renders title, type, status, metadata, tags, and e
 
   assert.match(markup, /Telemetry Dictionary/);
   assert.match(markup, /csv/);
-  assert.match(markup, /failed/);
+  assert.match(markup, /Failed/);
   assert.match(markup, /Vehicle demo-vehicle/);
   assert.match(markup, /Mission demo-mission/);
   assert.match(markup, /Subsystem eps/);
   assert.match(markup, /telemetry/);
   assert.match(markup, /embedding provider unavailable/);
+});
+
+test("Knowledge document card renders pending documents as processing", () => {
+  const markup = renderToStaticMarkup(
+    <KnowledgeDocumentCard
+      document={{
+        id: "doc-1",
+        title: "Telemetry Dictionary",
+        document_type: "csv",
+        ingestion_status: "pending",
+        created_at: "2026-05-13T12:00:00Z",
+        updated_at: "2026-05-13T12:00:00Z",
+      }}
+    />,
+  );
+
+  assert.match(markup, /Processing/);
+  assert.match(markup, /Preparing document for AI retrieval/);
 });

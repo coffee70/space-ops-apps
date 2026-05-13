@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-type UploadDraftStatus = "pending" | "uploading" | "uploaded" | "failed";
+type UploadDraftStatus = "pending" | "uploading" | "accepted" | "failed";
 
 type UploadDraft = Omit<KnowledgeUploadInput, "file"> & {
   id: string;
@@ -50,14 +50,14 @@ function draftFromFile(file: File): UploadDraft {
 }
 
 function draftStatusTone(status: UploadDraftStatus): string {
-  if (status === "uploaded") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-600";
+  if (status === "accepted") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-600";
   if (status === "failed") return "border-destructive/30 bg-destructive/10 text-destructive";
   if (status === "uploading") return "border-sky-500/30 bg-sky-500/10 text-sky-600";
   return "border-border/60 bg-background text-muted-foreground";
 }
 
 function DraftStatusIcon({ status }: { status: UploadDraftStatus }) {
-  if (status === "uploaded") return <CheckCircle2 className="size-3" />;
+  if (status === "accepted") return <CheckCircle2 className="size-3" />;
   if (status === "failed") return <AlertTriangle className="size-3" />;
   if (status === "uploading") return <RefreshCw className="size-3 animate-spin" />;
   return <Clock3 className="size-3" />;
@@ -99,7 +99,7 @@ export function KnowledgeUploadDialog({
   const canSubmit = allUploadableDraftsValid && !isUploading;
   const hasDraftError = drafts.some((draft) => Boolean(draft.error));
   const hasFailedDraft = drafts.some((draft) => draft.status === "failed");
-  const activeDraftLocked = activeDraft?.status === "uploaded" || activeDraft?.status === "uploading";
+  const activeDraftLocked = activeDraft?.status === "accepted" || activeDraft?.status === "uploading";
 
   const fileSummary = useMemo(() => {
     if (drafts.length === 0) return "No file selected";
@@ -149,7 +149,7 @@ export function KnowledgeUploadDialog({
           tags: draft.tags,
           description: draft.description,
         });
-        patchDraftById(draft.id, { status: "uploaded", error: null });
+        patchDraftById(draft.id, { status: "accepted", error: null });
       } catch (uploadError) {
         hadFailure = true;
         const message = uploadError instanceof Error ? uploadError.message : "Upload failed";
