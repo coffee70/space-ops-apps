@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw, Upload } from "lucide-react";
 
 import { KnowledgeDocumentGrid } from "@/applications/knowledge/components/knowledge-document-grid";
@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useKnowledgeDocumentsQuery, useUploadKnowledgeDocumentMutation } from "@/lib/query-hooks";
 
+const DRAG_IDLE_DISMISS_MS = 1800;
+
 export function KnowledgeApp() {
   const documentsQuery = useKnowledgeDocumentsQuery();
   const uploadMutation = useUploadKnowledgeDocumentMutation();
@@ -24,6 +26,67 @@ export function KnowledgeApp() {
   const [dragActive, setDragActive] = useState(false);
   const [pageWarning, setPageWarning] = useState<string | null>(null);
   const [dialogWarning, setDialogWarning] = useState<string | null>(null);
+  const dragDepthRef = useRef(0);
+  const dragIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearDragIdleTimer = useCallback(() => {
+    if (dragIdleTimerRef.current) {
+      clearTimeout(dragIdleTimerRef.current);
+      dragIdleTimerRef.current = null;
+    }
+  }, []);
+
+  const dismissDropZone = useCallback(() => {
+    dragDepthRef.current = 0;
+    clearDragIdleTimer();
+    setDragActive(false);
+  }, [clearDragIdleTimer]);
+
+  const scheduleDragIdleDismiss = useCallback(() => {
+    clearDragIdleTimer();
+    dragIdleTimerRef.current = setTimeout(() => {
+      dragDepthRef.current = 0;
+      setDragActive(false);
+      dragIdleTimerRef.current = null;
+    }, DRAG_IDLE_DISMISS_MS);
+  }, [clearDragIdleTimer]);
+
+  useEffect(() => {
+    const handleWindowDrop = (event: DragEvent) => {
+      if (dragDepthRef.current > 0) event.preventDefault();
+      dismissDropZone();
+    };
+
+    const handleDragEnd = () => {
+      dismissDropZone();
+    };
+
+    const handleWindowDragLeave = (event: DragEvent) => {
+      const leftViewport =
+        event.clientX <= 0 ||
+        event.clientY <= 0 ||
+        event.clientX >= window.innerWidth ||
+        event.clientY >= window.innerHeight;
+      if (leftViewport) dismissDropZone();
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") dismissDropZone();
+    };
+
+    window.addEventListener("drop", handleWindowDrop);
+    window.addEventListener("dragend", handleDragEnd);
+    window.addEventListener("dragleave", handleWindowDragLeave);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("drop", handleWindowDrop);
+      window.removeEventListener("dragend", handleDragEnd);
+      window.removeEventListener("dragleave", handleWindowDragLeave);
+      window.removeEventListener("keydown", handleKeyDown);
+      clearDragIdleTimer();
+    };
+  }, [clearDragIdleTimer, dismissDropZone]);
 
   const openUpload = (files: File[] = [], warning: string | null = null) => {
     uploadMutation.reset();
@@ -49,19 +112,29 @@ export function KnowledgeApp() {
       data-testid="knowledge-app"
       onDragEnter={(event) => {
         preventFileNavigation(event);
-        if (event.dataTransfer.types.includes("Files")) setDragActive(true);
+        if (!event.dataTransfer.types.includes("Files")) return;
+        dragDepthRef.current += 1;
+        setDragActive(true);
+        scheduleDragIdleDismiss();
       }}
       onDragOver={(event) => {
         preventFileNavigation(event);
-        if (event.dataTransfer.types.includes("Files")) setDragActive(true);
+        if (!event.dataTransfer.types.includes("Files")) return;
+        setDragActive(true);
+        scheduleDragIdleDismiss();
       }}
       onDragLeave={(event) => {
         preventFileNavigation(event);
-        if (event.currentTarget === event.target) setDragActive(false);
+        dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+        if (dragDepthRef.current === 0) {
+          dismissDropZone();
+          return;
+        }
+        scheduleDragIdleDismiss();
       }}
       onDrop={(event) => {
         preventFileNavigation(event);
-        setDragActive(false);
+        dismissDropZone();
 
         const files = Array.from(event.dataTransfer.files);
         const { supported, unsupported } = filterSupportedKnowledgeFiles(files);
@@ -119,6 +192,9 @@ export function KnowledgeApp() {
             <Upload className="text-primary size-8" />
             <p className="mt-3 text-lg font-semibold">Drop documents into Knowledge</p>
             <p className="text-muted-foreground mt-2 text-sm">Release to stage files and add metadata before upload.</p>
+            <Button type="button" variant="outline" size="sm" className="mt-5" onClick={dismissDropZone}>
+              Dismiss
+            </Button>
           </div>
         </div>
       ) : null}
