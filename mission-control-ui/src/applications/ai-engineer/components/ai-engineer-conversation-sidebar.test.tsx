@@ -95,3 +95,20 @@ test("AiEngineerConversationSidebar renders empty, loading, error, and disabled 
   );
   assert.match(disabledMarkup, /disabled=""/);
 });
+
+test("AiEngineerConversationSidebar keeps cached rows visible during background loading", () => {
+  const markup = renderToStaticMarkup(
+    <AiEngineerConversationSidebar
+      conversations={[buildConversation({ id: "conversation-1", title: "Cached chat" })]}
+      activeConversationId="conversation-1"
+      isLoading
+      error={null}
+      onNewChat={() => {}}
+      onSelectConversation={() => {}}
+    />,
+  );
+
+  assert.match(markup, /Cached chat/);
+  assert.match(markup, /data-testid="ai-engineer-conversation-list"/);
+  assert.doesNotMatch(markup, /Loading chats/);
+});

@@ -1,12 +1,25 @@
 "use client";
 
 import {
+  keepPreviousData,
   useMutation,
   useQueries,
   useQuery,
   useQueryClient,
   type UseQueryOptions,
 } from "@tanstack/react-query";
+import {
+  createConversation,
+  getConversation,
+  listConversations,
+  listModels,
+} from "@/applications/ai-engineer/lib/ai-engineer-client";
+import type {
+  AiEngineerConversationDetail,
+  AiEngineerConversationSummary,
+  ExecutionMode,
+  ListAiEngineerModelsResponse,
+} from "@/applications/ai-engineer/types";
 import { auditLog } from "@/lib/audit-log";
 import { fetchJson, fetchVoid } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -134,6 +147,66 @@ export interface AiEngineerModelConfigDocument {
   format: "yaml";
   parsed?: AiEngineerModelConfigParsedSummary | null;
   validation_errors: AiEngineerModelConfigValidationError[];
+}
+
+export function useAiEngineerConversationsQuery() {
+  return useQuery<AiEngineerConversationSummary[]>({
+    queryKey: queryKeys.aiEngineerConversations,
+    placeholderData: keepPreviousData,
+    staleTime: 15 * 1000,
+    queryFn: async () => {
+      const data = await listConversations();
+      return Array.isArray(data) ? data : [];
+    },
+  });
+}
+
+export function useAiEngineerConversationQuery(conversationId: string | null, enabled = true) {
+  return useQuery<AiEngineerConversationDetail>({
+    queryKey: conversationId ? queryKeys.aiEngineerConversation(conversationId) : ["ai-engineer-conversation", "draft"],
+    enabled: enabled && Boolean(conversationId),
+    placeholderData: keepPreviousData,
+    staleTime: 15 * 1000,
+    queryFn: async () => getConversation(conversationId!) as Promise<AiEngineerConversationDetail>,
+  });
+}
+
+export function useAiEngineerModelsQuery() {
+  return useQuery<ListAiEngineerModelsResponse>({
+    queryKey: queryKeys.aiEngineerModels,
+    staleTime: 5 * 60 * 1000,
+    queryFn: listModels,
+  });
+}
+
+export function useCreateAiEngineerConversationMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: {
+      title?: string;
+      mission_id?: string;
+      vehicle_id?: string;
+      execution_mode?: ExecutionMode;
+      initial_message: { role: "user"; content: string; metadata?: Record<string, unknown> };
+    }) => createConversation(payload) as Promise<AiEngineerConversationDetail>,
+    onSuccess: async (conversation) => {
+      queryClient.setQueryData(queryKeys.aiEngineerConversation(conversation.id), conversation);
+      queryClient.setQueryData<AiEngineerConversationSummary[]>(queryKeys.aiEngineerConversations, (previous) => {
+        const withoutCreated = (previous ?? []).filter((item) => item.id !== conversation.id);
+        const summary: AiEngineerConversationSummary = {
+          id: conversation.id,
+          title: conversation.title,
+          mission_id: conversation.mission_id,
+          vehicle_id: conversation.vehicle_id,
+          execution_mode: conversation.execution_mode,
+          created_at: conversation.created_at,
+          updated_at: conversation.updated_at,
+        };
+        return [summary, ...withoutCreated];
+      });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversations });
+    },
+  });
 }
 
 export type DeploymentUiState =

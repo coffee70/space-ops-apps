@@ -1,17 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AiEngineerShell } from "@/applications/ai-engineer/components/ai-engineer-shell";
 import { applyAgentEventToAssistantMessage } from "@/applications/ai-engineer/lib/agent-events";
-import { createConversation, getConversation, listConversations, listModels, sendChatMessage, uploadDocument } from "@/applications/ai-engineer/lib/ai-engineer-client";
+import { sendChatMessage, uploadDocument } from "@/applications/ai-engineer/lib/ai-engineer-client";
 import type { AiEngineerChangeSummary } from "@/applications/ai-engineer/lib/change-preview-types";
 import { useChangePreviewFlow } from "@/applications/ai-engineer/lib/use-change-preview-flow";
 import type {
   AiEngineerConversationDetail,
   AiEngineerConversationMessage,
-  AiEngineerConversationSummary,
   AiEngineerModelOption,
   AttachmentStatus,
   ChatEvent,
@@ -21,6 +21,13 @@ import type {
 } from "@/applications/ai-engineer/types";
 import { buildApplicationRoute, buildApplicationRouteWithQuery } from "@/platform/registry/application-routes";
 import type { NativeApplicationProps } from "@/platform/sdk/native-application-contract";
+import {
+  useAiEngineerConversationQuery,
+  useAiEngineerConversationsQuery,
+  useAiEngineerModelsQuery,
+  useCreateAiEngineerConversationMutation,
+} from "@/lib/query-hooks";
+import { queryKeys } from "@/lib/query-keys";
 
 const PREVIEW_MESSAGE_PREFIX = "preview-message::";
 const SELECTED_MODEL_STORAGE_KEY = "ai-engineer.selectedModelId";
@@ -56,6 +63,15 @@ function mapConversationMessagesToChatMessages(messages: AiEngineerConversationM
   }));
 }
 
+type DraftCreationResult = {
+  conversationId: string;
+  messageId: string | null;
+};
+
+function isEventForConversation(event: ChatEvent, conversationId: string | null) {
+  return !event.conversation_id || event.conversation_id === conversationId;
+}
+
 function markDraftIntent() {
   if (typeof window === "undefined") return;
   try {
@@ -87,6 +103,7 @@ function consumeDraftIntent() {
 
 export function AiEngineerApp(props: NativeApplicationProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [events, setEvents] = useState<ChatEvent[]>([]);
   const [attachments, setAttachments] = useState<AttachmentStatus[]>([]);
@@ -94,17 +111,22 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isSwitchingConversation, setIsSwitchingConversation] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [conversations, setConversations] = useState<AiEngineerConversationSummary[]>([]);
-  const [conversationListLoading, setConversationListLoading] = useState(true);
   const [conversationListError, setConversationListError] = useState<string | null>(null);
   const [activeConversationId, setActiveConversationIdState] = useState<string | null>(null);
-  const [models, setModels] = useState<AiEngineerModelOption[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
-  const [isLoadingModels, setIsLoadingModels] = useState(true);
-  const [modelLoadError, setModelLoadError] = useState<string | null>(null);
   const conversationIdRef = useRef<string | null>(null);
-  const conversationPromiseRef = useRef<Promise<string> | null>(null);
+  const conversationPromiseRef = useRef<Promise<DraftCreationResult> | null>(null);
   const executionModeRef = useRef<ExecutionMode>(executionMode);
+  const didBootstrapRef = useRef(false);
+  const lastHydratedConversationIdRef = useRef<string | null>(null);
+
+  const conversationsQuery = useAiEngineerConversationsQuery();
+  const activeConversationQuery = useAiEngineerConversationQuery(activeConversationId, Boolean(activeConversationId));
+  const modelsQuery = useAiEngineerModelsQuery();
+  const createConversationMutation = useCreateAiEngineerConversationMutation();
+
+  const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
+  const models = useMemo(() => modelsQuery.data?.models ?? [], [modelsQuery.data]);
 
   useEffect(() => {
     executionModeRef.current = executionMode;
@@ -112,6 +134,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
   const changePreviewFlow = useChangePreviewFlow({
     onTimelineEvent: (event) => {
+      if (!isEventForConversation(event, conversationIdRef.current)) return;
       setEvents((previous) => {
         const next = previous.filter((existing) => existing.id !== event.id);
         next.push(event);
@@ -144,145 +167,132 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     setActiveConversationIdState(id);
   }, []);
 
+  const clearActiveConversationId = useCallback(() => {
+    conversationIdRef.current = null;
+    setActiveConversationIdState(null);
+  }, []);
+
   const replaceConversationRoute = useCallback(
     (conversationId: string) => {
       clearDraftIntent();
       const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
       params.set("conversation_id", conversationId);
-      router.replace(buildApplicationRouteWithQuery(props.application.applicationId, props.appPath, params));
+      const nextUrl = buildApplicationRouteWithQuery(props.application.applicationId, props.appPath, params);
+      if (typeof window !== "undefined" && `${window.location.pathname}${window.location.search}` !== nextUrl) {
+        window.history.replaceState(window.history.state, "", nextUrl);
+      }
     },
-    [props.appPath, props.application.applicationId, router],
+    [props.appPath, props.application.applicationId],
   );
 
   const replaceDraftRoute = useCallback(() => {
     const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
     params.delete("conversation_id");
-    router.replace(buildApplicationRouteWithQuery(props.application.applicationId, props.appPath, params));
-  }, [props.appPath, props.application.applicationId, router]);
+    const nextUrl = buildApplicationRouteWithQuery(props.application.applicationId, props.appPath, params);
+    if (typeof window !== "undefined" && `${window.location.pathname}${window.location.search}` !== nextUrl) {
+      window.history.replaceState(window.history.state, "", nextUrl);
+    }
+  }, [props.appPath, props.application.applicationId]);
 
   const resetTransientConversationState = useCallback(() => {
     setEvents([]);
     setAttachments([]);
   }, []);
 
-  const refreshConversationList = useCallback(async () => {
-    setConversationListLoading(true);
-    setConversationListError(null);
-    try {
-      const recent = (await listConversations()) as AiEngineerConversationSummary[];
-      setConversations(Array.isArray(recent) ? recent : []);
-      return Array.isArray(recent) ? recent : [];
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to list conversations";
-      setConversationListError(message);
-      return null;
-    } finally {
-      setConversationListLoading(false);
-    }
-  }, []);
-
-  const hydrateConversation = useCallback(
-    async (conversationId: string) => {
-      const conversation = (await getConversation(conversationId)) as AiEngineerConversationDetail;
-      setActiveConversationId(conversation.id);
-      setMessages(mapConversationMessagesToChatMessages(conversation.messages));
-      resetTransientConversationState();
-      return conversation;
-    },
-    [resetTransientConversationState, setActiveConversationId],
-  );
-
   const createConversationFromDraft = useCallback(
     async (initialContent: string) => {
       if (conversationIdRef.current) return null;
       if (conversationPromiseRef.current) {
-        const conversationId = await conversationPromiseRef.current;
-        return { conversationId, messageId: null };
+        return conversationPromiseRef.current;
       }
 
-      conversationPromiseRef.current = createConversation({
-        title: "AI Engineer Session",
-        execution_mode: executionModeRef.current,
-        initial_message: { role: "user", content: initialContent },
-      }).then((created) => {
-        setActiveConversationId(created.id);
-        replaceConversationRoute(created.id);
-        return created.id;
-      });
+      const creationPromise = createConversationMutation
+        .mutateAsync({
+          title: "AI Engineer Session",
+          execution_mode: executionModeRef.current,
+          initial_message: { role: "user", content: initialContent },
+        })
+        .then((created) => {
+          setActiveConversationId(created.id);
+          replaceConversationRoute(created.id);
+          resetTransientConversationState();
+          return { conversationId: created.id, messageId: created.messages[0]?.id ?? null };
+        })
+        .finally(() => {
+          conversationPromiseRef.current = null;
+        });
 
-      const conversationId = await conversationPromiseRef.current;
-      const detail = (await getConversation(conversationId)) as AiEngineerConversationDetail;
-      await refreshConversationList();
-      return { conversationId, messageId: detail.messages[0]?.id ?? null };
+      conversationPromiseRef.current = creationPromise;
+      return creationPromise;
     },
-    [refreshConversationList, replaceConversationRoute, setActiveConversationId],
+    [createConversationMutation, replaceConversationRoute, resetTransientConversationState, setActiveConversationId],
   );
 
   useEffect(() => {
-    let cancelled = false;
-    const bootstrap = async () => {
-      const requestedConversationId = new URLSearchParams(window.location.search).get("conversation_id");
-      if (requestedConversationId) {
-        const activeConversation = await hydrateConversation(requestedConversationId);
-        await refreshConversationList();
-        return activeConversation.id;
-      }
-
-      const existing = await refreshConversationList();
-      const shouldOpenDraft = consumeDraftIntent();
-      if (!shouldOpenDraft && existing && existing.length > 0) {
-        const activeConversation = await hydrateConversation(existing[0].id);
-        replaceConversationRoute(activeConversation.id);
-        return activeConversation.id;
-      }
-
-      conversationIdRef.current = null;
-      setActiveConversationIdState(null);
+    if (didBootstrapRef.current) return;
+    const requestedConversationId = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("conversation_id");
+    if (requestedConversationId) {
+      didBootstrapRef.current = true;
+      setActiveConversationId(requestedConversationId);
+      setIsBootstrapping(false);
+      return;
+    }
+    if (conversationsQuery.isPending) return;
+    didBootstrapRef.current = true;
+    const shouldOpenDraft = consumeDraftIntent();
+    if (!shouldOpenDraft && conversations.length > 0) {
+      setActiveConversationId(conversations[0].id);
+      replaceConversationRoute(conversations[0].id);
+    } else {
+      clearActiveConversationId();
       setMessages([]);
       resetTransientConversationState();
-      return "";
-    };
-    conversationPromiseRef.current = bootstrap()
-      .then(() => {
-        if (cancelled) return conversationIdRef.current ?? "";
-        return conversationIdRef.current ?? "";
-      })
-      .finally(() => {
-        if (cancelled) return;
-        conversationPromiseRef.current = null;
-        setIsBootstrapping(false);
-      });
-    conversationPromiseRef.current.catch((error) => {
-      console.error(error);
-      if (cancelled) return;
-      setConversationListError(error instanceof Error ? error.message : "Failed to load conversation");
-      setIsBootstrapping(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [hydrateConversation, refreshConversationList, replaceConversationRoute, resetTransientConversationState]);
+    }
+    setIsBootstrapping(false);
+  }, [
+    clearActiveConversationId,
+    conversations,
+    conversationsQuery.isPending,
+    replaceConversationRoute,
+    resetTransientConversationState,
+    setActiveConversationId,
+  ]);
 
   useEffect(() => {
-    let cancelled = false;
-    setIsLoadingModels(true);
-    setModelLoadError(null);
-    listModels()
-      .then((data) => {
-        if (cancelled) return;
-        setModels(data.models);
-        setSelectedModelId(resolveInitialModelId(data.models, data.default_model_id));
-      })
-      .catch((error) => {
-        if (!cancelled) setModelLoadError(error instanceof Error ? error.message : "Failed to load models");
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingModels(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (conversationsQuery.isError) {
+      setConversationListError(conversationsQuery.error instanceof Error ? conversationsQuery.error.message : "Failed to list conversations");
+      setIsBootstrapping(false);
+    } else if (conversationsQuery.isSuccess) {
+      setConversationListError(null);
+    }
+  }, [conversationsQuery.error, conversationsQuery.isError, conversationsQuery.isSuccess]);
+
+  useEffect(() => {
+    const conversation = activeConversationQuery.data;
+    if (!conversation || conversation.id !== conversationIdRef.current) return;
+    setMessages(mapConversationMessagesToChatMessages(conversation.messages));
+    if (lastHydratedConversationIdRef.current !== conversation.id) {
+      lastHydratedConversationIdRef.current = conversation.id;
+      resetTransientConversationState();
+    }
+    setIsSwitchingConversation(false);
+  }, [activeConversationQuery.data, resetTransientConversationState]);
+
+  useEffect(() => {
+    if (!activeConversationQuery.isError) return;
+    setConversationListError(activeConversationQuery.error instanceof Error ? activeConversationQuery.error.message : "Failed to load conversation");
+    setIsSwitchingConversation(false);
+    setIsBootstrapping(false);
+  }, [activeConversationQuery.error, activeConversationQuery.isError]);
+
+  useEffect(() => {
+    if (!modelsQuery.data) return;
+    setSelectedModelId((current) => {
+      const available = modelsQuery.data.models.filter((model) => model.enabled && model.isAvailable);
+      if (current && available.some((model) => model.id === current)) return current;
+      return resolveInitialModelId(modelsQuery.data.models, modelsQuery.data.default_model_id);
+    });
+  }, [modelsQuery.data]);
 
   const handleModelSelect = useCallback((modelId: string) => {
     setSelectedModelId(modelId);
@@ -299,8 +309,8 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     setConversationListError(null);
     try {
       conversationPromiseRef.current = null;
-      conversationIdRef.current = null;
-      setActiveConversationIdState(null);
+      clearActiveConversationId();
+      lastHydratedConversationIdRef.current = null;
       setMessages([]);
       resetTransientConversationState();
       markDraftIntent();
@@ -310,24 +320,27 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     } finally {
       setIsSwitchingConversation(false);
     }
-  }, [isStreaming, replaceDraftRoute, resetTransientConversationState]);
+  }, [clearActiveConversationId, isStreaming, replaceDraftRoute, resetTransientConversationState]);
 
   const handleSelectConversation = useCallback(
-    async (conversationId: string) => {
+    (conversationId: string) => {
       if (isStreaming || conversationId === activeConversationId) return;
       setIsSwitchingConversation(true);
       setConversationListError(null);
-      try {
-        const conversation = await hydrateConversation(conversationId);
-        conversationPromiseRef.current = null;
-        replaceConversationRoute(conversation.id);
-      } catch (error) {
-        setConversationListError(error instanceof Error ? error.message : "Failed to load conversation");
-      } finally {
+      conversationPromiseRef.current = null;
+      setActiveConversationId(conversationId);
+      lastHydratedConversationIdRef.current = null;
+      resetTransientConversationState();
+      const cached = queryClient.getQueryData<AiEngineerConversationDetail>(queryKeys.aiEngineerConversation(conversationId));
+      if (cached) {
+        setMessages(mapConversationMessagesToChatMessages(cached.messages));
         setIsSwitchingConversation(false);
+      } else {
+        setMessages([]);
       }
+      replaceConversationRoute(conversationId);
     },
-    [activeConversationId, hydrateConversation, isStreaming, replaceConversationRoute],
+    [activeConversationId, isStreaming, queryClient, replaceConversationRoute, resetTransientConversationState, setActiveConversationId],
   );
 
   const uploadFiles = async (files: File[], activeConversationId: string) => {
@@ -350,6 +363,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   };
 
   const appendBackendEvent = (event: ChatEvent) => {
+    if (!isEventForConversation(event, conversationIdRef.current)) return;
     setEvents((previous) => {
       const next = previous.filter((existingEvent) => existingEvent.id !== event.id);
       next.push(event);
@@ -358,6 +372,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   };
 
   const applyStreamChunk = (draftAssistantId: string, chunk: ChatStreamChunk) => {
+    if (!isEventForConversation(chunk.event, conversationIdRef.current)) return;
     appendBackendEvent(chunk.event);
     changePreviewFlow.ingestEvent(chunk.event);
     setMessages((previous) => applyAgentEventToAssistantMessage(previous, draftAssistantId, chunk.event));
@@ -371,10 +386,27 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     if (!hasText && !hasFiles) return;
 
     const initialContent = hasText ? trimmed : "Uploaded mission document(s)";
-    const draftCreation = conversationIdRef.current ? null : await createConversationFromDraft(initialContent);
-    const activeConversationId = draftCreation?.conversationId ?? conversationIdRef.current;
-    if (!activeConversationId) {
-      setConversationListError("Failed to create conversation");
+    let draftCreation: DraftCreationResult | null = null;
+    let activeConversationId = conversationIdRef.current;
+    try {
+      draftCreation = activeConversationId ? null : await createConversationFromDraft(initialContent);
+      activeConversationId = draftCreation?.conversationId ?? conversationIdRef.current;
+      if (!activeConversationId) {
+        throw new Error("Failed to create conversation");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to create conversation";
+      setConversationListError(message);
+      conversationPromiseRef.current = null;
+      setMessages((previous) => [
+        ...previous,
+        {
+          id: createClientId(),
+          role: "assistant",
+          content: message,
+          status: "complete",
+        },
+      ]);
       return;
     }
     const userMessage: ChatMessage = {
@@ -392,7 +424,13 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     };
     const assistantDraftId = createClientId();
     setMessages((prev) =>
-      hasText ? [...prev, userMessage, { id: assistantDraftId, role: "assistant", content: "", status: "streaming" }] : [...prev, userMessage],
+      hasText
+        ? [
+            ...prev.filter((message) => message.id !== userMessage.id),
+            userMessage,
+            { id: assistantDraftId, role: "assistant", content: "", status: "streaming" },
+          ]
+        : [...prev.filter((message) => message.id !== userMessage.id), userMessage],
     );
 
     if (hasText) {
@@ -402,6 +440,8 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     try {
       if (hasFiles) {
         await uploadFiles(files, activeConversationId);
+        await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversations });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversation(activeConversationId) });
       }
 
       if (!hasText) return;
@@ -414,6 +454,8 @@ export function AiEngineerApp(props: NativeApplicationProps) {
         persistedUserMessageId: draftCreation?.messageId ?? undefined,
         onChunk: (chunk) => applyStreamChunk(assistantDraftId, chunk),
       });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversations });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversation(activeConversationId) });
     } catch (error) {
       if (!hasText) return;
 
@@ -474,12 +516,12 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       models={models}
       selectedModelId={selectedModelId}
       onModelSelect={handleModelSelect}
-      isLoadingModels={isLoadingModels}
-      modelLoadError={modelLoadError}
+      isLoadingModels={modelsQuery.isPending}
+      modelLoadError={modelsQuery.isError ? (modelsQuery.error instanceof Error ? modelsQuery.error.message : "Failed to load models") : null}
       selectedModelName={selectedModelName}
       conversations={conversations}
       activeConversationId={activeConversationId}
-      isLoadingConversations={conversationListLoading}
+      isLoadingConversations={conversations.length === 0 && conversationsQuery.isPending}
       conversationListError={conversationListError}
       onNewChat={handleNewChat}
       onSelectConversation={handleSelectConversation}
