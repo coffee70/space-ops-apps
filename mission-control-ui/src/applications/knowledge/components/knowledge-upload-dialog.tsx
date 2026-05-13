@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Clock3, FileText, FileUp, RefreshCw, Upload } from "lucide-react";
 
 import {
@@ -72,6 +72,10 @@ function DraftStatusBadge({ status }: { status: UploadDraftStatus }) {
   );
 }
 
+function dragCarriesFiles(event: DragEvent): boolean {
+  return Array.from(event.dataTransfer?.types ?? []).includes("Files");
+}
+
 export function KnowledgeUploadDialog({
   open,
   onOpenChange,
@@ -92,6 +96,8 @@ export function KnowledgeUploadDialog({
   const [drafts, setDrafts] = useState<UploadDraft[]>(() => initialFiles.map(draftFromFile));
   const [activeIndex, setActiveIndex] = useState(0);
   const [selectionWarning, setSelectionWarning] = useState<string | null>(initialWarning);
+  const [dropActive, setDropActive] = useState(false);
+  const dragDepthRef = useRef(0);
   const activeDraft = drafts[activeIndex] ?? null;
   const uploadableDrafts = drafts.filter((draft) => draft.status === "pending" || draft.status === "failed");
   const allUploadableDraftsValid =
@@ -100,12 +106,6 @@ export function KnowledgeUploadDialog({
   const hasDraftError = drafts.some((draft) => Boolean(draft.error));
   const hasFailedDraft = drafts.some((draft) => draft.status === "failed");
   const activeDraftLocked = activeDraft?.status === "accepted" || activeDraft?.status === "uploading";
-
-  const fileSummary = useMemo(() => {
-    if (drafts.length === 0) return "No file selected";
-    if (drafts.length === 1) return drafts[0].file.name;
-    return `${drafts.length} staged documents`;
-  }, [drafts]);
 
   const patchDraftById = (draftId: string, patch: Partial<UploadDraft>) => {
     setDrafts((previous) => previous.map((draft) => (draft.id === draftId ? { ...draft, ...patch } : draft)));
@@ -127,9 +127,80 @@ export function KnowledgeUploadDialog({
 
     if (supported.length === 0) return;
 
-    setDrafts(supported.map(draftFromFile));
-    setActiveIndex(0);
+    const nextDrafts = supported.map(draftFromFile);
+    const firstNewIndex = drafts.length;
+    setDrafts((previous) => [...previous, ...nextDrafts]);
+    setActiveIndex(firstNewIndex);
   };
+
+  useEffect(() => {
+    if (!open) {
+      dragDepthRef.current = 0;
+      setDropActive(false);
+      return;
+    }
+
+    const resetDropState = () => {
+      dragDepthRef.current = 0;
+      setDropActive(false);
+    };
+
+    const handleWindowDragEnter = (event: DragEvent) => {
+      if (!dragCarriesFiles(event)) return;
+      event.preventDefault();
+      dragDepthRef.current += 1;
+      setDropActive(true);
+    };
+
+    const handleWindowDragOver = (event: DragEvent) => {
+      if (!dragCarriesFiles(event)) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+      setDropActive(true);
+    };
+
+    const handleWindowDragLeave = (event: DragEvent) => {
+      if (!dragCarriesFiles(event)) return;
+      event.preventDefault();
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      const leftViewport =
+        event.clientX <= 0 ||
+        event.clientY <= 0 ||
+        event.clientX >= window.innerWidth ||
+        event.clientY >= window.innerHeight;
+      if (dragDepthRef.current === 0 || leftViewport) resetDropState();
+    };
+
+    const handleWindowDrop = (event: DragEvent) => {
+      if (!dragCarriesFiles(event)) return;
+      event.preventDefault();
+      const files = Array.from(event.dataTransfer?.files ?? []);
+      resetDropState();
+      handleFilesSelected(files);
+    };
+
+    const handleDragEnd = () => resetDropState();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") resetDropState();
+    };
+
+    window.addEventListener("dragenter", handleWindowDragEnter);
+    window.addEventListener("dragover", handleWindowDragOver);
+    window.addEventListener("dragleave", handleWindowDragLeave);
+    window.addEventListener("drop", handleWindowDrop);
+    window.addEventListener("dragend", handleDragEnd);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("dragenter", handleWindowDragEnter);
+      window.removeEventListener("dragover", handleWindowDragOver);
+      window.removeEventListener("dragleave", handleWindowDragLeave);
+      window.removeEventListener("drop", handleWindowDrop);
+      window.removeEventListener("dragend", handleDragEnd);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [drafts.length, open]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -247,6 +318,35 @@ export function KnowledgeUploadDialog({
     </section>
   ) : null;
 
+  const dropSurface = (
+    <label
+      className={cn(
+        "border-border/70 bg-muted/30 hover:bg-muted/50 flex min-h-[28rem] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-6 py-12 text-center transition-colors",
+        dropActive && "border-primary/60 bg-primary/5 shadow-sm",
+      )}
+      data-testid="knowledge-upload-drop-surface"
+    >
+      <FileUp className={cn("size-8", dropActive ? "text-primary" : "text-muted-foreground")} />
+      <span className="mt-4 text-base font-semibold">{dropActive ? "Drop documents to add them" : "Drop documents here"}</span>
+      <span className="text-muted-foreground mt-2 max-w-md text-sm">
+        {drafts.length > 0
+          ? "Release to add more documents to this upload batch, or choose supported files."
+          : "Release to stage documents and add metadata before upload, or choose supported files."}
+      </span>
+      <span className="border-border bg-background text-foreground mt-5 rounded-md border px-3 py-2 text-sm font-medium shadow-sm">Choose files</span>
+      <Input
+        type="file"
+        multiple
+        accept={KNOWLEDGE_FILE_ACCEPT}
+        className="sr-only"
+        onChange={(event) => {
+          handleFilesSelected(Array.from(event.target.files ?? []));
+          event.target.value = "";
+        }}
+      />
+    </label>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[90dvh] flex-col overflow-hidden p-0 sm:max-w-4xl" data-testid="knowledge-upload-dialog">
@@ -257,19 +357,6 @@ export function KnowledgeUploadDialog({
 
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
-            <label className="border-border/70 bg-muted/30 hover:bg-muted/50 flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-4 py-8 text-center transition-colors">
-              <FileUp className="text-muted-foreground size-7" />
-              <span className="mt-3 text-sm font-medium">{fileSummary}</span>
-              <span className="text-muted-foreground mt-1 text-xs">Select or drop supported documents into Knowledge</span>
-              <Input
-                type="file"
-                multiple
-                accept={KNOWLEDGE_FILE_ACCEPT}
-                className="sr-only"
-                onChange={(event) => handleFilesSelected(Array.from(event.target.files ?? []))}
-              />
-            </label>
-
             {selectionWarning ? (
               <p
                 className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 rounded-lg border px-3 py-2 text-sm"
@@ -279,7 +366,9 @@ export function KnowledgeUploadDialog({
               </p>
             ) : null}
 
-            {drafts.length > 1 ? (
+            {dropActive || drafts.length === 0 ? (
+              dropSurface
+            ) : drafts.length > 1 ? (
               <div className="grid gap-5 lg:grid-cols-[minmax(15rem,18rem)_minmax(0,1fr)]">
                 <aside className="border-border/70 bg-card/40 rounded-xl border p-3">
                   <div className="border-border/70 mb-3 border-b px-1 pb-3">
@@ -314,9 +403,7 @@ export function KnowledgeUploadDialog({
                 {metadataEditor}
               </div>
             ) : drafts.length === 1 ? (
-              <div className="space-y-5">
-                {metadataEditor}
-              </div>
+              <div className="space-y-5">{metadataEditor}</div>
             ) : null}
 
             {error && !hasDraftError ? <p className="text-destructive text-sm">{error}</p> : null}
