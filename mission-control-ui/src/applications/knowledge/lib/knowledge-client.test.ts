@@ -6,6 +6,7 @@ import {
   filterSupportedKnowledgeFiles,
   isSupportedKnowledgeFile,
   KNOWLEDGE_FILE_ACCEPT,
+  deleteKnowledgeDocument,
   listKnowledgeDocuments,
   titleFromFile,
   unsupportedKnowledgeFilesMessage,
@@ -63,8 +64,8 @@ test("Knowledge upload sends backend metadata field names", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
     capturedFormData = init?.body instanceof FormData ? init.body : null;
-    return new Response(JSON.stringify({ document_id: "doc-1", title: "Ops", ingestion_status: "ready" }), {
-      status: 200,
+    return new Response(JSON.stringify({ document_id: "doc-1", title: "Ops", ingestion_status: "pending" }), {
+      status: 202,
       headers: { "content-type": "application/json" },
     });
   }) as typeof fetch;
@@ -92,6 +93,29 @@ test("Knowledge upload sends backend metadata field names", async () => {
   assert.equal(formData.get("subsystem_id"), "eps");
   assert.equal(formData.get("tags"), "telemetry, dictionary");
   assert.equal(formData.get("description"), "Dictionary rows");
+});
+
+test("Knowledge delete calls the document delete route", async () => {
+  const requests: Array<{ url: string; method?: string }> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    requests.push({ url, method: init?.method });
+    return new Response(JSON.stringify({ deleted: true, document_id: "doc-1" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }) as typeof fetch;
+
+  try {
+    const response = await deleteKnowledgeDocument("doc-1");
+    assert.equal(response.deleted, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(pathnameOfFetchUrl(requests[0].url), "/intelligence/documents/doc-1");
+  assert.equal(requests[0].method, "DELETE");
 });
 
 test("Knowledge upload defaults derive clean title and document type from file", () => {

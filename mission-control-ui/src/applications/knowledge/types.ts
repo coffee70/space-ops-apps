@@ -27,5 +27,10 @@ export type KnowledgeUploadInput = {
 export type KnowledgeUploadResponse = {
   document_id: string;
   title: string;
-  ingestion_status: string;
+  ingestion_status: "pending" | "ready" | "failed" | string;
+};
+
+export type KnowledgeDeleteResponse = {
+  deleted: boolean;
+  document_id: string;
 };

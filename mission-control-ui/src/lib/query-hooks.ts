@@ -21,10 +21,11 @@ import type {
   ListAiEngineerModelsResponse,
 } from "@/applications/ai-engineer/types";
 import {
+  deleteKnowledgeDocument,
   listKnowledgeDocuments,
   uploadKnowledgeDocument,
 } from "@/applications/knowledge/lib/knowledge-client";
-import type { KnowledgeDocument, KnowledgeUploadInput, KnowledgeUploadResponse } from "@/applications/knowledge/types";
+import type { KnowledgeDeleteResponse, KnowledgeDocument, KnowledgeUploadInput, KnowledgeUploadResponse } from "@/applications/knowledge/types";
 import { auditLog } from "@/lib/audit-log";
 import { fetchJson, fetchVoid } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -219,6 +220,11 @@ export function useKnowledgeDocumentsQuery() {
     queryKey: queryKeys.knowledgeDocuments,
     staleTime: 15 * 1000,
     queryFn: async ({ signal }) => listKnowledgeDocuments(signal),
+    refetchInterval: (query) => {
+      const documents = query.state.data;
+      return Array.isArray(documents) && documents.some((document) => document.ingestion_status === "pending") ? 2500 : false;
+    },
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -226,6 +232,16 @@ export function useUploadKnowledgeDocumentMutation() {
   const queryClient = useQueryClient();
   return useMutation<KnowledgeUploadResponse, Error, KnowledgeUploadInput>({
     mutationFn: uploadKnowledgeDocument,
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.knowledgeDocuments });
+    },
+  });
+}
+
+export function useDeleteKnowledgeDocumentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation<KnowledgeDeleteResponse, Error, string>({
+    mutationFn: deleteKnowledgeDocument,
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.knowledgeDocuments });
     },

@@ -14,13 +14,14 @@ import {
 import type { KnowledgeUploadInput } from "@/applications/knowledge/types";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { useKnowledgeDocumentsQuery, useUploadKnowledgeDocumentMutation } from "@/lib/query-hooks";
+import { useDeleteKnowledgeDocumentMutation, useKnowledgeDocumentsQuery, useUploadKnowledgeDocumentMutation } from "@/lib/query-hooks";
 
 const DRAG_IDLE_DISMISS_MS = 1800;
 
 export function KnowledgeApp() {
   const documentsQuery = useKnowledgeDocumentsQuery();
   const uploadMutation = useUploadKnowledgeDocumentMutation();
+  const deleteMutation = useDeleteKnowledgeDocumentMutation();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [dragActive, setDragActive] = useState(false);
@@ -99,6 +100,10 @@ export function KnowledgeApp() {
   const handleUpload = async (input: KnowledgeUploadInput) => {
     uploadMutation.reset();
     await uploadMutation.mutateAsync(input);
+  };
+
+  const handleDeleteDocument = (documentId: string) => {
+    deleteMutation.mutate(documentId);
   };
 
   const preventFileNavigation = (event: React.DragEvent<HTMLDivElement>) => {
@@ -181,7 +186,18 @@ export function KnowledgeApp() {
           ) : (documentsQuery.data ?? []).length === 0 ? (
             <KnowledgeEmptyState onUpload={() => openUpload()} />
           ) : (
-            <KnowledgeDocumentGrid documents={documentsQuery.data ?? []} />
+            <>
+              {deleteMutation.isError ? (
+                <div className="border-destructive/30 bg-destructive/10 text-destructive mb-5 rounded-lg border px-4 py-3 text-sm">
+                  {deleteMutation.error instanceof Error ? deleteMutation.error.message : "Failed to delete knowledge document"}
+                </div>
+              ) : null}
+              <KnowledgeDocumentGrid
+                documents={documentsQuery.data ?? []}
+                onDeleteDocument={handleDeleteDocument}
+                deletingDocumentId={deleteMutation.isPending ? (deleteMutation.variables ?? null) : null}
+              />
+            </>
           )}
         </div>
       </main>
