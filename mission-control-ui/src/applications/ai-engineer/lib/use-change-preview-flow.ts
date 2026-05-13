@@ -57,6 +57,7 @@ function buildSyntheticEvent(input: {
 export interface UseChangePreviewFlowResult {
   previews: ChangePreviewState[];
   ingestEvent: (event: ChatEvent) => void;
+  reset: () => void;
   deployChange: (change: AiEngineerChangeSummary) => Promise<void>;
   revertChange: (change: AiEngineerChangeSummary) => Promise<void>;
   isBusyForChange: (change: AiEngineerChangeSummary) => boolean;
@@ -120,6 +121,11 @@ export function useChangePreviewFlow(options: UseChangePreviewFlowOptions = {}):
       announcedKeysRef.current.add(key);
       onPreviewSummaryReceivedRef.current?.({ previewKey: key, change: summary });
     }
+  }, []);
+
+  const reset = useCallback(() => {
+    announcedKeysRef.current.clear();
+    setPreviewMap(new Map());
   }, []);
 
   const updateState = useCallback((change: AiEngineerChangeSummary, updater: (state: ChangePreviewState) => ChangePreviewState) => {
@@ -304,6 +310,7 @@ export function useChangePreviewFlow(options: UseChangePreviewFlowOptions = {}):
   return {
     previews,
     ingestEvent,
+    reset,
     deployChange,
     revertChange,
     isBusyForChange,

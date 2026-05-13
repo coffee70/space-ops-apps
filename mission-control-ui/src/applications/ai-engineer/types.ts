@@ -85,6 +85,7 @@ export interface AiEngineerConversationMessage {
 
 export interface AiEngineerConversationDetail extends AiEngineerConversationSummary {
   messages: AiEngineerConversationMessage[];
+  events: ChatEvent[];
 }
 
 export type ModelProviderType =

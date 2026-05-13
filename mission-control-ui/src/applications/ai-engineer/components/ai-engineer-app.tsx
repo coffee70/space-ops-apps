@@ -72,6 +72,10 @@ function isEventForConversation(event: ChatEvent, conversationId: string | null)
   return !event.conversation_id || event.conversation_id === conversationId;
 }
 
+function conversationEventsForHydration(conversation: AiEngineerConversationDetail): ChatEvent[] {
+  return (conversation.events ?? []).filter((event) => isEventForConversation(event, conversation.id));
+}
+
 function markDraftIntent() {
   if (typeof window === "undefined") return;
   try {
@@ -161,6 +165,23 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       });
     },
   });
+  const ingestPreviewEvent = changePreviewFlow.ingestEvent;
+  const resetChangePreviewFlow = changePreviewFlow.reset;
+
+  const hydratePersistedConversation = useCallback(
+    (conversation: AiEngineerConversationDetail) => {
+      const persistedEvents = conversationEventsForHydration(conversation);
+      resetChangePreviewFlow();
+      setMessages(mapConversationMessagesToChatMessages(conversation.messages));
+      setEvents(persistedEvents);
+      setAttachments([]);
+      for (const event of persistedEvents) {
+        ingestPreviewEvent(event);
+      }
+      lastHydratedConversationIdRef.current = conversation.id;
+    },
+    [ingestPreviewEvent, resetChangePreviewFlow],
+  );
 
   const setActiveConversationId = useCallback((id: string) => {
     conversationIdRef.current = id;
@@ -215,7 +236,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
         .then((created) => {
           setActiveConversationId(created.id);
           replaceConversationRoute(created.id);
-          resetTransientConversationState();
+          hydratePersistedConversation(created);
           return { conversationId: created.id, messageId: created.messages[0]?.id ?? null };
         })
         .finally(() => {
@@ -225,7 +246,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       conversationPromiseRef.current = creationPromise;
       return creationPromise;
     },
-    [createConversationMutation, replaceConversationRoute, resetTransientConversationState, setActiveConversationId],
+    [createConversationMutation, hydratePersistedConversation, replaceConversationRoute, setActiveConversationId],
   );
 
   useEffect(() => {
@@ -270,13 +291,9 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   useEffect(() => {
     const conversation = activeConversationQuery.data;
     if (!conversation || conversation.id !== conversationIdRef.current) return;
-    setMessages(mapConversationMessagesToChatMessages(conversation.messages));
-    if (lastHydratedConversationIdRef.current !== conversation.id) {
-      lastHydratedConversationIdRef.current = conversation.id;
-      resetTransientConversationState();
-    }
+    hydratePersistedConversation(conversation);
     setIsSwitchingConversation(false);
-  }, [activeConversationQuery.data, resetTransientConversationState]);
+  }, [activeConversationQuery.data, hydratePersistedConversation]);
 
   useEffect(() => {
     if (!activeConversationQuery.isError) return;
@@ -311,6 +328,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       conversationPromiseRef.current = null;
       clearActiveConversationId();
       lastHydratedConversationIdRef.current = null;
+      resetChangePreviewFlow();
       setMessages([]);
       resetTransientConversationState();
       markDraftIntent();
@@ -320,7 +338,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     } finally {
       setIsSwitchingConversation(false);
     }
-  }, [clearActiveConversationId, isStreaming, replaceDraftRoute, resetTransientConversationState]);
+  }, [clearActiveConversationId, isStreaming, replaceDraftRoute, resetChangePreviewFlow, resetTransientConversationState]);
 
   const handleSelectConversation = useCallback(
     (conversationId: string) => {
@@ -333,14 +351,24 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       resetTransientConversationState();
       const cached = queryClient.getQueryData<AiEngineerConversationDetail>(queryKeys.aiEngineerConversation(conversationId));
       if (cached) {
-        setMessages(mapConversationMessagesToChatMessages(cached.messages));
+        hydratePersistedConversation(cached);
         setIsSwitchingConversation(false);
       } else {
+        resetChangePreviewFlow();
         setMessages([]);
       }
       replaceConversationRoute(conversationId);
     },
-    [activeConversationId, isStreaming, queryClient, replaceConversationRoute, resetTransientConversationState, setActiveConversationId],
+    [
+      activeConversationId,
+      hydratePersistedConversation,
+      isStreaming,
+      queryClient,
+      replaceConversationRoute,
+      resetChangePreviewFlow,
+      resetTransientConversationState,
+      setActiveConversationId,
+    ],
   );
 
   const uploadFiles = async (files: File[], activeConversationId: string) => {
@@ -374,7 +402,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const applyStreamChunk = (draftAssistantId: string, chunk: ChatStreamChunk) => {
     if (!isEventForConversation(chunk.event, conversationIdRef.current)) return;
     appendBackendEvent(chunk.event);
-    changePreviewFlow.ingestEvent(chunk.event);
+    ingestPreviewEvent(chunk.event);
     setMessages((previous) => applyAgentEventToAssistantMessage(previous, draftAssistantId, chunk.event));
   };
 
