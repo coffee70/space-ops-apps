@@ -5,6 +5,20 @@ import { fetchJson } from "@/lib/api-client";
 
 const DOCUMENTS_ROUTE = "/intelligence/documents";
 
+export const SUPPORTED_KNOWLEDGE_FILE_EXTENSIONS = [
+  ".md",
+  ".markdown",
+  ".txt",
+  ".json",
+  ".yaml",
+  ".yml",
+  ".csv",
+] as const;
+
+export const KNOWLEDGE_FILE_ACCEPT = SUPPORTED_KNOWLEDGE_FILE_EXTENSIONS.join(",");
+
+const SUPPORTED_KNOWLEDGE_FILE_EXTENSION_SET = new Set<string>(SUPPORTED_KNOWLEDGE_FILE_EXTENSIONS);
+
 export async function listKnowledgeDocuments(signal?: AbortSignal): Promise<KnowledgeDocument[]> {
   const data = await fetchJson<KnowledgeDocument[]>(DOCUMENTS_ROUTE, { signal, cache: "no-store" });
   return Array.isArray(data) ? data : [];
@@ -25,6 +39,35 @@ export async function uploadKnowledgeDocument(input: KnowledgeUploadInput): Prom
     method: "POST",
     body: formData,
   });
+}
+
+function extensionOfFileName(name: string): string {
+  const extensionStart = name.lastIndexOf(".");
+  if (extensionStart <= 0) return "";
+  return name.slice(extensionStart).toLowerCase();
+}
+
+export function isSupportedKnowledgeFile(file: Pick<File, "name">): boolean {
+  return SUPPORTED_KNOWLEDGE_FILE_EXTENSION_SET.has(extensionOfFileName(file.name));
+}
+
+export function filterSupportedKnowledgeFiles<T extends Pick<File, "name">>(files: T[]): {
+  supported: T[];
+  unsupported: T[];
+} {
+  return files.reduce(
+    (partition, file) => {
+      partition[isSupportedKnowledgeFile(file) ? "supported" : "unsupported"].push(file);
+      return partition;
+    },
+    { supported: [] as T[], unsupported: [] as T[] },
+  );
+}
+
+export function unsupportedKnowledgeFilesMessage(unsupportedCount: number): string {
+  if (unsupportedCount <= 0) return "";
+  const prefix = unsupportedCount === 1 ? "Unsupported file was skipped." : "Some files were skipped.";
+  return `${prefix} Knowledge currently accepts Markdown, text, JSON, YAML, and CSV documents.`;
 }
 
 export function titleFromFile(file: File | null): string {
