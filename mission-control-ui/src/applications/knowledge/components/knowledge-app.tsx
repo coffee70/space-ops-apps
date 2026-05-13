@@ -7,6 +7,10 @@ import { KnowledgeDocumentGrid } from "@/applications/knowledge/components/knowl
 import { KnowledgeEmptyState } from "@/applications/knowledge/components/knowledge-empty-state";
 import { KnowledgeHeader } from "@/applications/knowledge/components/knowledge-header";
 import { KnowledgeUploadDialog } from "@/applications/knowledge/components/knowledge-upload-dialog";
+import {
+  filterSupportedKnowledgeFiles,
+  unsupportedKnowledgeFilesMessage,
+} from "@/applications/knowledge/lib/knowledge-client";
 import type { KnowledgeUploadInput } from "@/applications/knowledge/types";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -18,18 +22,20 @@ export function KnowledgeApp() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  const [pageWarning, setPageWarning] = useState<string | null>(null);
+  const [dialogWarning, setDialogWarning] = useState<string | null>(null);
 
-  const openUpload = (files: File[] = []) => {
+  const openUpload = (files: File[] = [], warning: string | null = null) => {
+    uploadMutation.reset();
+    setPageWarning(null);
+    setDialogWarning(warning);
     setStagedFiles(files);
     setDialogOpen(true);
   };
 
-  const handleUpload = async (inputs: KnowledgeUploadInput[]) => {
-    for (const input of inputs) {
-      await uploadMutation.mutateAsync(input);
-    }
-    setDialogOpen(false);
-    setStagedFiles([]);
+  const handleUpload = async (input: KnowledgeUploadInput) => {
+    uploadMutation.reset();
+    await uploadMutation.mutateAsync(input);
   };
 
   const preventFileNavigation = (event: React.DragEvent<HTMLDivElement>) => {
@@ -56,13 +62,34 @@ export function KnowledgeApp() {
       onDrop={(event) => {
         preventFileNavigation(event);
         setDragActive(false);
+
         const files = Array.from(event.dataTransfer.files);
-        if (files.length > 0) openUpload(files);
+        const { supported, unsupported } = filterSupportedKnowledgeFiles(files);
+        const warning = unsupportedKnowledgeFilesMessage(unsupported.length);
+
+        if (supported.length > 0) {
+          openUpload(supported, warning || null);
+          return;
+        }
+
+        if (warning) setPageWarning(warning);
       }}
     >
       <KnowledgeHeader onUpload={() => openUpload()} />
       <main className="min-h-0 flex-1 overflow-y-auto px-5 py-6 md:px-8">
         <div className="mx-auto w-full max-w-7xl">
+          {pageWarning ? (
+            <div
+              className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 mb-5 flex flex-col gap-3 rounded-lg border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
+              data-testid="knowledge-upload-warning"
+            >
+              <span>{pageWarning}</span>
+              <Button type="button" variant="outline" size="sm" onClick={() => setPageWarning(null)}>
+                Dismiss
+              </Button>
+            </div>
+          ) : null}
+
           {documentsQuery.isPending ? (
             <div className="text-muted-foreground flex min-h-[22rem] items-center justify-center gap-2 text-sm">
               <Spinner className="size-4" />
@@ -101,9 +128,14 @@ export function KnowledgeApp() {
           open={dialogOpen}
           onOpenChange={(open) => {
             setDialogOpen(open);
-            if (!open) setStagedFiles([]);
+            if (!open) {
+              setStagedFiles([]);
+              setDialogWarning(null);
+              uploadMutation.reset();
+            }
           }}
           initialFiles={stagedFiles}
+          initialWarning={dialogWarning}
           onUpload={handleUpload}
           isUploading={uploadMutation.isPending}
           error={uploadMutation.error instanceof Error ? uploadMutation.error.message : null}
