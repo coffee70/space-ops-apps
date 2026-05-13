@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Telemetry Operations Platform",
+  title: "Aentx Space OS",
   description: "Search and explore spacecraft telemetry with semantic search and LLM explanations",
 };
 
