@@ -8,8 +8,18 @@ import { applyAgentEventToAssistantMessage } from "@/applications/ai-engineer/li
 import { createConversation, getConversation, listConversations, listModels, sendChatMessage, uploadDocument } from "@/applications/ai-engineer/lib/ai-engineer-client";
 import type { AiEngineerChangeSummary } from "@/applications/ai-engineer/lib/change-preview-types";
 import { useChangePreviewFlow } from "@/applications/ai-engineer/lib/use-change-preview-flow";
-import type { AiEngineerModelOption, AttachmentStatus, ChatEvent, ChatMessage, ChatStreamChunk, ExecutionMode } from "@/applications/ai-engineer/types";
-import { buildApplicationRoute } from "@/platform/registry/application-routes";
+import type {
+  AiEngineerConversationDetail,
+  AiEngineerConversationMessage,
+  AiEngineerConversationSummary,
+  AiEngineerModelOption,
+  AttachmentStatus,
+  ChatEvent,
+  ChatMessage,
+  ChatStreamChunk,
+  ExecutionMode,
+} from "@/applications/ai-engineer/types";
+import { buildApplicationRoute, buildApplicationRouteWithQuery } from "@/platform/registry/application-routes";
 import type { NativeApplicationProps } from "@/platform/sdk/native-application-contract";
 
 const PREVIEW_MESSAGE_PREFIX = "preview-message::";
@@ -35,6 +45,16 @@ function createClientId() {
   return `client-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
+function mapConversationMessagesToChatMessages(messages: AiEngineerConversationMessage[]): ChatMessage[] {
+  return messages.map((message) => ({
+    id: message.id,
+    role: message.role,
+    content: message.content,
+    status: "complete",
+    createdAt: message.created_at,
+  }));
+}
+
 export function AiEngineerApp(props: NativeApplicationProps) {
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -42,13 +62,23 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const [attachments, setAttachments] = useState<AttachmentStatus[]>([]);
   const [executionMode, setExecutionMode] = useState<ExecutionMode>("read_only");
   const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const [isSwitchingConversation, setIsSwitchingConversation] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [conversations, setConversations] = useState<AiEngineerConversationSummary[]>([]);
+  const [conversationListLoading, setConversationListLoading] = useState(true);
+  const [conversationListError, setConversationListError] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationIdState] = useState<string | null>(null);
   const [models, setModels] = useState<AiEngineerModelOption[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [isLoadingModels, setIsLoadingModels] = useState(true);
   const [modelLoadError, setModelLoadError] = useState<string | null>(null);
   const conversationIdRef = useRef<string | null>(null);
   const conversationPromiseRef = useRef<Promise<string> | null>(null);
+  const executionModeRef = useRef<ExecutionMode>(executionMode);
+
+  useEffect(() => {
+    executionModeRef.current = executionMode;
+  }, [executionMode]);
 
   const changePreviewFlow = useChangePreviewFlow({
     onTimelineEvent: (event) => {
@@ -79,69 +109,107 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     },
   });
 
-  const setActiveConversationId = (id: string) => {
+  const setActiveConversationId = useCallback((id: string) => {
     conversationIdRef.current = id;
-  };
+    setActiveConversationIdState(id);
+  }, []);
+
+  const replaceConversationRoute = useCallback(
+    (conversationId: string) => {
+      const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
+      params.set("conversation_id", conversationId);
+      router.replace(buildApplicationRouteWithQuery(props.application.applicationId, props.appPath, params));
+    },
+    [props.appPath, props.application.applicationId, router],
+  );
+
+  const resetTransientConversationState = useCallback(() => {
+    setEvents([]);
+    setAttachments([]);
+  }, []);
+
+  const refreshConversationList = useCallback(async () => {
+    setConversationListLoading(true);
+    setConversationListError(null);
+    try {
+      const recent = (await listConversations()) as AiEngineerConversationSummary[];
+      setConversations(Array.isArray(recent) ? recent : []);
+      return Array.isArray(recent) ? recent : [];
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to list conversations";
+      setConversationListError(message);
+      return null;
+    } finally {
+      setConversationListLoading(false);
+    }
+  }, []);
+
+  const hydrateConversation = useCallback(
+    async (conversationId: string) => {
+      const conversation = (await getConversation(conversationId)) as AiEngineerConversationDetail;
+      setActiveConversationId(conversation.id);
+      setMessages(mapConversationMessagesToChatMessages(conversation.messages));
+      resetTransientConversationState();
+      return conversation;
+    },
+    [resetTransientConversationState, setActiveConversationId],
+  );
 
   const ensureConversation = useCallback(async () => {
     if (conversationIdRef.current) return conversationIdRef.current;
     if (conversationPromiseRef.current) return conversationPromiseRef.current;
 
-    conversationPromiseRef.current = createConversation({ title: "AI Engineer Session", execution_mode: "read_only" }).then((created) => {
+    conversationPromiseRef.current = createConversation({ title: "AI Engineer Session", execution_mode: executionModeRef.current }).then((created) => {
       setActiveConversationId(created.id);
       return created.id;
     });
     return conversationPromiseRef.current;
-  }, []);
+  }, [setActiveConversationId]);
 
   useEffect(() => {
+    let cancelled = false;
     const bootstrap = async () => {
       const requestedConversationId = new URLSearchParams(window.location.search).get("conversation_id");
       if (requestedConversationId) {
-        const activeConversation = await getConversation(requestedConversationId);
-        setActiveConversationId(activeConversation.id);
-        setMessages(
-          activeConversation.messages.map((message: { id: string; role: "user" | "assistant"; content: string; created_at?: string }) => ({
-            id: message.id,
-            role: message.role,
-            content: message.content,
-            status: "complete",
-            createdAt: message.created_at,
-          })),
-        );
+        const activeConversation = await hydrateConversation(requestedConversationId);
+        await refreshConversationList();
         return activeConversation.id;
       }
 
-      const existing = await listConversations();
-      if (Array.isArray(existing) && existing.length > 0) {
-        const activeConversation = await getConversation(existing[0].id);
-        setActiveConversationId(activeConversation.id);
-        setMessages(
-          activeConversation.messages.map((message: { id: string; role: "user" | "assistant"; content: string; created_at?: string }) => ({
-            id: message.id,
-            role: message.role,
-            content: message.content,
-            status: "complete",
-            createdAt: message.created_at,
-          })),
-        );
+      const existing = await refreshConversationList();
+      if (existing && existing.length > 0) {
+        const activeConversation = await hydrateConversation(existing[0].id);
+        replaceConversationRoute(activeConversation.id);
         return activeConversation.id;
       }
-      const created = await createConversation({ title: "AI Engineer Session", execution_mode: "read_only" });
+
+      const created = (await createConversation({ title: "AI Engineer Session", execution_mode: executionModeRef.current })) as AiEngineerConversationSummary;
       setActiveConversationId(created.id);
+      setMessages([]);
+      replaceConversationRoute(created.id);
+      await refreshConversationList();
       return created.id;
     };
     conversationPromiseRef.current = bootstrap()
-      .then(() => conversationIdRef.current ?? ensureConversation())
+      .then(() => {
+        if (cancelled) return conversationIdRef.current ?? "";
+        return conversationIdRef.current ?? ensureConversation();
+      })
       .finally(() => {
+        if (cancelled) return;
         conversationPromiseRef.current = null;
         setIsBootstrapping(false);
       });
     conversationPromiseRef.current.catch((error) => {
       console.error(error);
+      if (cancelled) return;
+      setConversationListError(error instanceof Error ? error.message : "Failed to load conversation");
       setIsBootstrapping(false);
     });
-  }, [ensureConversation]);
+    return () => {
+      cancelled = true;
+    };
+  }, [ensureConversation, hydrateConversation, refreshConversationList, replaceConversationRoute, setActiveConversationId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -172,6 +240,46 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       /* ignore quota / privacy mode */
     }
   }, []);
+
+  const handleNewChat = useCallback(async () => {
+    if (isStreaming) return;
+    setIsSwitchingConversation(true);
+    setConversationListError(null);
+    try {
+      const created = (await createConversation({
+        title: "AI Engineer Session",
+        execution_mode: executionModeRef.current,
+      })) as AiEngineerConversationSummary;
+      conversationPromiseRef.current = null;
+      setActiveConversationId(created.id);
+      setMessages([]);
+      resetTransientConversationState();
+      replaceConversationRoute(created.id);
+      await refreshConversationList();
+    } catch (error) {
+      setConversationListError(error instanceof Error ? error.message : "Failed to create conversation");
+    } finally {
+      setIsSwitchingConversation(false);
+    }
+  }, [isStreaming, refreshConversationList, replaceConversationRoute, resetTransientConversationState, setActiveConversationId]);
+
+  const handleSelectConversation = useCallback(
+    async (conversationId: string) => {
+      if (isStreaming || conversationId === activeConversationId) return;
+      setIsSwitchingConversation(true);
+      setConversationListError(null);
+      try {
+        const conversation = await hydrateConversation(conversationId);
+        conversationPromiseRef.current = null;
+        replaceConversationRoute(conversation.id);
+      } catch (error) {
+        setConversationListError(error instanceof Error ? error.message : "Failed to load conversation");
+      } finally {
+        setIsSwitchingConversation(false);
+      }
+    },
+    [activeConversationId, hydrateConversation, isStreaming, replaceConversationRoute],
+  );
 
   const uploadFiles = async (files: File[], activeConversationId: string) => {
     for (const file of files) {
@@ -299,7 +407,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       executionMode={executionMode}
       onExecutionModeChange={setExecutionMode}
       onSend={onSend}
-      disabled={isBootstrapping}
+      disabled={isBootstrapping || isSwitchingConversation}
       isBootstrapping={isBootstrapping}
       isStreaming={isStreaming}
       getPreviewState={changePreviewFlow.getStateByKey}
@@ -313,6 +421,12 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       isLoadingModels={isLoadingModels}
       modelLoadError={modelLoadError}
       selectedModelName={selectedModelName}
+      conversations={conversations}
+      activeConversationId={activeConversationId}
+      isLoadingConversations={conversationListLoading}
+      conversationListError={conversationListError}
+      onNewChat={handleNewChat}
+      onSelectConversation={handleSelectConversation}
     />
   );
 }

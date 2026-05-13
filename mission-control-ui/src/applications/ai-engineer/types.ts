@@ -64,6 +64,29 @@ export interface AttachmentStatus {
 
 export type ExecutionMode = "read_only" | "suggest" | "execute";
 
+export interface AiEngineerConversationSummary {
+  id: string;
+  title: string | null;
+  mission_id: string | null;
+  vehicle_id: string | null;
+  execution_mode: ExecutionMode;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AiEngineerConversationMessage {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant";
+  content: string;
+  metadata_json?: Record<string, unknown>;
+  created_at?: string;
+}
+
+export interface AiEngineerConversationDetail extends AiEngineerConversationSummary {
+  messages: AiEngineerConversationMessage[];
+}
+
 export type ModelProviderType =
   | "openai"
   | "anthropic"
