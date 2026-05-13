@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { documentTypeFromFile, listKnowledgeDocuments, titleFromFile, uploadKnowledgeDocument } from "./knowledge-client";
+import {
+  documentTypeFromFile,
+  filterSupportedKnowledgeFiles,
+  isSupportedKnowledgeFile,
+  KNOWLEDGE_FILE_ACCEPT,
+  listKnowledgeDocuments,
+  titleFromFile,
+  unsupportedKnowledgeFilesMessage,
+  uploadKnowledgeDocument,
+} from "./knowledge-client";
 
 function pathnameOfFetchUrl(url: string): string {
   try {
@@ -89,4 +98,36 @@ test("Knowledge upload defaults derive clean title and document type from file",
   const file = new File(["hello"], "mission-procedure.md", { type: "text/markdown" });
   assert.equal(titleFromFile(file), "mission procedure");
   assert.equal(documentTypeFromFile(file), "md");
+});
+
+test("Knowledge supported file boundary matches text-like backend ingestion formats", () => {
+  assert.equal(KNOWLEDGE_FILE_ACCEPT, ".md,.markdown,.txt,.json,.yaml,.yml,.csv");
+  assert.equal(isSupportedKnowledgeFile({ name: "ops.md" }), true);
+  assert.equal(isSupportedKnowledgeFile({ name: "ops.MARKDOWN" }), true);
+  assert.equal(isSupportedKnowledgeFile({ name: "telemetry.csv" }), true);
+  assert.equal(isSupportedKnowledgeFile({ name: "procedure.pdf" }), false);
+  assert.equal(isSupportedKnowledgeFile({ name: "procedure.docx" }), false);
+  assert.equal(isSupportedKnowledgeFile({ name: "image.png" }), false);
+});
+
+test("Knowledge filters mixed supported and unsupported file selections", () => {
+  const partition = filterSupportedKnowledgeFiles([
+    { name: "dictionary.csv" },
+    { name: "procedure.pdf" },
+    { name: "vehicle.yaml" },
+    { name: "diagram.png" },
+  ]);
+
+  assert.deepEqual(
+    partition.supported.map((file) => file.name),
+    ["dictionary.csv", "vehicle.yaml"],
+  );
+  assert.deepEqual(
+    partition.unsupported.map((file) => file.name),
+    ["procedure.pdf", "diagram.png"],
+  );
+  assert.equal(
+    unsupportedKnowledgeFilesMessage(partition.unsupported.length),
+    "Some files were skipped. Knowledge currently accepts Markdown, text, JSON, YAML, and CSV documents.",
+  );
 });
