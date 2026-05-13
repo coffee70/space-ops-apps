@@ -76,8 +76,8 @@ export function AiEngineerShell({
   };
 
   return (
-    <div className="bg-background text-foreground flex h-full min-h-[calc(100vh-5rem)] w-full overflow-hidden" data-testid="ai-engineer-shell">
-      <aside className="border-border bg-background hidden w-[280px] shrink-0 border-r md:flex">
+    <div className="bg-background text-foreground flex h-full min-h-0 w-full overflow-hidden" data-testid="ai-engineer-shell">
+      <aside className="border-border bg-background hidden min-h-0 w-[280px] shrink-0 overflow-hidden border-r md:flex">
         <AiEngineerConversationSidebar
           conversations={conversations ?? []}
           activeConversationId={activeConversationId ?? null}
@@ -88,7 +88,7 @@ export function AiEngineerShell({
           onSelectConversation={onSelectConversation ?? (() => {})}
         />
       </aside>
-      <main className="bg-background md:border-border relative flex min-w-0 flex-1 flex-col overflow-hidden md:border-t">
+      <main className="bg-background md:border-border relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:border-t">
         <AiEngineerHeader title={title} executionMode={executionMode} selectedModelName={selectedModelName} />
         <AiEngineerMessages
           messages={messages}
@@ -102,7 +102,7 @@ export function AiEngineerShell({
           onOpenApp={onOpenApp}
           isPreviewBusy={isPreviewBusy}
         />
-        <div className="bg-background sticky bottom-0 z-10 mx-auto flex w-full max-w-4xl gap-2 px-2 pb-3 md:px-4 md:pb-4">
+        <div className="bg-background z-10 mx-auto flex w-full max-w-4xl shrink-0 gap-2 px-2 pb-3 md:px-4 md:pb-4">
           <AiEngineerComposer
             input={composerText}
             onInputChange={setComposerText}
@@ -120,7 +120,7 @@ export function AiEngineerShell({
           />
         </div>
       </main>
-      <aside className="border-border bg-background hidden w-[340px] shrink-0 border-l lg:flex">
+      <aside className="border-border bg-background hidden min-h-0 w-[340px] shrink-0 overflow-hidden border-l lg:flex">
         <AiEngineerActivityPanel events={events} attachments={attachments} />
       </aside>
     </div>

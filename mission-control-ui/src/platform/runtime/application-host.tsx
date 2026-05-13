@@ -15,7 +15,11 @@ export async function ApplicationHost({
   searchParams: Record<string, string | string[] | undefined>;
 }) {
   if (application.applicationType === "embedded") {
-    return <EmbeddedApplicationHost application={application} />;
+    return (
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <EmbeddedApplicationHost application={application} />
+      </div>
+    );
   }
 
   if (!application.loaderKey) {
@@ -40,5 +44,9 @@ export async function ApplicationHost({
     },
   };
 
-  return <NativeApplicationHost loader={loader} props={props} />;
+  return (
+    <div className="min-h-0 flex-1 overflow-hidden">
+      <NativeApplicationHost loader={loader} props={props} />
+    </div>
+  );
 }

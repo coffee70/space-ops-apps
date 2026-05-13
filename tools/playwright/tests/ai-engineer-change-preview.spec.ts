@@ -6,6 +6,8 @@ const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://platform-edge-proxy:8
 
 test.setTimeout(180_000);
 
+const now = "2026-05-13T12:00:00.000Z";
+
 async function fillAndSend(page: Page, message: string) {
   const input = page.getByTestId("ai-engineer-chat-input");
   await expect(input).toBeVisible();
@@ -16,6 +18,202 @@ async function fillAndSend(page: Page, message: string) {
   await expect(send).toBeEnabled({ timeout: 30_000 });
   await send.click();
 }
+
+async function mockAiEngineerConversation(
+  page: Page,
+  conversation: {
+    id: string;
+    title: string;
+    messages: Array<{ id: string; role: "user" | "assistant"; content: string }>;
+    events: Array<Record<string, unknown>>;
+  },
+) {
+  await page.route("**/intelligence/agent/models", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        default_model_id: "demo",
+        models: [
+          {
+            id: "demo",
+            providerRef: "demo",
+            providerType: "openai-compatible",
+            providerModelId: "demo",
+            name: "Demo model",
+            provider: "Demo",
+            description: null,
+            enabled: true,
+            isAvailable: true,
+            disabledReason: null,
+            isDefault: true,
+            defaultFor: ["demo-safe"],
+            governance: { allowedModes: ["read_only", "suggest", "execute"], dataBoundary: "unknown" },
+            contextWindow: null,
+            maxOutputTokens: null,
+            inputModalities: ["text"],
+            outputModalities: ["text"],
+            supportedParameters: [],
+            capabilities: ["text"],
+            pricing: { inputPerMillionTokens: null, outputPerMillionTokens: null, currency: null },
+            qualityTier: "standard",
+            costTier: "internal",
+            speedTier: "fast",
+            reasoningTier: "none",
+            recommendedFor: ["demo-safe"],
+            metadataSources: ["test"],
+          },
+        ],
+        metadata: { registrySource: "config", metadataResolvers: [], cached: false, updatedAt: now },
+      }),
+    });
+  });
+  await page.route("**/intelligence/agent/conversations", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify([
+        {
+          id: conversation.id,
+          title: conversation.title,
+          mission_id: null,
+          vehicle_id: null,
+          execution_mode: "execute",
+          created_at: now,
+          updated_at: now,
+        },
+      ]),
+    });
+  });
+  await page.route(`**/intelligence/agent/conversations/${conversation.id}`, async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: conversation.id,
+        title: conversation.title,
+        mission_id: null,
+        vehicle_id: null,
+        execution_mode: "execute",
+        created_at: now,
+        updated_at: now,
+        messages: conversation.messages.map((message) => ({
+          ...message,
+          conversation_id: conversation.id,
+          created_at: now,
+        })),
+        events: conversation.events,
+      }),
+    });
+  });
+}
+
+async function expectInternalTranscriptScroll(page: Page) {
+  await expect(page.getByTestId("ai-engineer-chat-input")).toBeVisible();
+  await expect(page.getByTestId("ai-engineer-composer")).toBeVisible();
+
+  const metrics = await page.evaluate(() => {
+    const transcript = document.querySelector<HTMLElement>('[data-testid="ai-engineer-chat-transcript"]');
+    const shell = document.querySelector<HTMLElement>('[data-testid="ai-engineer-shell"]');
+    const composer = document.querySelector<HTMLElement>('[data-testid="ai-engineer-composer"]');
+    const sidebar = document.querySelector<HTMLElement>('[data-testid="ai-engineer-conversation-sidebar"]');
+    const activity = document.querySelector<HTMLElement>('[data-testid="ai-engineer-activity-panel"]');
+    window.scrollTo(0, 500);
+    transcript?.scrollTo(0, 500);
+    return {
+      windowScrollY: window.scrollY,
+      documentScrollHeight: document.scrollingElement?.scrollHeight ?? 0,
+      documentClientHeight: document.scrollingElement?.clientHeight ?? 0,
+      bodyScrollHeight: document.body.scrollHeight,
+      bodyClientHeight: document.body.clientHeight,
+      transcriptScrollTop: transcript?.scrollTop ?? 0,
+      transcriptScrollHeight: transcript?.scrollHeight ?? 0,
+      transcriptClientHeight: transcript?.clientHeight ?? 0,
+      shellHeight: shell?.getBoundingClientRect().height ?? 0,
+      viewportHeight: window.innerHeight,
+      composerBottom: composer?.getBoundingClientRect().bottom ?? 0,
+      sidebarBottom: sidebar?.getBoundingClientRect().bottom ?? 0,
+      activityBottom: activity?.getBoundingClientRect().bottom ?? 0,
+    };
+  });
+
+  expect(metrics.windowScrollY).toBe(0);
+  expect(metrics.documentScrollHeight).toBeLessThanOrEqual(metrics.documentClientHeight + 1);
+  expect(metrics.bodyScrollHeight).toBeLessThanOrEqual(metrics.bodyClientHeight + 1);
+  expect(metrics.transcriptScrollHeight).toBeGreaterThan(metrics.transcriptClientHeight);
+  expect(metrics.transcriptScrollTop).toBeGreaterThan(0);
+  expect(metrics.shellHeight).toBeLessThanOrEqual(metrics.viewportHeight + 1);
+  expect(metrics.composerBottom).toBeLessThanOrEqual(metrics.viewportHeight + 1);
+  if (metrics.sidebarBottom > 0) expect(metrics.sidebarBottom).toBeLessThanOrEqual(metrics.viewportHeight + 1);
+  if (metrics.activityBottom > 0) expect(metrics.activityBottom).toBeLessThanOrEqual(metrics.viewportHeight + 1);
+}
+
+test("AI Engineer keeps the composer visible when the last message is a large change-preview card", async ({ page }) => {
+  const conversationId = "layout-change-preview";
+  const changedFiles = Array.from({ length: 80 }, (_, index) => `mission-control-ui/src/generated/long-preview-file-${index}.tsx`);
+  await mockAiEngineerConversation(page, {
+    id: conversationId,
+    title: "Layout regression",
+    messages: [
+      ...Array.from({ length: 18 }, (_, index) => ({
+        id: `layout-msg-${index}`,
+        role: index % 2 === 0 ? ("user" as const) : ("assistant" as const),
+        content: `Layout filler message ${index + 1}. ${"This message gives the transcript enough height to overflow internally. ".repeat(3)}`,
+      })),
+    ],
+    events: [
+      {
+        id: "layout-change-summary",
+        event_type: "change.summary",
+        conversation_id: conversationId,
+        agent_run_id: "layout-run",
+        request_id: "layout-request",
+        tool_call_id: null,
+        sequence: 1,
+        emitted_by: "agent",
+        created_at: now,
+        payload: {
+          branch: "preview/layout-regression",
+          base_branch: "main",
+          base_commit_sha: "base-sha",
+          commit_sha: "preview-sha",
+          changed_files: changedFiles,
+          target_unit_id: "mission-control-ui",
+          target_application_id: "ai-engineer",
+          affected_capability: "AI Engineer transcript layout",
+          risk_level: "medium",
+          validation_status: "passed",
+        },
+      },
+    ],
+  });
+
+  await page.goto(appUrl("ai-engineer"));
+  await expect(page.getByTestId("ai-engineer-change-preview-message")).toBeVisible();
+  await page.getByTestId("change-summary-files-toggle").click();
+
+  await expectInternalTranscriptScroll(page);
+});
+
+test("AI Engineer keeps the composer visible and transcript scrollable for text-only conversations", async ({ page }) => {
+  const conversationId = "layout-text-only";
+  await mockAiEngineerConversation(page, {
+    id: conversationId,
+    title: "Text layout",
+    messages: Array.from({ length: 34 }, (_, index) => ({
+      id: `text-msg-${index}`,
+      role: index % 2 === 0 ? ("user" as const) : ("assistant" as const),
+      content: `Text-only transcript message ${index + 1}. ${"The composer must stay visible while the transcript scrolls. ".repeat(4)}`,
+    })),
+    events: [],
+  });
+
+  await page.goto(appUrl("ai-engineer"));
+  await expect(page.getByTestId("ai-engineer-assistant-message").last()).toBeVisible();
+
+  await expectInternalTranscriptScroll(page);
+});
 
 test("AI Engineer chat-native deploy and revert flow @smoke", async ({ page }) => {
   const browserErrors: string[] = [];

@@ -9,5 +9,9 @@ export async function NativeApplicationHost({
 }) {
   const loadedApplication = await loader();
   const EntryComponent = loadedApplication.applicationEntry.Component;
-  return <EntryComponent {...props} />;
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <EntryComponent {...props} />
+    </div>
+  );
 }

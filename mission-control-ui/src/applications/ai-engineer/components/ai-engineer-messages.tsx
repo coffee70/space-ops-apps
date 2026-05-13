@@ -47,7 +47,9 @@ export function AiEngineerMessages({
   }, [events]);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-    endRef.current?.scrollIntoView({ block: "end", behavior });
+    const node = scrollRef.current;
+    if (!node) return;
+    node.scrollTo({ top: node.scrollHeight, behavior });
   }, []);
 
   const handleScroll = useCallback(() => {
@@ -66,7 +68,7 @@ export function AiEngineerMessages({
   const shouldShowThinking = isStreaming && messages.at(-1)?.role !== "assistant";
 
   return (
-    <div className="bg-background relative min-h-0 flex-1" data-testid="ai-engineer-messages">
+    <div className="bg-background relative min-h-0 flex-1 overflow-hidden" data-testid="ai-engineer-messages">
       {messages.length === 0 ? (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <div className="pointer-events-auto">
