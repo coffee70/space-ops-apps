@@ -9,7 +9,7 @@ import type { AttachmentStatus, ChatMessage, ExecutionMode } from "@/application
 interface ChatPanelProps {
   messages: ChatMessage[];
   attachments: AttachmentStatus[];
-  onSend: (message: string, files: File[]) => Promise<void>;
+  onSend: (message: string) => Promise<void>;
   onFilesSelected?: (files: File[]) => Promise<void>;
   executionMode: ExecutionMode;
   onExecutionModeChange: (mode: ExecutionMode) => void;

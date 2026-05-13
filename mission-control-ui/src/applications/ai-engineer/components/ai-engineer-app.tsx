@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AiEngineerShell } from "@/applications/ai-engineer/components/ai-engineer-shell";
 import { applyAgentEventToAssistantMessage } from "@/applications/ai-engineer/lib/agent-events";
-import { sendChatMessage, uploadDocument } from "@/applications/ai-engineer/lib/ai-engineer-client";
+import { sendChatMessage } from "@/applications/ai-engineer/lib/ai-engineer-client";
 import type { AiEngineerChangeSummary } from "@/applications/ai-engineer/lib/change-preview-types";
 import { useChangePreviewFlow } from "@/applications/ai-engineer/lib/use-change-preview-flow";
 import type {
@@ -371,25 +371,6 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     ],
   );
 
-  const uploadFiles = async (files: File[], activeConversationId: string) => {
-    for (const file of files) {
-      const localAttachmentId = createClientId();
-      setAttachments((prev) => [...prev, { id: localAttachmentId, fileName: file.name, status: "uploading" }]);
-      try {
-        const result = await uploadDocument({
-          file,
-          conversationId: activeConversationId,
-        });
-        setAttachments((prev) => prev.map((attachment) => (attachment.id === localAttachmentId ? { ...result, id: localAttachmentId } : attachment)));
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Upload failed";
-        setAttachments((prev) =>
-          prev.map((attachment) => (attachment.id === localAttachmentId ? { ...attachment, status: "failed", message } : attachment)),
-        );
-      }
-    }
-  };
-
   const appendBackendEvent = (event: ChatEvent) => {
     if (!isEventForConversation(event, conversationIdRef.current)) return;
     setEvents((previous) => {
@@ -406,14 +387,13 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     setMessages((previous) => applyAgentEventToAssistantMessage(previous, draftAssistantId, chunk.event));
   };
 
-  const onSend = async (text: string, files: File[]) => {
+  const onSend = async (text: string) => {
     const trimmed = text.trim();
     const hasText = trimmed.length > 0;
-    const hasFiles = files.length > 0;
 
-    if (!hasText && !hasFiles) return;
+    if (!hasText) return;
 
-    const initialContent = hasText ? trimmed : "Uploaded mission document(s)";
+    const initialContent = trimmed;
     let draftCreation: DraftCreationResult | null = null;
     let activeConversationId = conversationIdRef.current;
     try {
@@ -442,38 +422,16 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       role: "user",
       content: initialContent,
       status: "complete",
-      attachments: files.map((file) => ({
-        id: createClientId(),
-        fileName: file.name,
-        size: file.size,
-        mimeType: file.type,
-        status: "pending",
-      })),
     };
     const assistantDraftId = createClientId();
-    setMessages((prev) =>
-      hasText
-        ? [
-            ...prev.filter((message) => message.id !== userMessage.id),
-            userMessage,
-            { id: assistantDraftId, role: "assistant", content: "", status: "streaming" },
-          ]
-        : [...prev.filter((message) => message.id !== userMessage.id), userMessage],
-    );
-
-    if (hasText) {
-      setIsStreaming(true);
-    }
+    setMessages((prev) => [
+      ...prev.filter((message) => message.id !== userMessage.id),
+      userMessage,
+      { id: assistantDraftId, role: "assistant", content: "", status: "streaming" },
+    ]);
+    setIsStreaming(true);
 
     try {
-      if (hasFiles) {
-        await uploadFiles(files, activeConversationId);
-        await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversations });
-        await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversation(activeConversationId) });
-      }
-
-      if (!hasText) return;
-
       await sendChatMessage({
         conversationId: activeConversationId,
         message: trimmed,
@@ -485,8 +443,6 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversations });
       await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversation(activeConversationId) });
     } catch (error) {
-      if (!hasText) return;
-
       const message = error instanceof Error ? error.message : "Failed to contact agent runtime.";
       setMessages((previous) =>
         previous.map((item) =>
@@ -500,9 +456,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
         ),
       );
     } finally {
-      if (hasText) {
-        setIsStreaming(false);
-      }
+      setIsStreaming(false);
     }
   };
 

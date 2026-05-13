@@ -1,0 +1,16 @@
+{
+  "applicationId": "knowledge",
+  "title": "Knowledge",
+  "description": "Durable mission and vehicle document knowledge for AI retrieval.",
+  "iconKey": "brain",
+  "iconColor": "#a78bfa",
+  "iconBackground": "rgba(167, 139, 250, 0.16)",
+  "applicationType": "native",
+  "routePath": "/apps/knowledge",
+  "loaderKey": "knowledge",
+  "version": "0.1.0",
+  "enabled": true,
+  "sortOrder": 24,
+  "owner": "space-ops-apps",
+  "capabilities": ["knowledge-management", "document-ingestion", "ai-retrieval"]
+}

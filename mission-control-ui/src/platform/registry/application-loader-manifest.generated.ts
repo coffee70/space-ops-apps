@@ -8,6 +8,7 @@ export const applicationLoaderManifest: Record<
 > = {
   "ai-engineer": () => import("@/applications/ai-engineer/entry"),
   "control-panel": () => import("@/applications/control-panel/entry"),
+  "knowledge": () => import("@/applications/knowledge/entry"),
   "overview": () => import("@/applications/overview/entry"),
   "planning": () => import("@/applications/planning/entry"),
   "telemetry": () => import("@/applications/telemetry/entry"),
