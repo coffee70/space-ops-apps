@@ -1,8 +1,9 @@
 "use client";
 
-import { MessageSquare, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import type { AiEngineerConversationSummary } from "@/applications/ai-engineer/types";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 function getConversationTitle(conversation: AiEngineerConversationSummary) {
@@ -38,24 +39,22 @@ export function AiEngineerConversationSidebar({
   onSelectConversation: (conversationId: string) => void;
 }) {
   return (
-    <section className="flex h-full w-full flex-col" aria-label="AI Engineer conversations" data-testid="ai-engineer-conversation-sidebar">
-      <div className="border-border/40 flex shrink-0 flex-col gap-3 border-b p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-foreground text-sm font-semibold">Chats</h2>
-        </div>
-        <button
+    <section className="bg-background text-foreground flex h-full w-full flex-col" aria-label="AI Engineer conversations" data-testid="ai-engineer-conversation-sidebar">
+      <div className="border-border flex h-12 shrink-0 items-center justify-between border-b px-3">
+        <h2 className="text-sm font-medium">Chats</h2>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-3">
+        <Button
           type="button"
-          className="bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground inline-flex h-9 w-full items-center justify-center gap-2 rounded-md px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed"
+          className="w-full shadow-xs"
           onClick={onNewChat}
           disabled={disabled}
           data-testid="ai-engineer-new-chat-button"
         >
           <Plus className="size-4" aria-hidden />
           New Chat
-        </button>
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-3">
+        </Button>
         <div className="text-muted-foreground px-1 text-[11px] font-medium tracking-[0.08em] uppercase">Recent Conversations</div>
         {isLoading ? (
           <div className="text-muted-foreground rounded-md px-2 py-3 text-sm" data-testid="ai-engineer-conversation-list-loading">
@@ -83,10 +82,10 @@ export function AiEngineerConversationSidebar({
                   key={conversation.id}
                   type="button"
                   className={cn(
-                    "group flex w-full items-start gap-2 rounded-md border border-transparent px-2.5 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                    "group flex w-full items-start gap-2 rounded-md border border-transparent px-2.5 py-2 text-left shadow-xs transition-colors disabled:cursor-not-allowed disabled:opacity-60",
                     isActive
-                      ? "border-primary/30 bg-primary/10 text-foreground"
-                      : "text-muted-foreground hover:bg-background/70 hover:text-foreground",
+                      ? "border-border bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                   onClick={() => onSelectConversation(conversation.id)}
                   disabled={disabled}
@@ -94,7 +93,6 @@ export function AiEngineerConversationSidebar({
                   data-testid="ai-engineer-conversation-row"
                   data-active={isActive ? "true" : "false"}
                 >
-                  <MessageSquare className={cn("mt-0.5 size-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground")} aria-hidden />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{getConversationTitle(conversation)}</span>
                     {formattedTime ? <span className="text-muted-foreground block text-xs">{formattedTime}</span> : null}

@@ -24,6 +24,7 @@ import type { NativeApplicationProps } from "@/platform/sdk/native-application-c
 
 const PREVIEW_MESSAGE_PREFIX = "preview-message::";
 const SELECTED_MODEL_STORAGE_KEY = "ai-engineer.selectedModelId";
+const DRAFT_INTENT_STORAGE_KEY = "ai-engineer.openDraft";
 
 function resolveInitialModelId(models: AiEngineerModelOption[], defaultModelId: string): string | null {
   const available = models.filter((m) => m.enabled && m.isAvailable);
@@ -53,6 +54,35 @@ function mapConversationMessagesToChatMessages(messages: AiEngineerConversationM
     status: "complete",
     createdAt: message.created_at,
   }));
+}
+
+function markDraftIntent() {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(DRAFT_INTENT_STORAGE_KEY, "1");
+  } catch {
+    /* ignore storage restrictions */
+  }
+}
+
+function clearDraftIntent() {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(DRAFT_INTENT_STORAGE_KEY);
+  } catch {
+    /* ignore storage restrictions */
+  }
+}
+
+function consumeDraftIntent() {
+  if (typeof window === "undefined") return false;
+  try {
+    const shouldOpenDraft = sessionStorage.getItem(DRAFT_INTENT_STORAGE_KEY) === "1";
+    sessionStorage.removeItem(DRAFT_INTENT_STORAGE_KEY);
+    return shouldOpenDraft;
+  } catch {
+    return false;
+  }
 }
 
 export function AiEngineerApp(props: NativeApplicationProps) {
@@ -116,12 +146,19 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
   const replaceConversationRoute = useCallback(
     (conversationId: string) => {
+      clearDraftIntent();
       const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
       params.set("conversation_id", conversationId);
       router.replace(buildApplicationRouteWithQuery(props.application.applicationId, props.appPath, params));
     },
     [props.appPath, props.application.applicationId, router],
   );
+
+  const replaceDraftRoute = useCallback(() => {
+    const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
+    params.delete("conversation_id");
+    router.replace(buildApplicationRouteWithQuery(props.application.applicationId, props.appPath, params));
+  }, [props.appPath, props.application.applicationId, router]);
 
   const resetTransientConversationState = useCallback(() => {
     setEvents([]);
@@ -155,16 +192,31 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     [resetTransientConversationState, setActiveConversationId],
   );
 
-  const ensureConversation = useCallback(async () => {
-    if (conversationIdRef.current) return conversationIdRef.current;
-    if (conversationPromiseRef.current) return conversationPromiseRef.current;
+  const createConversationFromDraft = useCallback(
+    async (initialContent: string) => {
+      if (conversationIdRef.current) return null;
+      if (conversationPromiseRef.current) {
+        const conversationId = await conversationPromiseRef.current;
+        return { conversationId, messageId: null };
+      }
 
-    conversationPromiseRef.current = createConversation({ title: "AI Engineer Session", execution_mode: executionModeRef.current }).then((created) => {
-      setActiveConversationId(created.id);
-      return created.id;
-    });
-    return conversationPromiseRef.current;
-  }, [setActiveConversationId]);
+      conversationPromiseRef.current = createConversation({
+        title: "AI Engineer Session",
+        execution_mode: executionModeRef.current,
+        initial_message: { role: "user", content: initialContent },
+      }).then((created) => {
+        setActiveConversationId(created.id);
+        replaceConversationRoute(created.id);
+        return created.id;
+      });
+
+      const conversationId = await conversationPromiseRef.current;
+      const detail = (await getConversation(conversationId)) as AiEngineerConversationDetail;
+      await refreshConversationList();
+      return { conversationId, messageId: detail.messages[0]?.id ?? null };
+    },
+    [refreshConversationList, replaceConversationRoute, setActiveConversationId],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -177,23 +229,23 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       }
 
       const existing = await refreshConversationList();
-      if (existing && existing.length > 0) {
+      const shouldOpenDraft = consumeDraftIntent();
+      if (!shouldOpenDraft && existing && existing.length > 0) {
         const activeConversation = await hydrateConversation(existing[0].id);
         replaceConversationRoute(activeConversation.id);
         return activeConversation.id;
       }
 
-      const created = (await createConversation({ title: "AI Engineer Session", execution_mode: executionModeRef.current })) as AiEngineerConversationSummary;
-      setActiveConversationId(created.id);
+      conversationIdRef.current = null;
+      setActiveConversationIdState(null);
       setMessages([]);
-      replaceConversationRoute(created.id);
-      await refreshConversationList();
-      return created.id;
+      resetTransientConversationState();
+      return "";
     };
     conversationPromiseRef.current = bootstrap()
       .then(() => {
         if (cancelled) return conversationIdRef.current ?? "";
-        return conversationIdRef.current ?? ensureConversation();
+        return conversationIdRef.current ?? "";
       })
       .finally(() => {
         if (cancelled) return;
@@ -209,7 +261,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     return () => {
       cancelled = true;
     };
-  }, [ensureConversation, hydrateConversation, refreshConversationList, replaceConversationRoute, setActiveConversationId]);
+  }, [hydrateConversation, refreshConversationList, replaceConversationRoute, resetTransientConversationState]);
 
   useEffect(() => {
     let cancelled = false;
@@ -246,22 +298,19 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     setIsSwitchingConversation(true);
     setConversationListError(null);
     try {
-      const created = (await createConversation({
-        title: "AI Engineer Session",
-        execution_mode: executionModeRef.current,
-      })) as AiEngineerConversationSummary;
       conversationPromiseRef.current = null;
-      setActiveConversationId(created.id);
+      conversationIdRef.current = null;
+      setActiveConversationIdState(null);
       setMessages([]);
       resetTransientConversationState();
-      replaceConversationRoute(created.id);
-      await refreshConversationList();
+      markDraftIntent();
+      replaceDraftRoute();
     } catch (error) {
-      setConversationListError(error instanceof Error ? error.message : "Failed to create conversation");
+      setConversationListError(error instanceof Error ? error.message : "Failed to start draft");
     } finally {
       setIsSwitchingConversation(false);
     }
-  }, [isStreaming, refreshConversationList, replaceConversationRoute, resetTransientConversationState, setActiveConversationId]);
+  }, [isStreaming, replaceDraftRoute, resetTransientConversationState]);
 
   const handleSelectConversation = useCallback(
     async (conversationId: string) => {
@@ -321,11 +370,17 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
     if (!hasText && !hasFiles) return;
 
-    const activeConversationId = await ensureConversation();
+    const initialContent = hasText ? trimmed : "Uploaded mission document(s)";
+    const draftCreation = conversationIdRef.current ? null : await createConversationFromDraft(initialContent);
+    const activeConversationId = draftCreation?.conversationId ?? conversationIdRef.current;
+    if (!activeConversationId) {
+      setConversationListError("Failed to create conversation");
+      return;
+    }
     const userMessage: ChatMessage = {
-      id: createClientId(),
+      id: draftCreation?.messageId ?? createClientId(),
       role: "user",
-      content: hasText ? trimmed : "Uploaded mission document(s)",
+      content: initialContent,
       status: "complete",
       attachments: files.map((file) => ({
         id: createClientId(),
@@ -356,6 +411,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
         message: trimmed,
         executionMode,
         modelId: selectedModelId ?? undefined,
+        persistedUserMessageId: draftCreation?.messageId ?? undefined,
         onChunk: (chunk) => applyStreamChunk(assistantDraftId, chunk),
       });
     } catch (error) {

@@ -11,9 +11,9 @@ const hiddenEventTypes = new Set(["message.delta"]);
 
 function DocumentActivity({ attachment }: { attachment: AttachmentStatus }) {
   return (
-    <div className="border-border/40 bg-background/70 rounded-xl border p-3 shadow-[var(--shadow-card)]">
+    <div className="border-border bg-card text-card-foreground rounded-md border p-3 shadow-xs">
       <div className="flex items-start gap-2">
-        <div className="bg-muted/70 text-muted-foreground ring-border/50 mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg ring-1">
+        <div className="bg-muted text-muted-foreground mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md">
           <FileText className="size-3.5" />
         </div>
         <div className="min-w-0 flex-1">
@@ -34,8 +34,8 @@ export function AiEngineerActivityPanel({ events, attachments }: { events: ChatE
   const noActivity = visibleEvents.length === 0 && attachments.length === 0;
 
   return (
-    <div className="flex h-full w-full flex-col" data-testid="ai-engineer-activity-panel">
-      <div className="border-border/40 flex h-12 shrink-0 items-center justify-between border-b px-3">
+    <div className="bg-background text-foreground flex h-full w-full flex-col" data-testid="ai-engineer-activity-panel">
+      <div className="border-border flex h-12 shrink-0 items-center justify-between border-b px-3">
         <div>
           <h3 className="text-sm font-medium">Activity</h3>
           <p className="text-muted-foreground text-[11px]">Tools, context, and documents</p>

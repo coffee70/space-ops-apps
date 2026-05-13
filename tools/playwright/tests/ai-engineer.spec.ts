@@ -15,17 +15,7 @@ test("AI Engineer can send a chat message through the live stack", async ({ page
     browserErrors.push(`pageerror:${error.message}`);
   });
 
-  const createResponse = await page.request.post(`${baseUrl}/intelligence/agent/conversations`, {
-    data: {
-      title: `AI Engineer Playwright ${Date.now()}`,
-      execution_mode: "read_only",
-    },
-  });
-  expect(createResponse.ok()).toBeTruthy();
-  const createdConversation = await createResponse.json();
-  const conversationId = String(createdConversation.id);
-
-  await page.goto(appUrl("ai-engineer", [], { conversation_id: conversationId }));
+  await page.goto(appUrl("ai-engineer"));
 
   await expect(page.getByTestId("ai-engineer-shell")).toBeVisible();
   await expect(page.getByTestId("ai-engineer-shell").getByText("AI Engineer", { exact: true })).toBeVisible();
@@ -34,6 +24,11 @@ test("AI Engineer can send a chat message through the live stack", async ({ page
 
   await page.getByTestId("ai-engineer-chat-input").fill("Say whether fallback mode is active.");
   await page.getByRole("button", { name: "Send message" }).click();
+
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get("conversation_id"), { timeout: 30_000 })
+    .not.toBeNull();
+  const conversationId = String(new URL(page.url()).searchParams.get("conversation_id"));
 
   await expect(page.getByText("run.started")).toBeVisible();
   await expect(page.getByText("run.completed")).toBeVisible({ timeout: 30_000 });

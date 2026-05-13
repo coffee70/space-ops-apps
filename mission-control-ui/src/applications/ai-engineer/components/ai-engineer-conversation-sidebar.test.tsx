@@ -33,11 +33,16 @@ test("AiEngineerConversationSidebar renders recent conversations and highlights 
   );
 
   assert.match(markup, /data-testid="ai-engineer-conversation-sidebar"/);
+  assert.match(markup, /data-testid="ai-engineer-new-chat-button"/);
+  assert.match(markup, /data-slot="button"/);
   assert.match(markup, /New Chat/);
   assert.match(markup, /DrogonSat UI/);
   assert.match(markup, /Docs Retrieval/);
   assert.match(markup, /data-active="true"/);
   assert.match(markup, /aria-current="page"/);
+  assert.match(markup, /bg-accent/);
+  assert.match(markup, /text-accent-foreground/);
+  assert.match(markup, /hover:bg-accent/);
 });
 
 test("AiEngineerConversationSidebar renders empty, loading, error, and disabled states", () => {

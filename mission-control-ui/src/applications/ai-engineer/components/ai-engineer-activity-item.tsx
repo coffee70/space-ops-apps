@@ -26,9 +26,9 @@ function ActivityIcon({ event }: { event: ChatEvent }) {
 
 export function AiEngineerActivityItem({ event }: { event: ChatEvent }) {
   return (
-    <div className="border-border/40 bg-background/70 rounded-xl border p-3 shadow-[var(--shadow-card)]" data-testid="ai-engineer-activity-item">
+    <div className="border-border bg-card text-card-foreground rounded-md border p-3 shadow-xs" data-testid="ai-engineer-activity-item">
       <div className="flex items-start gap-2">
-        <div className="bg-muted/70 text-muted-foreground ring-border/50 mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg ring-1">
+        <div className="bg-muted text-muted-foreground mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md">
           <ActivityIcon event={event} />
         </div>
         <div className="min-w-0 flex-1">

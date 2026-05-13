@@ -47,17 +47,7 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers upload, read tools, d
     browserErrors.push(`pageerror:${error.message}`);
   });
 
-  const createResponse = await page.request.post(`${baseUrl}/intelligence/agent/conversations`, {
-    data: {
-      title: `AI Engineer Phase 3 No-LLM ${Date.now()}`,
-      execution_mode: "execute",
-    },
-  });
-  expect(createResponse.ok()).toBeTruthy();
-  const createdConversation = await createResponse.json();
-  const conversationId = String(createdConversation.id);
-
-  await page.goto(appUrl("ai-engineer", [], { conversation_id: conversationId }));
+  await page.goto(appUrl("ai-engineer"));
 
   await expect(page.getByTestId("ai-engineer-shell")).toBeVisible();
   await expect(page.getByTestId("ai-engineer-shell").getByText("AI Engineer", { exact: true })).toBeVisible();
