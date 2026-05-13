@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { fetchPlatformApplicationsServer } from "@/platform/registry/application-registry-client";
 import { validateApplicationPathSegments } from "@/platform/registry/application-routes";
@@ -5,6 +6,33 @@ import { ApplicationHost } from "@/platform/runtime/application-host";
 import { ApplicationUnavailableState } from "@/platform/shell/application-frame";
 
 const APPLICATION_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ applicationId: string; appPath?: string[] }>;
+}): Promise<Metadata> {
+  const { applicationId } = await params;
+
+  if (!APPLICATION_ID_PATTERN.test(applicationId)) {
+    return {
+      title: "Aentx Space OS",
+    };
+  }
+
+  try {
+    const applications = await fetchPlatformApplicationsServer();
+    const application = applications.find((candidate) => candidate.applicationId === applicationId);
+
+    return {
+      title: application ? `${application.title} - Aentx Space OS` : "Aentx Space OS",
+    };
+  } catch {
+    return {
+      title: "Aentx Space OS",
+    };
+  }
+}
 
 export default async function PlatformApplicationPage({
   params,
