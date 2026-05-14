@@ -61,9 +61,9 @@ export function AiEngineerMessages({
 
   useEffect(() => {
     if (isAtBottom) {
-      scrollToBottom("smooth");
+      scrollToBottom(isStreaming ? "auto" : "smooth");
     }
-  }, [isAtBottom, messages, events, scrollToBottom]);
+  }, [isAtBottom, isStreaming, messages, events, scrollToBottom]);
 
   const shouldShowThinking = isStreaming && messages.at(-1)?.role !== "assistant";
 

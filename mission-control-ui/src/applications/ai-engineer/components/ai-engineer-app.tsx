@@ -68,6 +68,11 @@ type DraftCreationResult = {
   messageId: string | null;
 };
 
+type PendingMessageDelta = {
+  draftAssistantId: string;
+  event: ChatEvent;
+};
+
 function isEventForConversation(event: ChatEvent, conversationId: string | null) {
   return !event.conversation_id || event.conversation_id === conversationId;
 }
@@ -123,6 +128,8 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const executionModeRef = useRef<ExecutionMode>(executionMode);
   const didBootstrapRef = useRef(false);
   const lastHydratedConversationIdRef = useRef<string | null>(null);
+  const pendingMessageDeltasRef = useRef<PendingMessageDelta[]>([]);
+  const messageDeltaFrameRef = useRef<number | null>(null);
 
   const conversationsQuery = useAiEngineerConversationsQuery();
   const activeConversationQuery = useAiEngineerConversationQuery(activeConversationId, Boolean(activeConversationId));
@@ -167,6 +174,53 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   });
   const ingestPreviewEvent = changePreviewFlow.ingestEvent;
   const resetChangePreviewFlow = changePreviewFlow.reset;
+
+  const applyPendingMessageDeltas = useCallback((pending: PendingMessageDelta[]) => {
+    if (pending.length === 0) return;
+    setMessages((previous) =>
+      pending.reduce(
+        (current, { draftAssistantId, event }) => applyAgentEventToAssistantMessage(current, draftAssistantId, event),
+        previous,
+      ),
+    );
+  }, []);
+
+  const flushPendingMessageDeltas = useCallback(() => {
+    messageDeltaFrameRef.current = null;
+    const pending = pendingMessageDeltasRef.current;
+    pendingMessageDeltasRef.current = [];
+    applyPendingMessageDeltas(pending);
+  }, [applyPendingMessageDeltas]);
+
+  const scheduleMessageDeltaFlush = useCallback(
+    (draftAssistantId: string, event: ChatEvent) => {
+      pendingMessageDeltasRef.current.push({ draftAssistantId, event });
+      if (messageDeltaFrameRef.current !== null) return;
+      messageDeltaFrameRef.current = window.requestAnimationFrame(flushPendingMessageDeltas);
+    },
+    [flushPendingMessageDeltas],
+  );
+
+  const flushPendingMessageDeltasNow = useCallback(() => {
+    if (messageDeltaFrameRef.current !== null) {
+      window.cancelAnimationFrame(messageDeltaFrameRef.current);
+      messageDeltaFrameRef.current = null;
+    }
+    const pending = pendingMessageDeltasRef.current;
+    pendingMessageDeltasRef.current = [];
+    applyPendingMessageDeltas(pending);
+  }, [applyPendingMessageDeltas]);
+
+  useEffect(
+    () => () => {
+      if (messageDeltaFrameRef.current !== null) {
+        window.cancelAnimationFrame(messageDeltaFrameRef.current);
+      }
+      messageDeltaFrameRef.current = null;
+      pendingMessageDeltasRef.current = [];
+    },
+    [],
+  );
 
   const hydratePersistedConversation = useCallback(
     (conversation: AiEngineerConversationDetail) => {
@@ -291,9 +345,10 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   useEffect(() => {
     const conversation = activeConversationQuery.data;
     if (!conversation || conversation.id !== conversationIdRef.current) return;
+    if (isStreaming) return;
     hydratePersistedConversation(conversation);
     setIsSwitchingConversation(false);
-  }, [activeConversationQuery.data, hydratePersistedConversation]);
+  }, [activeConversationQuery.data, hydratePersistedConversation, isStreaming]);
 
   useEffect(() => {
     if (!activeConversationQuery.isError) return;
@@ -326,6 +381,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     setConversationListError(null);
     try {
       conversationPromiseRef.current = null;
+      flushPendingMessageDeltasNow();
       clearActiveConversationId();
       lastHydratedConversationIdRef.current = null;
       resetChangePreviewFlow();
@@ -338,7 +394,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     } finally {
       setIsSwitchingConversation(false);
     }
-  }, [clearActiveConversationId, isStreaming, replaceDraftRoute, resetChangePreviewFlow, resetTransientConversationState]);
+  }, [clearActiveConversationId, flushPendingMessageDeltasNow, isStreaming, replaceDraftRoute, resetChangePreviewFlow, resetTransientConversationState]);
 
   const handleSelectConversation = useCallback(
     (conversationId: string) => {
@@ -346,6 +402,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       setIsSwitchingConversation(true);
       setConversationListError(null);
       conversationPromiseRef.current = null;
+      flushPendingMessageDeltasNow();
       setActiveConversationId(conversationId);
       lastHydratedConversationIdRef.current = null;
       resetTransientConversationState();
@@ -361,6 +418,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     },
     [
       activeConversationId,
+      flushPendingMessageDeltasNow,
       hydratePersistedConversation,
       isStreaming,
       queryClient,
@@ -384,6 +442,13 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     if (!isEventForConversation(chunk.event, conversationIdRef.current)) return;
     appendBackendEvent(chunk.event);
     ingestPreviewEvent(chunk.event);
+    if (chunk.event.event_type === "message.delta") {
+      scheduleMessageDeltaFlush(draftAssistantId, chunk.event);
+      return;
+    }
+    if (chunk.event.event_type === "message.completed" || chunk.event.event_type === "run.failed") {
+      flushPendingMessageDeltasNow();
+    }
     setMessages((previous) => applyAgentEventToAssistantMessage(previous, draftAssistantId, chunk.event));
   };
 
@@ -440,9 +505,11 @@ export function AiEngineerApp(props: NativeApplicationProps) {
         persistedUserMessageId: draftCreation?.messageId ?? undefined,
         onChunk: (chunk) => applyStreamChunk(assistantDraftId, chunk),
       });
+      flushPendingMessageDeltasNow();
       await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversations });
       await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversation(activeConversationId) });
     } catch (error) {
+      flushPendingMessageDeltasNow();
       const message = error instanceof Error ? error.message : "Failed to contact agent runtime.";
       setMessages((previous) =>
         previous.map((item) =>
