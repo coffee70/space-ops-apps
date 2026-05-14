@@ -43,6 +43,10 @@ test.describe("COSTS MONEY: AI Engineer live provider diagnostics", () => {
       return;
     }
 
+    await page.getByTestId("ai-engineer-new-chat-button").click();
+    await expect(page.getByTestId("ai-engineer-reasoning-panel")).toHaveCount(0);
+    await expect(page.getByText("Run completed")).toHaveCount(0);
+
     await page.evaluate(() => {
       const reasoningSamples: Array<{ timestamp: string; length: number; preview: string }> = [];
       const getReasoningText = () => {
@@ -75,7 +79,8 @@ test.describe("COSTS MONEY: AI Engineer live provider diagnostics", () => {
       .not.toBeNull();
     const conversationId = String(new URL(page.url()).searchParams.get("conversation_id"));
 
-    const reasoningPanel = page.getByTestId("ai-engineer-reasoning-panel").last();
+    await expect(page.getByTestId("ai-engineer-reasoning-panel")).toHaveCount(1, { timeout: 45_000 });
+    const reasoningPanel = page.getByTestId("ai-engineer-reasoning-panel");
     await expect(reasoningPanel).toBeVisible({ timeout: 45_000 });
     await expect(reasoningPanel).toContainText(/Reasoning summary|Thinking|Reasoning/, { timeout: 45_000 });
 
@@ -96,7 +101,7 @@ test.describe("COSTS MONEY: AI Engineer live provider diagnostics", () => {
     const panelTextBeforeCompletion = (await reasoningPanel.textContent())?.trim() ?? "";
     expect(panelTextBeforeCompletion.length).toBeGreaterThan(40);
 
-    await expect(page.getByText("Run completed").first()).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText("Run completed")).toHaveCount(1, { timeout: 60_000 });
 
     const detailResponse = await page.request.get(`${baseUrl}/intelligence/agent/conversations/${conversationId}`);
     expect(detailResponse.ok()).toBeTruthy();
