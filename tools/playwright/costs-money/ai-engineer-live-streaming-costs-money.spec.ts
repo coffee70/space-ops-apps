@@ -6,7 +6,7 @@ const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://platform-edge-proxy:8
 const abortBeforeSend = process.env.PLAYWRIGHT_COSTS_MONEY_ABORT_BEFORE_SEND === "1";
 
 test.describe("COSTS MONEY: AI Engineer live provider diagnostics", () => {
-  test("COSTS MONEY: assistant answer text visibly streams before completion", async ({ page }) => {
+  test("COSTS MONEY: provider reasoning visibly streams before assistant completion", async ({ page }) => {
     test.setTimeout(90_000);
 
     const browserErrors: string[] = [];
@@ -44,28 +44,29 @@ test.describe("COSTS MONEY: AI Engineer live provider diagnostics", () => {
     }
 
     await page.evaluate(() => {
-      const samples: Array<{ timestamp: string; length: number; preview: string }> = [];
-      const getAssistantText = () => {
-        const messages = Array.from(document.querySelectorAll('[data-testid="ai-engineer-message-assistant"]'));
-        const lastMessage = messages[messages.length - 1];
-        return lastMessage?.textContent?.trim() ?? "";
+      const reasoningSamples: Array<{ timestamp: string; length: number; preview: string }> = [];
+      const getReasoningText = () => {
+        const panels = Array.from(document.querySelectorAll('[data-testid="ai-engineer-reasoning-panel"]'));
+        const lastPanel = panels[panels.length - 1];
+        return lastPanel?.textContent?.trim() ?? "";
       };
       const observer = new MutationObserver(() => {
-        const text = getAssistantText();
-        samples.push({
+        const text = getReasoningText();
+        if (text.length === 0) return;
+        reasoningSamples.push({
           timestamp: new Date().toISOString(),
           length: text.length,
           preview: text.slice(0, 80),
         });
       });
       observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-      window.__aiEngineerStreamingDiagnostics = { samples };
+      window.__aiEngineerReasoningDiagnostics = { reasoningSamples };
     });
 
     await page
       .getByTestId("ai-engineer-chat-input")
       .fill(
-        "Write a concise but multi-paragraph explanation of what a satellite telemetry pipeline does, with enough detail to take a few seconds to generate.",
+        "Think through the key responsibilities of an AI engineer inside a spacecraft operations platform, then answer with a concise explanation that takes a few seconds to generate.",
       );
     await page.getByRole("button", { name: "Send message" }).click();
 
@@ -74,18 +75,27 @@ test.describe("COSTS MONEY: AI Engineer live provider diagnostics", () => {
       .not.toBeNull();
     const conversationId = String(new URL(page.url()).searchParams.get("conversation_id"));
 
+    const reasoningPanel = page.getByTestId("ai-engineer-reasoning-panel");
+    await expect(reasoningPanel).toBeVisible({ timeout: 45_000 });
+    await expect(reasoningPanel).toContainText(/Reasoning summary|Thinking|Reasoning/, { timeout: 45_000 });
+
     await expect
       .poll(
         async () =>
           page.evaluate(() => {
-            const diagnostics = window.__aiEngineerStreamingDiagnostics;
-            return diagnostics?.samples.some((sample) => sample.length > "Thinking...".length + 20) ?? false;
+            const diagnostics = window.__aiEngineerReasoningDiagnostics;
+            return diagnostics?.reasoningSamples.some((sample) => sample.length > 40) ?? false;
           }),
-        { timeout: 30_000 },
+        { timeout: 45_000 },
       )
       .toBe(true);
 
-    const samplesBeforeCompletion = await page.evaluate(() => window.__aiEngineerStreamingDiagnostics?.samples ?? []);
+    const reasoningSamplesBeforeCompletion = await page.evaluate(
+      () => window.__aiEngineerReasoningDiagnostics?.reasoningSamples ?? [],
+    );
+    const panelTextBeforeCompletion = (await reasoningPanel.textContent())?.trim() ?? "";
+    expect(panelTextBeforeCompletion.length).toBeGreaterThan(40);
+
     await expect(page.getByText("run.completed")).toBeVisible({ timeout: 60_000 });
 
     const detailResponse = await page.request.get(`${baseUrl}/intelligence/agent/conversations/${conversationId}`);
@@ -95,19 +105,19 @@ test.describe("COSTS MONEY: AI Engineer live provider diagnostics", () => {
     const finalAssistantMessage = messages.findLast((message) => message.role === "assistant");
     expect(String(finalAssistantMessage?.content ?? "").trim().length).toBeGreaterThan(0);
 
-    const incrementalSamples = samplesBeforeCompletion.filter((sample) => sample.length > "Thinking...".length + 20);
-    expect(incrementalSamples.length).toBeGreaterThan(0);
+    const incrementalReasoningSamples = reasoningSamplesBeforeCompletion.filter((sample) => sample.length > 40);
+    expect(incrementalReasoningSamples.length).toBeGreaterThan(0);
     expect(clientStreamLogs.length).toBeGreaterThan(0);
     expect(responseEvents.length).toBeGreaterThan(0);
     expect(browserErrors).toEqual([]);
 
     console.info(
-      "[costs-money] streaming samples before completion",
+      "[costs-money] reasoning samples before completion",
       JSON.stringify({
         conversationId,
         clientStreamLogs: clientStreamLogs.length,
         responseEvents,
-        samples: incrementalSamples.slice(0, 12),
+        samples: incrementalReasoningSamples.slice(0, 12),
       }),
     );
   });
@@ -115,8 +125,8 @@ test.describe("COSTS MONEY: AI Engineer live provider diagnostics", () => {
 
 declare global {
   interface Window {
-    __aiEngineerStreamingDiagnostics?: {
-      samples: Array<{ timestamp: string; length: number; preview: string }>;
+    __aiEngineerReasoningDiagnostics?: {
+      reasoningSamples: Array<{ timestamp: string; length: number; preview: string }>;
     };
   }
 }
