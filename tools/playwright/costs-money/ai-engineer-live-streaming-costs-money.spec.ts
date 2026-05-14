@@ -75,7 +75,7 @@ test.describe("COSTS MONEY: AI Engineer live provider diagnostics", () => {
       .not.toBeNull();
     const conversationId = String(new URL(page.url()).searchParams.get("conversation_id"));
 
-    const reasoningPanel = page.getByTestId("ai-engineer-reasoning-panel");
+    const reasoningPanel = page.getByTestId("ai-engineer-reasoning-panel").last();
     await expect(reasoningPanel).toBeVisible({ timeout: 45_000 });
     await expect(reasoningPanel).toContainText(/Reasoning summary|Thinking|Reasoning/, { timeout: 45_000 });
 
@@ -96,7 +96,7 @@ test.describe("COSTS MONEY: AI Engineer live provider diagnostics", () => {
     const panelTextBeforeCompletion = (await reasoningPanel.textContent())?.trim() ?? "";
     expect(panelTextBeforeCompletion.length).toBeGreaterThan(40);
 
-    await expect(page.getByText("Run completed")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText("Run completed").first()).toBeVisible({ timeout: 60_000 });
 
     const detailResponse = await page.request.get(`${baseUrl}/intelligence/agent/conversations/${conversationId}`);
     expect(detailResponse.ok()).toBeTruthy();
