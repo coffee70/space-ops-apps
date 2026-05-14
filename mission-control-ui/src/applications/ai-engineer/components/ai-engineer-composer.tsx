@@ -53,9 +53,8 @@ export function AiEngineerComposer({
     if (!draft) return;
 
     setIsSubmitting(true);
-    void Promise.resolve(onSend(draft))
-      .then(() => onInputChange(""))
-      .finally(() => setIsSubmitting(false));
+    onInputChange("");
+    void Promise.resolve(onSend(draft)).finally(() => setIsSubmitting(false));
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
