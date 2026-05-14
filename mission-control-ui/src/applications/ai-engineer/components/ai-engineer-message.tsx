@@ -43,7 +43,6 @@ const INLINE_EVENT_TYPES = new Set([
   "tool.started",
   "tool.completed",
   "tool.failed",
-  "context.resolved",
   "document.ingestion_completed",
   "code.index_completed",
   "navigation.requested",
