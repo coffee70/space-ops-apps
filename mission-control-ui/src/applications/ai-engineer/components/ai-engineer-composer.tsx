@@ -47,18 +47,15 @@ export function AiEngineerComposer({
 
   const canSubmit = !disabled && !isSubmitting && !isStreaming && input.trim().length > 0;
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const draft = input.trim();
     if (!draft) return;
 
     setIsSubmitting(true);
-    try {
-      await onSend(draft);
-      onInputChange("");
-    } finally {
-      setIsSubmitting(false);
-    }
+    void Promise.resolve(onSend(draft))
+      .then(() => onInputChange(""))
+      .finally(() => setIsSubmitting(false));
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {

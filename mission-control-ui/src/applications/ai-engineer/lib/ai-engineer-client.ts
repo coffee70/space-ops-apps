@@ -19,6 +19,22 @@ function apiUrl(path: string): string {
   return `${base}${path}`;
 }
 
+function isStreamDebugEnabled(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  return (
+    window.localStorage.getItem("ai-engineer:debug-stream") === "1" ||
+    new URLSearchParams(window.location.search).get("debugAiEngineerStream") === "1"
+  );
+}
+
+function yieldToBrowser(): Promise<void> {
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+}
+
 export async function listModels(): Promise<ListAiEngineerModelsResponse> {
   const response = await fetch(apiUrl(ROUTES.models));
   if (!response.ok) {
@@ -87,6 +103,7 @@ export async function sendChatMessage(params: {
 
   const decoder = new TextDecoder();
   let buffer = "";
+  const debugStream = isStreamDebugEnabled();
 
   while (true) {
     const chunk = await reader.read();
@@ -98,7 +115,21 @@ export async function sendChatMessage(params: {
       const line = buffer.slice(0, newlineIndex).trim();
       buffer = buffer.slice(newlineIndex + 1);
       if (line.length > 0) {
-        params.onChunk(chunkFromEvent(normalizeStreamLine(line)));
+        const event = normalizeStreamLine(line);
+        if (debugStream) {
+          console.debug(
+            "[ai-engineer-client] ndjson line received",
+            JSON.stringify({
+              timestamp: new Date().toISOString(),
+              lineLength: line.length,
+              preview: line.slice(0, 120),
+            }),
+          );
+        }
+        params.onChunk(chunkFromEvent(event));
+        if (event.event_type === "message.delta") {
+          await yieldToBrowser();
+        }
       }
       newlineIndex = buffer.indexOf("\n");
     }
@@ -106,7 +137,18 @@ export async function sendChatMessage(params: {
 
   const trailing = buffer.trim();
   if (trailing.length > 0) {
-    params.onChunk(chunkFromEvent(normalizeStreamLine(trailing)));
+    const event = normalizeStreamLine(trailing);
+    if (debugStream) {
+      console.debug(
+        "[ai-engineer-client] trailing ndjson line received",
+        JSON.stringify({
+          timestamp: new Date().toISOString(),
+          lineLength: trailing.length,
+          preview: trailing.slice(0, 120),
+        }),
+      );
+    }
+    params.onChunk(chunkFromEvent(event));
   }
 
   return {

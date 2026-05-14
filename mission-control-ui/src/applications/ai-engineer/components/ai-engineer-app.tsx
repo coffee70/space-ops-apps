@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import { AiEngineerShell } from "@/applications/ai-engineer/components/ai-engineer-shell";
 import { applyAgentEventToAssistantMessage } from "@/applications/ai-engineer/lib/agent-events";
@@ -291,9 +292,10 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   useEffect(() => {
     const conversation = activeConversationQuery.data;
     if (!conversation || conversation.id !== conversationIdRef.current) return;
+    if (isStreaming) return;
     hydratePersistedConversation(conversation);
     setIsSwitchingConversation(false);
-  }, [activeConversationQuery.data, hydratePersistedConversation]);
+  }, [activeConversationQuery.data, hydratePersistedConversation, isStreaming]);
 
   useEffect(() => {
     if (!activeConversationQuery.isError) return;
@@ -384,6 +386,12 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     if (!isEventForConversation(chunk.event, conversationIdRef.current)) return;
     appendBackendEvent(chunk.event);
     ingestPreviewEvent(chunk.event);
+    if (chunk.event.event_type === "message.delta") {
+      flushSync(() => {
+        setMessages((previous) => applyAgentEventToAssistantMessage(previous, draftAssistantId, chunk.event));
+      });
+      return;
+    }
     setMessages((previous) => applyAgentEventToAssistantMessage(previous, draftAssistantId, chunk.event));
   };
 
