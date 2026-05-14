@@ -22,6 +22,15 @@ export interface ChatMessageAttachment {
   documentId?: string;
 }
 
+export type ReasoningStreamRepresentation = "reasoning" | "reasoning_summary" | "thinking";
+
+export interface ChatMessageReasoning {
+  content: string;
+  status?: "streaming" | "complete";
+  representation?: ReasoningStreamRepresentation;
+  source?: "provider_exposed";
+}
+
 /**
  * Identifies an assistant message that owns a change-preview lifecycle card
  * stack. The actual card state lives in the `useChangePreviewFlow` hook keyed
@@ -40,6 +49,7 @@ export interface ChatMessage {
   status?: "streaming" | "complete";
   createdAt?: string;
   attachments?: ChatMessageAttachment[];
+  reasoning?: ChatMessageReasoning;
   /**
    * When set, the assistant message renders one structured message part in
    * place of free-form markdown. Used today by the change-preview lifecycle.
