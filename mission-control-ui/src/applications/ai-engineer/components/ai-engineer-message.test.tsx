@@ -12,6 +12,7 @@ test("AiEngineerMessage renders thinking state for empty streaming assistant mes
   assert.match(markup, /data-testid="ai-engineer-message-assistant"/);
   assert.match(markup, /data-testid="ai-engineer-assistant-message"/);
   assert.match(markup, /Thinking\.\.\./);
+  assert.match(markup, /shimmer-text/);
 });
 
 test("AiEngineerMessage renders streaming assistant content instead of thinking state", () => {
@@ -20,5 +21,6 @@ test("AiEngineerMessage renders streaming assistant content instead of thinking 
   );
 
   assert.match(markup, /Runtime response/);
+  assert.match(markup, /ai-engineer-streaming-assistant/);
   assert.doesNotMatch(markup, /Thinking\.\.\./);
 });

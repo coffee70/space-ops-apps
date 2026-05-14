@@ -253,10 +253,21 @@ body[data-operator-mode="large-type"] .text-xs {
 
 @keyframes shimmer {
   0% {
-    background-position: -200% 0;
+    background-position: 200% 0;
   }
   100% {
-    background-position: 200% 0;
+    background-position: -200% 0;
+  }
+}
+
+@keyframes caret-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  46%,
+  100% {
+    opacity: 0;
   }
 }
 
@@ -284,6 +295,27 @@ body[data-operator-mode="large-type"] .text-xs {
   animation: shimmer 2s linear infinite;
   background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.04), transparent);
   background-size: 200% 100%;
+}
+
+.shimmer-text {
+  animation: shimmer 2s linear infinite;
+  background: linear-gradient(90deg, var(--muted-foreground) 0%, var(--primary) 45%, var(--foreground) 90%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.ai-engineer-streaming-assistant > div > :last-child::after {
+  animation: caret-blink 1s steps(1, end) infinite;
+  background: currentColor;
+  content: "";
+  display: inline-block;
+  height: 1.1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  width: 6px;
 }
 
 @layer base {

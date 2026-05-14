@@ -12,7 +12,7 @@ export function AiEngineerThinking() {
           </div>
         </div>
         <div className="flex h-[calc(13px*1.65)] items-center text-[13px] leading-[1.65]">
-          <span className="shimmer font-medium">Thinking...</span>
+          <span className="shimmer-text font-medium">Thinking...</span>
         </div>
       </div>
     </div>

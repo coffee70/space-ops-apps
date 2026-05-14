@@ -129,6 +129,7 @@ export function AiEngineerMessage({
   const previewPart = message.part?.kind === "change-preview" ? message.part : undefined;
   const isChangePreviewMessage =
     Boolean(previewPart) && previewState && onDeployChange && onRevertChange && onOpenApp;
+  const isStreamingAssistantWithContent = message.role === "assistant" && message.status === "streaming" && message.content.trim().length > 0;
 
   return (
     <div className="group/message fade-up w-full" data-role="assistant" data-testid="ai-engineer-message-assistant">
@@ -149,7 +150,11 @@ export function AiEngineerMessage({
             <div data-testid="ai-engineer-assistant-message">
               {isEmptyStreamingAssistant ? (
                 <div className="flex h-[calc(13px*1.65)] items-center text-[13px] leading-[1.65]">
-                  <span className="shimmer font-medium">Thinking...</span>
+                  <span className="shimmer-text font-medium">Thinking...</span>
+                </div>
+              ) : isStreamingAssistantWithContent ? (
+                <div className="ai-engineer-streaming-assistant">
+                  <AiEngineerMarkdown content={message.content} />
                 </div>
               ) : (
                 <AiEngineerMarkdown content={message.content} />
