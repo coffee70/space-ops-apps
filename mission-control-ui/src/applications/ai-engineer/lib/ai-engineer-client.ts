@@ -29,12 +29,6 @@ function isStreamDebugEnabled(): boolean {
   );
 }
 
-function yieldToBrowser(): Promise<void> {
-  return new Promise((resolve) => {
-    window.requestAnimationFrame(() => resolve());
-  });
-}
-
 export async function listModels(): Promise<ListAiEngineerModelsResponse> {
   const response = await fetch(apiUrl(ROUTES.models));
   if (!response.ok) {
@@ -127,9 +121,6 @@ export async function sendChatMessage(params: {
           );
         }
         params.onChunk(chunkFromEvent(event));
-        if (event.event_type === "message.delta") {
-          await yieldToBrowser();
-        }
       }
       newlineIndex = buffer.indexOf("\n");
     }
