@@ -96,7 +96,7 @@ test.describe("COSTS MONEY: AI Engineer live provider diagnostics", () => {
     const panelTextBeforeCompletion = (await reasoningPanel.textContent())?.trim() ?? "";
     expect(panelTextBeforeCompletion.length).toBeGreaterThan(40);
 
-    await expect(page.getByText("run.completed")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText("Run completed")).toBeVisible({ timeout: 60_000 });
 
     const detailResponse = await page.request.get(`${baseUrl}/intelligence/agent/conversations/${conversationId}`);
     expect(detailResponse.ok()).toBeTruthy();
