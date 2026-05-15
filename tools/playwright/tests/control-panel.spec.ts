@@ -263,7 +263,7 @@ test("Deployments tab shows blocked diagnostics and dependency cycle banner @con
 
   await expect(page.getByText("Runtime dependency cycle detected")).toBeVisible();
   await expect(page.getByText("Independent services continue bootstrapping normally.")).toBeVisible();
-  await expect(page.getByRole("code")).toHaveText(
+  await expect(page.locator("code")).toHaveText(
     "agent-runtime-service -> context-retrieval-service -> code-intelligence-service -> agent-runtime-service"
   );
   await expect(page.getByTestId("deployment-summary-strip")).toContainText("1 blocked");
