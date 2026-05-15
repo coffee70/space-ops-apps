@@ -124,3 +124,33 @@ test("sendChatMessage omits model_id when modelId is undefined", async () => {
   assert.equal(body.model_id, undefined);
   assert.ok(!Object.prototype.hasOwnProperty.call(body, "model_id"));
 });
+
+test("sendChatMessage forwards an abort signal into fetch", async () => {
+  let capturedSignal: AbortSignal | null | undefined;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
+    capturedSignal = init?.signal;
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.close();
+        },
+      }),
+      { status: 200, headers: { "x-agent-run-id": "run-x", "x-request-id": "req-x" } },
+    );
+  }) as typeof fetch;
+
+  const controller = new AbortController();
+  try {
+    await sendChatMessage({
+      conversationId: "conv-1",
+      message: "ping",
+      signal: controller.signal,
+      onChunk: () => {},
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(capturedSignal, controller.signal);
+});

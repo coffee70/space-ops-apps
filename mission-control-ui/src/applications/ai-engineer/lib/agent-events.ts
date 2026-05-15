@@ -135,6 +135,18 @@ export function applyAgentEventToAssistantMessage(messages: ChatMessage[], draft
     );
   }
 
+  if (event.event_type === "run.cancelled") {
+    return messages.map((item) =>
+      item.id === draftAssistantId
+        ? {
+            ...item,
+            status: "complete",
+            reasoning: item.reasoning ? { ...item.reasoning, status: "complete" } : item.reasoning,
+          }
+        : item,
+    );
+  }
+
   return messages;
 }
 

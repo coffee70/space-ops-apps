@@ -45,6 +45,29 @@ test("run.failed displays backend error payload", () => {
   assert.equal(failed[0].status, "complete");
 });
 
+
+test("run.cancelled preserves partial assistant output and finalizes reasoning state", () => {
+  const draft: ChatMessage[] = [
+    {
+      id: "draft",
+      role: "assistant",
+      content: "partial answer",
+      status: "streaming",
+      reasoning: {
+        content: "partial reasoning",
+        status: "streaming",
+        representation: "reasoning_summary",
+        source: "provider_exposed",
+      },
+    },
+  ];
+  const cancelled = applyAgentEventToAssistantMessage(draft, "draft", event({ event_type: "run.cancelled", payload: { reason: "user_requested_stop" } }));
+  assert.equal(cancelled[0].content, "partial answer");
+  assert.equal(cancelled[0].status, "complete");
+  assert.equal(cancelled[0].reasoning?.content, "partial reasoning");
+  assert.equal(cancelled[0].reasoning?.status, "complete");
+});
+
 test("timeline groups by run, orders by sequence, and correlates tools by tool_call_id", () => {
   const groups = groupTimelineEvents([
     event({ id: "complete", event_type: "tool.completed", agent_run_id: "run-1", tool_call_id: "tool-1", sequence: 3 }),
