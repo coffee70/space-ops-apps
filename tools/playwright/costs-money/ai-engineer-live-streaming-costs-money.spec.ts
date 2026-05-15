@@ -126,6 +126,70 @@ test.describe("COSTS MONEY: AI Engineer live provider diagnostics", () => {
       }),
     );
   });
+
+  test("COSTS MONEY: stop response cancels a live provider stream before completion", async ({ page }) => {
+    test.setTimeout(90_000);
+
+    await page.goto(`${appUrl("ai-engineer")}?debugAiEngineerStream=1`);
+    await expect(page.getByTestId("ai-engineer-shell")).toBeVisible();
+    await expect(page.getByTestId("ai-engineer-composer")).toBeVisible();
+
+    if (abortBeforeSend) {
+      test.info().annotations.push({
+        type: "aborted-before-provider-call",
+        description: "PLAYWRIGHT_COSTS_MONEY_ABORT_BEFORE_SEND=1 stopped before clicking Send.",
+      });
+      return;
+    }
+
+    await page.getByTestId("ai-engineer-new-chat-button").click();
+    await expect(page.getByText("Run completed")).toHaveCount(0);
+
+    await page
+      .getByTestId("ai-engineer-chat-input")
+      .fill(
+        "Reason step by step about how an AI engineer should inspect a spacecraft operations platform, then continue with a detailed answer long enough for an operator to stop mid-stream.",
+      );
+    await page.getByRole("button", { name: "Send message" }).click();
+
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get("conversation_id"), { timeout: 30_000 })
+      .not.toBeNull();
+    const conversationId = String(new URL(page.url()).searchParams.get("conversation_id"));
+
+    const stopButton = page.getByRole("button", { name: "Stop response" });
+    await expect(stopButton).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId("ai-engineer-reasoning-panel")).toHaveCount(1, { timeout: 45_000 });
+
+    const reasoningPanel = page.getByTestId("ai-engineer-reasoning-panel");
+    await expect
+      .poll(async () => ((await reasoningPanel.textContent())?.trim().length ?? 0), { timeout: 45_000 })
+      .toBeGreaterThan(40);
+
+    await stopButton.click();
+
+    await expect(stopButton).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.getByRole("button", { name: "Send message" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Run completed")).toHaveCount(0);
+
+    await expect
+      .poll(
+        async () => {
+          const detailResponse = await page.request.get(`${baseUrl}/intelligence/agent/conversations/${conversationId}`);
+          if (!detailResponse.ok()) return null;
+          const detail = await detailResponse.json();
+          const events = Array.isArray(detail.events) ? detail.events : [];
+          const eventTypes = events.map((event) => event.event_type);
+          return {
+            cancelled: eventTypes.includes("run.cancelled"),
+            completed: eventTypes.includes("run.completed"),
+          };
+        },
+        { timeout: 45_000 },
+      )
+      .toEqual({ cancelled: true, completed: false });
+  });
+
 });
 
 declare global {
