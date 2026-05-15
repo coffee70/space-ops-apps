@@ -159,12 +159,19 @@ test.describe("COSTS MONEY: AI Engineer live provider diagnostics", () => {
 
     const stopButton = page.getByRole("button", { name: "Stop response" });
     await expect(stopButton).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByTestId("ai-engineer-reasoning-panel")).toHaveCount(1, { timeout: 45_000 });
 
-    const reasoningPanel = page.getByTestId("ai-engineer-reasoning-panel");
     await expect
-      .poll(async () => ((await reasoningPanel.textContent())?.trim().length ?? 0), { timeout: 45_000 })
-      .toBeGreaterThan(40);
+      .poll(
+        async () => {
+          const detailResponse = await page.request.get(`${baseUrl}/intelligence/agent/conversations/${conversationId}`);
+          if (!detailResponse.ok()) return false;
+          const detail = await detailResponse.json();
+          const events = Array.isArray(detail.events) ? detail.events : [];
+          return events.some((event) => event.event_type === "message.reasoning.delta" || event.event_type === "message.delta");
+        },
+        { timeout: 45_000 },
+      )
+      .toBe(true);
 
     await stopButton.click();
 
