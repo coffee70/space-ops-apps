@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Clock3, FileText, FileUp, RefreshCw, Upload } from "lucide-react";
 
 import {
@@ -116,7 +116,20 @@ export function KnowledgeUploadDialog({
     patchDraftById(activeDraft.id, patch);
   };
 
-  const handleFilesSelected = (files: File[]) => {
+  const resetDropState = useCallback(() => {
+    dragDepthRef.current = 0;
+    setDropActive(false);
+  }, []);
+
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) resetDropState();
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange, resetDropState],
+  );
+
+  const handleFilesSelected = useCallback((files: File[]) => {
     if (files.length === 0) return;
 
     const { supported, unsupported } = filterSupportedKnowledgeFiles(files);
@@ -131,19 +144,10 @@ export function KnowledgeUploadDialog({
     const firstNewIndex = drafts.length;
     setDrafts((previous) => [...previous, ...nextDrafts]);
     setActiveIndex(firstNewIndex);
-  };
+  }, [drafts.length]);
 
   useEffect(() => {
-    if (!open) {
-      dragDepthRef.current = 0;
-      setDropActive(false);
-      return;
-    }
-
-    const resetDropState = () => {
-      dragDepthRef.current = 0;
-      setDropActive(false);
-    };
+    if (!open) return;
 
     const handleWindowDragEnter = (event: DragEvent) => {
       if (!dragCarriesFiles(event)) return;
@@ -200,7 +204,7 @@ export function KnowledgeUploadDialog({
       window.removeEventListener("dragend", handleDragEnd);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [drafts.length, open]);
+  }, [handleFilesSelected, open, resetDropState]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -229,7 +233,7 @@ export function KnowledgeUploadDialog({
     }
 
     if (!hadFailure) {
-      onOpenChange(false);
+      handleOpenChange(false);
     }
   };
 
@@ -239,7 +243,7 @@ export function KnowledgeUploadDialog({
     <section className="border-border/70 bg-card/40 rounded-xl border p-4 md:p-5">
       <div className="mb-5 flex flex-col gap-2 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-muted-foreground text-xs font-medium uppercase tracking-[0.14em]">Document metadata</p>
+          <p className="text-muted-foreground text-xs font-medium tracking-[0.14em] uppercase">Document metadata</p>
           <h3 className="mt-1 truncate text-base font-semibold">{activeDraft.title || activeDraft.file.name}</h3>
           <p className="text-muted-foreground mt-1 truncate text-sm">{activeDraft.file.name}</p>
         </div>
@@ -348,7 +352,7 @@ export function KnowledgeUploadDialog({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="flex max-h-[90dvh] flex-col overflow-hidden p-0 sm:max-w-4xl" data-testid="knowledge-upload-dialog">
         <DialogHeader className="border-border/70 shrink-0 border-b px-6 py-5 pr-14 text-left">
           <DialogTitle>Upload document</DialogTitle>
@@ -359,7 +363,7 @@ export function KnowledgeUploadDialog({
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
             {selectionWarning ? (
               <p
-                className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 rounded-lg border px-3 py-2 text-sm"
+                className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
                 data-testid="knowledge-upload-selection-warning"
               >
                 {selectionWarning}
@@ -390,7 +394,7 @@ export function KnowledgeUploadDialog({
                           <FileText className="size-4" />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="line-clamp-2 block text-sm font-medium leading-5">{draft.title || draft.file.name}</span>
+                          <span className="line-clamp-2 block text-sm leading-5 font-medium">{draft.title || draft.file.name}</span>
                           <span className="text-muted-foreground mt-1 block truncate text-xs">{draft.file.name}</span>
                           <span className="mt-2 block">
                             <DraftStatusBadge status={draft.status} />
@@ -409,8 +413,8 @@ export function KnowledgeUploadDialog({
             {error && !hasDraftError ? <p className="text-destructive text-sm">{error}</p> : null}
           </div>
 
-          <DialogFooter className="border-border/70 bg-background/95 shrink-0 border-t px-6 py-4 supports-[backdrop-filter]:bg-background/80">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isUploading}>
+          <DialogFooter className="border-border/70 bg-background/95 supports-[backdrop-filter]:bg-background/80 shrink-0 border-t px-6 py-4">
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={isUploading}>
               Cancel
             </Button>
             <Button type="submit" disabled={!canSubmit}>

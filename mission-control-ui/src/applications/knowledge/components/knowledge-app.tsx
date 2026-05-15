@@ -158,7 +158,7 @@ export function KnowledgeApp() {
         <div className="mx-auto w-full max-w-7xl">
           {pageWarning ? (
             <div
-              className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 mb-5 flex flex-col gap-3 rounded-lg border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
+              className="mb-5 flex flex-col gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 sm:flex-row sm:items-center sm:justify-between dark:text-amber-300"
               data-testid="knowledge-upload-warning"
             >
               <span>{pageWarning}</span>
