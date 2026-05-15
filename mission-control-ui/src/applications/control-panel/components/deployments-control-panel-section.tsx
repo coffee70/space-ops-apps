@@ -25,6 +25,7 @@ const STATE_LABELS: Record<DeploymentUiState, string> = {
   crashed: "Crashed",
   unknown: "Unknown",
   skipped: "Skipped",
+  blocked: "Blocked",
 };
 
 const STATE_CLASSES: Record<DeploymentUiState, string> = {
@@ -36,6 +37,7 @@ const STATE_CLASSES: Record<DeploymentUiState, string> = {
   crashed: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300",
   unknown: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
   skipped: "border-muted bg-muted text-muted-foreground",
+  blocked: "border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-300",
 };
 
 function formatTime(value?: string | null) {
@@ -47,7 +49,7 @@ function statusIcon(state: DeploymentUiState) {
   if (state === "healthy") return <CheckCircle2 className="size-3.5" />;
   if (state === "failed" || state === "crashed" || state === "missing") return <XCircle className="size-3.5" />;
   if (state === "deploying") return <Clock3 className="size-3.5" />;
-  if (state === "stale" || state === "unknown") return <AlertTriangle className="size-3.5" />;
+  if (state === "stale" || state === "unknown" || state === "blocked") return <AlertTriangle className="size-3.5" />;
   return <Circle className="size-3.5" />;
 }
 
@@ -104,9 +106,11 @@ function stateTone(state?: string | null): "default" | "success" | "warning" | "
 function DeploymentSummaryStrip({ overview }: { overview: SystemDeploymentOverviewResponse }) {
   const bootstrap = overview.bootstrap;
   const failedUnits = bootstrap?.summary?.failed ?? 0;
+  const blockedUnits = bootstrap?.summary?.blocked ?? 0;
   const bootstrapValue = [
     formatStatusLabel(bootstrap?.status),
     failedUnits > 0 ? `${failedUnits} failed` : null,
+    blockedUnits > 0 ? `${blockedUnits} blocked` : null,
   ].filter(Boolean).join(" · ");
 
   return (
@@ -116,6 +120,36 @@ function DeploymentSummaryStrip({ overview }: { overview: SystemDeploymentOvervi
       <SummaryPill label="Runtime" value={`${overview.runtime.existing_count} / ${overview.runtime.expected_count} existing`} />
       <SummaryPill label="Bootstrap" value={bootstrapValue} tone={stateTone(bootstrap?.status)} />
     </div>
+  );
+}
+
+function DependencyCycleBanner({ overview }: { overview: SystemDeploymentOverviewResponse }) {
+  const cycles = overview.bootstrap?.dependency_issues?.cycles ?? [];
+  if (cycles.length === 0) return null;
+
+  return (
+    <Alert className="border-orange-500/40 bg-orange-500/10">
+      <AlertTriangle className="size-4 text-orange-600 dark:text-orange-300" />
+      <AlertTitle>Runtime dependency cycle detected</AlertTitle>
+      <AlertDescription>
+        <div className="grid gap-2">
+          <p>
+            Some runtime services were blocked because their manifest dependencies form a cycle. Independent services continue
+            bootstrapping normally.
+          </p>
+          <div className="grid gap-1">
+            {cycles.map((cycle, index) => (
+              <code
+                key={`${cycle.path.join("-")}-${index}`}
+                className="bg-background/80 text-foreground rounded-md px-2 py-1 text-xs break-words whitespace-normal"
+              >
+                {cycle.path.join(" -> ")}
+              </code>
+            ))}
+          </div>
+        </div>
+      </AlertDescription>
+    </Alert>
   );
 }
 
@@ -333,6 +367,7 @@ export function DeploymentsControlPanelSection() {
 
         {overview ? (
           <>
+            <DependencyCycleBanner overview={overview} />
             <DeploymentSummaryStrip overview={overview} />
             <ServiceGroupPanel title="Core Services" summary={overview.core} group="core" />
             <ServiceGroupPanel title="Runtime Services" summary={overview.runtime} group="runtime" />

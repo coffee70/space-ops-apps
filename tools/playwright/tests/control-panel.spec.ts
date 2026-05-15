@@ -121,7 +121,8 @@ const deploymentOverviewPayload = {
     started_at: "2026-05-12T11:58:00Z",
     completed_at: "2026-05-12T12:00:00Z",
     failure_reason: null,
-    summary: { failed: 2 },
+    summary: { failed: 2, blocked: 0 },
+    dependency_issues: { cycles: [], blocked_units: [], invalid_dependencies: [] },
   },
 };
 
@@ -196,6 +197,79 @@ test("Deployments tab uses compact summary and purpose-fit service tables @contr
   await expect(runtimePanel.getByRole("columnheader", { name: "Bootstrap" })).toBeVisible();
   await expect(page.getByTestId("deployment-service-vehicle-config-service").getByText("Vehicle Config Service")).toBeVisible();
   await expect(page.getByTestId("deployment-service-vehicle-config-service").getByText("vehicle-config-service")).toHaveCount(0);
+});
+
+test("Deployments tab shows blocked diagnostics and dependency cycle banner @control-panel", async ({ page }) => {
+  await page.route("**/registry/applications", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(registryPayload),
+    });
+  });
+  await page.route("**/system/deployments/overview", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ...deploymentOverviewPayload,
+        overall_state: "broken",
+        runtime: {
+          ...deploymentOverviewPayload.runtime,
+          warning_count: 0,
+          broken_count: 1,
+          services: [
+            {
+              ...deploymentOverviewPayload.runtime.services[0],
+              id: "agent-runtime-service",
+              display_name: "Agent Runtime Service",
+              ui_state: "blocked",
+              bootstrap_status: "blocked",
+              failure_reason:
+                "Blocked by dependency cycle: agent-runtime-service -> context-retrieval-service -> code-intelligence-service -> agent-runtime-service.",
+            },
+          ],
+        },
+        bootstrap: {
+          ...deploymentOverviewPayload.bootstrap,
+          summary: { failed: 0, blocked: 1 },
+          dependency_issues: {
+            cycles: [
+              {
+                units: ["agent-runtime-service", "context-retrieval-service", "code-intelligence-service"],
+                path: [
+                  "agent-runtime-service",
+                  "context-retrieval-service",
+                  "code-intelligence-service",
+                  "agent-runtime-service",
+                ],
+              },
+            ],
+            blocked_units: [
+              {
+                unit_id: "agent-runtime-service",
+                reason: "dependency_cycle",
+                blocking_units: ["agent-runtime-service", "context-retrieval-service", "code-intelligence-service"],
+              },
+            ],
+            invalid_dependencies: [],
+          },
+        },
+      }),
+    });
+  });
+
+  await page.goto(appUrl("control-panel", ["deployments"]));
+
+  await expect(page.getByText("Runtime dependency cycle detected")).toBeVisible();
+  await expect(page.getByText("Independent services continue bootstrapping normally.")).toBeVisible();
+  await expect(page.getByRole("code")).toHaveText(
+    "agent-runtime-service -> context-retrieval-service -> code-intelligence-service -> agent-runtime-service"
+  );
+  await expect(page.getByTestId("deployment-summary-strip")).toContainText("1 blocked");
+  await expect(page.getByTestId("deployment-service-agent-runtime-service")).toContainText("Blocked");
+  await page.getByText("Details and latest error context").click();
+  await expect(page.getByText("Blocked by dependency cycle")).toBeVisible();
 });
 
 test("AI Engineer tab shows model config editor shell @control-panel", async ({ page }) => {

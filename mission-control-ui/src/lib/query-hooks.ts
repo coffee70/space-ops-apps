@@ -256,7 +256,8 @@ export type DeploymentUiState =
   | "failed"
   | "crashed"
   | "unknown"
-  | "skipped";
+  | "skipped"
+  | "blocked";
 
 export interface ServiceStatusItem {
   id: string;
@@ -295,6 +296,23 @@ export interface ServiceGroupSummary {
   services: ServiceStatusItem[];
 }
 
+export interface BootstrapDependencyCycle {
+  units: string[];
+  path: string[];
+}
+
+export interface BootstrapBlockedDependencyIssue {
+  unit_id: string;
+  reason: string;
+  blocking_units?: string[];
+}
+
+export interface BootstrapDependencyIssues {
+  cycles: BootstrapDependencyCycle[];
+  blocked_units: BootstrapBlockedDependencyIssue[];
+  invalid_dependencies?: Record<string, unknown>[];
+}
+
 export interface BootstrapSummary {
   run_id?: number | null;
   status: string;
@@ -302,6 +320,7 @@ export interface BootstrapSummary {
   completed_at?: string | null;
   failure_reason?: string | null;
   summary: Record<string, number>;
+  dependency_issues?: BootstrapDependencyIssues | null;
 }
 
 export interface SystemDeploymentOverviewResponse {
