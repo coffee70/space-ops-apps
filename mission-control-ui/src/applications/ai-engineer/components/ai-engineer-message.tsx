@@ -3,6 +3,7 @@
 import { FileText, Sparkles, Wrench } from "lucide-react";
 
 import { AiEngineerMarkdown } from "@/applications/ai-engineer/components/ai-engineer-markdown";
+import { AiEngineerReasoningPanel } from "@/applications/ai-engineer/components/ai-engineer-reasoning-panel";
 import { AiEngineerStatusPill } from "@/applications/ai-engineer/components/ai-engineer-status-pill";
 import { ChangePreviewCardStack } from "@/applications/ai-engineer/components/change-preview-cards";
 import { formatFileSize } from "@/applications/ai-engineer/lib/file-formatting";
@@ -42,7 +43,6 @@ const INLINE_EVENT_TYPES = new Set([
   "tool.started",
   "tool.completed",
   "tool.failed",
-  "context.resolved",
   "document.ingestion_completed",
   "code.index_completed",
   "navigation.requested",
@@ -99,7 +99,12 @@ export function AiEngineerMessage({
   onOpenApp,
   isPreviewBusy,
 }: AiEngineerMessageProps) {
-  const isEmptyStreamingAssistant = message.role === "assistant" && message.status === "streaming" && message.content.trim().length === 0;
+  const hasReasoning = Boolean(message.reasoning && message.reasoning.content.trim().length > 0);
+  const isEmptyStreamingAssistant =
+    message.role === "assistant" &&
+    message.status === "streaming" &&
+    message.content.trim().length === 0 &&
+    !hasReasoning;
 
   if (message.role === "user") {
     return (
@@ -147,18 +152,22 @@ export function AiEngineerMessage({
               />
             </div>
           ) : (
-            <div data-testid="ai-engineer-assistant-message">
+            <div data-testid="ai-engineer-assistant-message" className="flex flex-col gap-3">
+              {message.reasoning ? <AiEngineerReasoningPanel reasoning={message.reasoning} /> : null}
+
               {isEmptyStreamingAssistant ? (
                 <div className="flex h-[calc(13px*1.65)] items-center text-[13px] leading-[1.65]">
                   <span className="shimmer-text font-medium">Thinking...</span>
                 </div>
-              ) : isStreamingAssistantWithContent ? (
-                <div className="ai-engineer-streaming-assistant">
+              ) : message.content.trim().length > 0 ? (
+                isStreamingAssistantWithContent ? (
+                  <div className="ai-engineer-streaming-assistant">
+                    <AiEngineerMarkdown content={message.content} />
+                  </div>
+                ) : (
                   <AiEngineerMarkdown content={message.content} />
-                </div>
-              ) : (
-                <AiEngineerMarkdown content={message.content} />
-              )}
+                )
+              ) : null}
             </div>
           )}
           {!isChangePreviewMessage ? <InlineEventCards events={events} /> : null}

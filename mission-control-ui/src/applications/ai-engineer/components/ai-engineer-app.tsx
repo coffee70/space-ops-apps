@@ -16,8 +16,10 @@ import type {
   AttachmentStatus,
   ChatEvent,
   ChatMessage,
+  ChatMessageReasoning,
   ChatStreamChunk,
   ExecutionMode,
+  ReasoningStreamRepresentation,
 } from "@/applications/ai-engineer/types";
 import { buildApplicationRoute, buildApplicationRouteWithQuery } from "@/platform/registry/application-routes";
 import type { NativeApplicationProps } from "@/platform/sdk/native-application-contract";
@@ -53,6 +55,24 @@ function createClientId() {
   return `client-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
+function parseReasoningRepresentation(value: unknown): ReasoningStreamRepresentation | undefined {
+  return value === "reasoning" || value === "reasoning_summary" || value === "thinking" ? value : undefined;
+}
+
+function mapPersistedReasoning(metadata: Record<string, unknown> | undefined): ChatMessageReasoning | undefined {
+  const candidate = metadata?.reasoning;
+  if (!candidate || typeof candidate !== "object") return undefined;
+  const reasoning = candidate as Record<string, unknown>;
+  const text = typeof reasoning.text === "string" ? reasoning.text : "";
+  if (text.trim().length === 0) return undefined;
+  return {
+    content: text,
+    status: "complete",
+    representation: parseReasoningRepresentation(reasoning.representation),
+    source: reasoning.source === "provider_exposed" ? "provider_exposed" : undefined,
+  };
+}
+
 function mapConversationMessagesToChatMessages(messages: AiEngineerConversationMessage[]): ChatMessage[] {
   return messages.map((message) => ({
     id: message.id,
@@ -60,6 +80,7 @@ function mapConversationMessagesToChatMessages(messages: AiEngineerConversationM
     content: message.content,
     status: "complete",
     createdAt: message.created_at,
+    reasoning: message.role === "assistant" ? mapPersistedReasoning(message.metadata_json) : undefined,
   }));
 }
 
@@ -153,9 +174,6 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       });
     },
     onPreviewSummaryReceived: ({ previewKey }) => {
-      // Append the lifecycle card as a real assistant chat message so the
-      // deploy/revert decisions appear inline with the rest of the
-      // conversation (instead of in a detached lane below the transcript).
       setMessages((previous) => {
         const messageId = `${PREVIEW_MESSAGE_PREFIX}${previewKey}`;
         if (previous.some((existing) => existing.id === messageId)) return previous;
@@ -442,11 +460,15 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     if (!isEventForConversation(chunk.event, conversationIdRef.current)) return;
     appendBackendEvent(chunk.event);
     ingestPreviewEvent(chunk.event);
-    if (chunk.event.event_type === "message.delta") {
+    if (chunk.event.event_type === "message.delta" || chunk.event.event_type === "message.reasoning.delta") {
       scheduleMessageDeltaFlush(draftAssistantId, chunk.event);
       return;
     }
-    if (chunk.event.event_type === "message.completed" || chunk.event.event_type === "run.failed") {
+    if (
+      chunk.event.event_type === "message.completed" ||
+      chunk.event.event_type === "message.reasoning.completed" ||
+      chunk.event.event_type === "run.failed"
+    ) {
       flushPendingMessageDeltasNow();
     }
     setMessages((previous) => applyAgentEventToAssistantMessage(previous, draftAssistantId, chunk.event));
@@ -518,6 +540,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
                 ...item,
                 content: message,
                 status: "complete",
+                reasoning: item.reasoning ? { ...item.reasoning, status: "complete" } : item.reasoning,
               }
             : item,
         ),
@@ -536,9 +559,6 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
   const handleOpenApp = useCallback(
     (change: AiEngineerChangeSummary) => {
-      // Open app must only navigate to a real application route. Service-only
-      // changes don't have an `/apps/<id>` path, so we no-op rather than
-      // generating an invalid URL.
       if (!change.targetApplicationId) return;
       router.push(buildApplicationRoute(change.targetApplicationId));
     },

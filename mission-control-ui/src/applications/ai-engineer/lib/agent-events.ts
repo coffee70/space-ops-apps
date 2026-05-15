@@ -1,4 +1,9 @@
-import type { AgentEvent, ChatMessage, ChatStreamChunk } from "@/applications/ai-engineer/types";
+import type {
+  AgentEvent,
+  ChatMessage,
+  ChatStreamChunk,
+  ReasoningStreamRepresentation,
+} from "@/applications/ai-engineer/types";
 
 export function normalizeStreamLine(line: string): AgentEvent {
   const parsed = JSON.parse(line) as unknown;
@@ -44,7 +49,68 @@ export function chunkFromEvent(event: AgentEvent): ChatStreamChunk {
   return { kind: "event", event };
 }
 
+function parseReasoningRepresentation(value: unknown): ReasoningStreamRepresentation | undefined {
+  return value === "reasoning" || value === "reasoning_summary" || value === "thinking" ? value : undefined;
+}
+
 export function applyAgentEventToAssistantMessage(messages: ChatMessage[], draftAssistantId: string, event: AgentEvent): ChatMessage[] {
+  if (event.event_type === "message.reasoning.started") {
+    const representation = parseReasoningRepresentation(event.payload.representation);
+    return messages.map((message) =>
+      message.id === draftAssistantId
+        ? {
+            ...message,
+            reasoning: {
+              content: message.reasoning?.content ?? "",
+              status: "streaming",
+              representation,
+              source: "provider_exposed",
+            },
+          }
+        : message,
+    );
+  }
+
+  if (event.event_type === "message.reasoning.delta") {
+    const textDelta = typeof event.payload.text_delta === "string" ? event.payload.text_delta : "";
+    return messages.map((message) =>
+      message.id === draftAssistantId
+        ? {
+            ...message,
+            reasoning: {
+              content: `${message.reasoning?.content ?? ""}${textDelta}`,
+              status: "streaming",
+              representation: message.reasoning?.representation,
+              source: message.reasoning?.source ?? "provider_exposed",
+            },
+          }
+        : message,
+    );
+  }
+
+  if (event.event_type === "message.reasoning.completed") {
+    const representation = parseReasoningRepresentation(event.payload.representation);
+    return messages.map((message) =>
+      message.id === draftAssistantId
+        ? {
+            ...message,
+            reasoning: message.reasoning
+              ? {
+                  ...message.reasoning,
+                  status: "complete",
+                  representation: representation ?? message.reasoning.representation,
+                }
+              : {
+                  content: "",
+                  status: "complete",
+                  representation,
+                  source: "provider_exposed",
+                },
+          }
+        : message,
+    );
+  }
+
   if (event.event_type === "message.delta") {
     const textDelta = typeof event.payload.text_delta === "string" ? event.payload.text_delta : "";
     return messages.map((message) => (message.id === draftAssistantId ? { ...message, content: `${message.content}${textDelta}` } : message));
@@ -63,6 +129,7 @@ export function applyAgentEventToAssistantMessage(messages: ChatMessage[], draft
             ...item,
             content: item.content || message,
             status: "complete",
+            reasoning: item.reasoning ? { ...item.reasoning, status: "complete" } : item.reasoning,
           }
         : item,
     );
