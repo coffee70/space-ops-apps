@@ -173,11 +173,22 @@ test.describe("COSTS MONEY: AI Engineer live provider diagnostics", () => {
       )
       .toBe(true);
 
+    const assistantMessage = page.getByTestId("ai-engineer-assistant-message").last();
+    await expect
+      .poll(async () => ((await assistantMessage.textContent())?.trim().length ?? 0), { timeout: 45_000 })
+      .toBeGreaterThan(0);
+    const visiblePartialTextBeforeStop = (await assistantMessage.textContent())?.trim() ?? "";
+    expect(visiblePartialTextBeforeStop.length).toBeGreaterThan(0);
+
     await stopButton.click();
 
     await expect(stopButton).toHaveCount(0, { timeout: 15_000 });
     await expect(page.getByRole("button", { name: "Send message" })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("Run completed")).toHaveCount(0);
+
+    await expect
+      .poll(async () => ((await assistantMessage.textContent())?.trim().length ?? 0), { timeout: 15_000 })
+      .toBeGreaterThan(0);
 
     await expect
       .poll(
