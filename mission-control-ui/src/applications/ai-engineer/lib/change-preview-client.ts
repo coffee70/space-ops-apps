@@ -1,4 +1,11 @@
 import type { DeploymentRecord } from "@/applications/ai-engineer/lib/change-preview-types";
+import {
+  DeploymentLogResponseSchema,
+  DeploymentRecordSchema,
+  DeployPreviewChangeRequestSchema,
+  RevertPreviewChangeRequestSchema,
+} from "@/applications/ai-engineer/lib/change-preview-schemas";
+import { z } from "zod";
 
 const ROUTES = {
   deployPreview: "/change-previews/deploy",
@@ -26,7 +33,7 @@ export interface RevertPreviewChangeInput {
   agentRunId?: string | null;
 }
 
-async function postJson<T>(url: string, body: unknown): Promise<T> {
+async function postJson<T>(url: string, body: unknown, schema: z.ZodSchema<T>): Promise<T> {
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -36,11 +43,11 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
     const detail = await response.text();
     throw new Error(detail || `Request failed: ${response.status}`);
   }
-  return response.json() as Promise<T>;
+  return schema.parse(await response.json());
 }
 
 export async function deployPreviewChange(input: DeployPreviewChangeInput): Promise<DeploymentRecord> {
-  return postJson<DeploymentRecord>(ROUTES.deployPreview, {
+  const body = DeployPreviewChangeRequestSchema.parse({
     branch: input.branch,
     commit_sha: input.commitSha ?? null,
     target_unit_id: input.targetUnitId,
@@ -48,10 +55,11 @@ export async function deployPreviewChange(input: DeployPreviewChangeInput): Prom
     conversation_id: input.conversationId ?? null,
     agent_run_id: input.agentRunId ?? null,
   });
+  return postJson(ROUTES.deployPreview, body, DeploymentRecordSchema);
 }
 
 export async function revertPreviewChange(input: RevertPreviewChangeInput): Promise<DeploymentRecord> {
-  return postJson<DeploymentRecord>(ROUTES.revertPreview, {
+  const body = RevertPreviewChangeRequestSchema.parse({
     target_unit_id: input.targetUnitId,
     target_application_id: input.targetApplicationId ?? null,
     baseline_branch: input.baselineBranch ?? "main",
@@ -60,6 +68,7 @@ export async function revertPreviewChange(input: RevertPreviewChangeInput): Prom
     conversation_id: input.conversationId ?? null,
     agent_run_id: input.agentRunId ?? null,
   });
+  return postJson(ROUTES.revertPreview, body, DeploymentRecordSchema);
 }
 
 export async function getDeployment(deploymentId: string): Promise<DeploymentRecord> {
@@ -68,7 +77,7 @@ export async function getDeployment(deploymentId: string): Promise<DeploymentRec
     const detail = await response.text();
     throw new Error(detail || `Failed to load deployment ${deploymentId}`);
   }
-  return response.json() as Promise<DeploymentRecord>;
+  return DeploymentRecordSchema.parse(await response.json());
 }
 
 export async function getDeploymentLogs(deploymentId: string): Promise<{ deployment_id: string; logs: string }> {
@@ -77,7 +86,7 @@ export async function getDeploymentLogs(deploymentId: string): Promise<{ deploym
     const detail = await response.text();
     throw new Error(detail || `Failed to load logs for deployment ${deploymentId}`);
   }
-  return response.json() as Promise<{ deployment_id: string; logs: string }>;
+  return DeploymentLogResponseSchema.parse(await response.json());
 }
 
 export interface PollDeploymentOptions {

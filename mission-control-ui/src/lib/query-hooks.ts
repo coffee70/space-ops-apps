@@ -37,6 +37,30 @@ import {
   telemetryScopeToQueryParams,
   type TelemetryDetailScope,
 } from "@/lib/telemetry-detail-scope";
+import {
+  AiEngineerModelConfigDocumentSchema,
+  AiEngineerModelConfigSaveResponseSchema,
+  AiEngineerModelConfigValidationResponseSchema,
+  ExplainResponseSchema,
+  OpsEventsResponseSchema,
+  SimulatorActionResponseSchema,
+  SimulatorRuntimeStatusSchema,
+  SourceObservationsResponseSchema,
+  StringListResponseSchemas,
+  SystemDeploymentOverviewResponseSchema,
+  TelemetryInventoryResponseSchema,
+  TelemetryListResponseSchema,
+  TelemetryRecentResponseSchema,
+  TelemetrySearchResponseSchema,
+  TelemetrySourceSchema,
+  TelemetryStreamsResponseSchema,
+  VehicleConfigDocumentSchema,
+  VehicleConfigListItemSchema,
+  VehicleConfigSaveResponseSchema,
+  VehicleConfigValidationResponseSchema,
+  WatchlistResponseSchema,
+} from "@/lib/ui-boundary-schemas";
+import { z } from "zod";
 
 export interface WatchlistEntry {
   name: string;
@@ -173,7 +197,7 @@ export function useAiEngineerConversationQuery(conversationId: string | null, en
     enabled: enabled && Boolean(conversationId),
     placeholderData: keepPreviousData,
     staleTime: 15 * 1000,
-    queryFn: async () => getConversation(conversationId!) as Promise<AiEngineerConversationDetail>,
+    queryFn: async () => getConversation(conversationId!),
   });
 }
 
@@ -194,7 +218,7 @@ export function useCreateAiEngineerConversationMutation() {
       vehicle_id?: string;
       execution_mode?: ExecutionMode;
       initial_message: { role: "user"; content: string; metadata?: Record<string, unknown> };
-    }) => createConversation(payload) as Promise<AiEngineerConversationDetail>,
+    }) => createConversation(payload),
     onSuccess: async (conversation) => {
       queryClient.setQueryData(queryKeys.aiEngineerConversation(conversation.id), conversation);
       queryClient.setQueryData<AiEngineerConversationSummary[]>(queryKeys.aiEngineerConversations, (previous) => {
@@ -490,13 +514,14 @@ export function useWatchlistQuery(sourceId: string, enabled = true) {
     enabled,
     staleTime: 0,
     queryFn: async ({ signal }) => {
-      const data = await fetchJson<{ entries?: WatchlistEntry[] }>(
+      const data = await fetchJson(
         `/telemetry/watchlist?source_id=${encodeURIComponent(sourceId)}`,
         {
         signal,
-        }
+        },
+        WatchlistResponseSchema
       );
-      return Array.isArray(data.entries) ? data.entries : [];
+      return data.entries ?? [];
     },
   });
 }
@@ -589,14 +614,15 @@ export function useTelemetryListQuery(sourceId: string, enabled = true) {
     enabled,
     staleTime: 0,
     queryFn: async ({ signal }) => {
-      const data = await fetchJson<{ channels?: TelemetryListEntry[]; names?: string[] }>(
+      const data = await fetchJson(
         `/telemetry/list?source_id=${encodeURIComponent(sourceId)}`,
         {
         signal,
-        }
+        },
+        TelemetryListResponseSchema
       );
-      if (Array.isArray(data.channels)) return data.channels;
-      if (Array.isArray(data.names)) {
+      if (data.channels) return data.channels;
+      if (data.names) {
         return data.names.map((name) => ({ name, channel_origin: "catalog", discovery_namespace: null }));
       }
       return [];
@@ -612,11 +638,12 @@ export function useTelemetryInventoryQuery(sourceId: string, enabled = true) {
     refetchInterval: enabled ? 4000 : false,
     refetchIntervalInBackground: false,
     queryFn: async ({ signal }) => {
-      const data = await fetchJson<{ channels?: TelemetryInventoryEntry[] }>(
+      const data = await fetchJson(
         `/telemetry/inventory?source_id=${encodeURIComponent(sourceId)}`,
-        { signal, cache: "no-store" }
+        { signal, cache: "no-store" },
+        TelemetryInventoryResponseSchema
       );
-      return Array.isArray(data.channels) ? data.channels : [];
+      return data.channels ?? [];
     },
   });
 }
@@ -628,12 +655,12 @@ export function useTelemetrySourcesQuery<T = TelemetrySource[]>(
     queryKey: queryKeys.telemetrySources,
     staleTime: 5 * 60 * 1000,
     queryFn: async ({ signal }) => {
-      const data = await fetchJson<TelemetrySource[]>("/telemetry/sources", {
+      const data = await fetchJson("/telemetry/sources", {
         signal,
         useFallback: true,
         cache: "no-store",
-      });
-      return Array.isArray(data) ? data : [];
+      }, z.array(TelemetrySourceSchema));
+      return data;
     },
     ...(options ?? {}),
   });
@@ -647,7 +674,7 @@ export function useCreateTelemetrySourceMutation() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
-      }),
+      }, TelemetrySourceSchema),
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.telemetrySources });
     },
@@ -662,7 +689,7 @@ export function useUpdateTelemetrySourceMutation() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
-      }),
+      }, TelemetrySourceSchema),
     onSettled: async (_data, _error, variables) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.telemetrySources });
       await queryClient.invalidateQueries({
@@ -679,11 +706,12 @@ export function useUpcomingObservationsQuery(sourceId: string | null | undefined
     staleTime: 60 * 1000,
     refetchInterval: 60 * 1000,
     queryFn: async ({ signal }) => {
-      const data = await fetchJson<{ observations?: SourceObservation[] }>(
+      const data = await fetchJson(
         `/telemetry/sources/${encodeURIComponent(sourceId ?? "")}/observations/upcoming?limit=${limit}`,
-        { signal, cache: "no-store" }
+        { signal, cache: "no-store" },
+        SourceObservationsResponseSchema
       );
-      return Array.isArray(data.observations) ? data.observations : [];
+      return data.observations ?? [];
     },
   });
 }
@@ -694,11 +722,11 @@ export function useVehicleConfigsQuery(enabled = true) {
     enabled,
     staleTime: 30 * 1000,
     queryFn: async ({ signal }) => {
-      const data = await fetchJson<VehicleConfigListItem[]>("/vehicle-configs", {
+      const data = await fetchJson("/vehicle-configs", {
         signal,
         cache: "no-store",
-      });
-      return Array.isArray(data) ? data : [];
+      }, z.array(VehicleConfigListItemSchema));
+      return data;
     },
   });
 }
@@ -709,25 +737,21 @@ export function useVehicleConfigQuery(path: string, enabled = true) {
     enabled: enabled && path.trim().length > 0,
     placeholderData: (previousData) => previousData,
     queryFn: async ({ signal }) =>
-      fetchJson<VehicleConfigDocument>(`/vehicle-configs/${encodePathSegments(path)}`, {
+      fetchJson(`/vehicle-configs/${encodePathSegments(path)}`, {
         signal,
         cache: "no-store",
-      }),
+      }, VehicleConfigDocumentSchema),
   });
 }
 
 export function useValidateVehicleConfigMutation() {
   return useMutation({
     mutationFn: async (input: VehicleConfigValidateInput) =>
-      fetchJson<{
-        valid: boolean;
-        parsed?: VehicleConfigParsedSummary | null;
-        errors: VehicleConfigValidationError[];
-      }>("/vehicle-configs/validate", {
+      fetchJson("/vehicle-configs/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
-      }),
+      }, VehicleConfigValidationResponseSchema),
   });
 }
 
@@ -735,11 +759,11 @@ export function useCreateVehicleConfigMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: VehicleConfigSaveInput) =>
-      fetchJson<{ path: string; parsed: VehicleConfigParsedSummary; saved: boolean }>("/vehicle-configs", {
+      fetchJson("/vehicle-configs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
-      }),
+      }, VehicleConfigSaveResponseSchema),
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicleConfigs });
     },
@@ -750,13 +774,14 @@ export function useUpdateVehicleConfigMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: VehicleConfigSaveInput) =>
-      fetchJson<{ path: string; parsed: VehicleConfigParsedSummary; saved: boolean }>(
+      fetchJson(
         `/vehicle-configs/${encodePathSegments(input.path)}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(input),
-        }
+        },
+        VehicleConfigSaveResponseSchema
       ),
     onSettled: async (_data, _error, variables) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicleConfigs });
@@ -771,7 +796,7 @@ export function useAiEngineerModelConfigQuery(enabled = true) {
     enabled,
     staleTime: 30 * 1000,
     queryFn: async ({ signal }) =>
-      fetchJson<AiEngineerModelConfigDocument>("/intelligence/agent/model-config", { signal, cache: "no-store" }),
+      fetchJson("/intelligence/agent/model-config", { signal, cache: "no-store" }, AiEngineerModelConfigDocumentSchema),
   });
 }
 
@@ -785,26 +810,22 @@ export function useDeploymentOverviewQuery() {
     refetchInterval: (query) => (isBootstrapRunning(query.state.data) ? 1000 : 2000),
     refetchIntervalInBackground: true,
     queryFn: async ({ signal }) =>
-      fetchJson<SystemDeploymentOverviewResponse>("/system/deployments/overview", {
+      fetchJson("/system/deployments/overview", {
         signal,
         cache: "no-store",
         useFallback: true,
-      }),
+      }, SystemDeploymentOverviewResponseSchema),
   });
 }
 
 export function useValidateAiEngineerModelConfigMutation() {
   return useMutation({
     mutationFn: async (content: string) =>
-      fetchJson<{
-        valid: boolean;
-        parsed?: AiEngineerModelConfigParsedSummary | null;
-        errors: AiEngineerModelConfigValidationError[];
-      }>("/intelligence/agent/model-config/validate", {
+      fetchJson("/intelligence/agent/model-config/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
-      }),
+      }, AiEngineerModelConfigValidationResponseSchema),
   });
 }
 
@@ -812,13 +833,14 @@ export function useUpdateAiEngineerModelConfigMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (content: string) =>
-      fetchJson<{ path: string; parsed: AiEngineerModelConfigParsedSummary; saved: boolean }>(
+      fetchJson(
         "/intelligence/agent/model-config",
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content }),
         },
+        AiEngineerModelConfigSaveResponseSchema,
       ),
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerModelConfig });
@@ -832,10 +854,10 @@ export function useTelemetrySubsystemsQuery(sourceId: string, enabled = true) {
     enabled,
     staleTime: 10 * 60 * 1000,
     queryFn: async ({ signal }) => {
-      const data = await fetchJson<{ subsystems?: string[] }>(`/telemetry/subsystems?source_id=${encodeURIComponent(sourceId)}`, {
+      const data = await fetchJson(`/telemetry/subsystems?source_id=${encodeURIComponent(sourceId)}`, {
         signal,
-      });
-      return Array.isArray(data.subsystems) ? data.subsystems : [];
+      }, StringListResponseSchemas.subsystems);
+      return data.subsystems ?? [];
     },
   });
 }
@@ -846,11 +868,12 @@ export function useTelemetryUnitsQuery(sourceId: string, enabled = true) {
     enabled,
     staleTime: 10 * 60 * 1000,
     queryFn: async ({ signal }) => {
-      const data = await fetchJson<{ units?: string[] }>(
+      const data = await fetchJson(
         `/telemetry/units?source_id=${encodeURIComponent(sourceId)}`,
-        { signal }
+        { signal },
+        StringListResponseSchemas.units
       );
-      return Array.isArray(data.units) ? data.units : [];
+      return data.units ?? [];
     },
   });
 }
@@ -862,11 +885,12 @@ export function useTelemetrySearchQuery(params: SearchParams, enabled: boolean) 
     enabled: enabled && params.q.trim().length > 0,
     staleTime: 30 * 1000,
     queryFn: async ({ signal }) => {
-      const data = await fetchJson<{ results?: SearchResult[] }>(
+      const data = await fetchJson(
         `/telemetry/search?${queryParams.toString()}`,
-        { signal }
+        { signal },
+        TelemetrySearchResponseSchema
       );
-      return Array.isArray(data.results) ? data.results : [];
+      return data.results ?? [];
     },
   });
 }
@@ -877,11 +901,12 @@ export function useTelemetryChannelStreamsQuery(channelName: string, sourceId: s
     enabled,
     staleTime: 5 * 60 * 1000,
     queryFn: async ({ signal }) => {
-      const data = await fetchJson<{ sources?: TelemetryChannelStreamOption[] }>(
+      const data = await fetchJson(
         `${buildTelemetryApiBase(sourceId, channelName)}/streams`,
-        { signal }
+        { signal },
+        TelemetryStreamsResponseSchema
       );
-      return Array.isArray(data.sources) ? data.sources : [];
+      return data.sources ?? [];
     },
   });
 }
@@ -897,11 +922,12 @@ export function useTelemetryRecentQuery(
     queryKey: queryKeys.telemetryRecent(params),
     enabled,
     queryFn: async ({ signal }) =>
-      fetchJson<TelemetryRecentResponse>(
+      fetchJson(
         `${buildTelemetryApiBase(params.catalogSourceId ?? params.source_id, params.channelName)}/recent?${new URLSearchParams(
           queryEntries
         ).toString()}`,
-        { signal }
+        { signal },
+        TelemetryRecentResponseSchema
       ),
   });
 }
@@ -928,9 +954,10 @@ export function useTelemetryScopedRecentQuery(
     refetchInterval: pollLiveLatest ? 4000 : false,
     refetchIntervalInBackground: false,
     queryFn: async ({ signal }) =>
-      fetchJson<TelemetryRecentResponse>(
+      fetchJson(
         `${buildTelemetryApiBase(sourceId, channelName)}/recent?${queryParams.toString()}`,
-        { signal }
+        { signal },
+        TelemetryRecentResponseSchema
       ),
   });
 }
@@ -947,9 +974,10 @@ export function useTelemetryExplanationQuery(
     enabled,
     retry: 0,
     queryFn: async ({ signal }) =>
-      fetchJson<ExplainResponse>(
+      fetchJson(
         `${buildTelemetryApiBase(sourceId, channelName)}/explain?${params.toString()}`,
-        { signal, cache: "no-store" }
+        { signal, cache: "no-store" },
+        ExplainResponseSchema
       ),
   });
 }
@@ -979,22 +1007,24 @@ export function useOpsEventsQuery(params: Record<string, string> | URLSearchPara
     staleTime: 15 * 1000,
     queryFn: async ({ signal }) => {
       const query = params instanceof URLSearchParams ? params : new URLSearchParams(params);
-      const data = await fetchJson<{ events?: OpsEventSchema[]; total?: number }>(
+      const data = await fetchJson(
         `/ops/events?${query.toString()}`,
-        { signal }
+        { signal },
+        OpsEventsResponseSchema
       );
       return {
-        events: Array.isArray(data.events) ? data.events : [],
-        total: typeof data.total === "number" ? data.total : 0,
+        events: data.events ?? [],
+        total: data.total ?? 0,
       };
     },
   });
 }
 
 export async function fetchSimulatorRuntimeStatus(sourceId: string): Promise<SimulatorRuntimeStatus> {
-  const data = await fetchJson<SimulatorRuntimeStatus>(
+  const data = await fetchJson(
     `/simulator/status?vehicle_id=${encodeURIComponent(sourceId)}`,
-    { cache: "no-store", useFallback: true }
+    { cache: "no-store", useFallback: true },
+    SimulatorRuntimeStatusSchema
   );
   return data ?? { connected: false };
 }
@@ -1058,7 +1088,7 @@ export function useSimulatorStartMutation() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...payload, vehicle_id: sourceId }),
         useFallback: true,
-      }),
+      }, SimulatorActionResponseSchema),
     onSettled: async (_data, _error, variables) => {
       await invalidateSimulatorStatus(queryClient, variables.sourceId);
       await queryClient.invalidateQueries({ queryKey: queryKeys.telemetrySources });
@@ -1073,7 +1103,8 @@ function createSimulatorActionMutation(path: string, actionName: string) {
       mutationFn: async ({ sourceId }: SimulatorActionInput) =>
         fetchJson(
           `${path}?vehicle_id=${encodeURIComponent(sourceId)}`,
-          { method: "POST", useFallback: true }
+          { method: "POST", useFallback: true },
+          SimulatorActionResponseSchema
         ),
       onSuccess: (_data, variables) => {
         auditLog(actionName);

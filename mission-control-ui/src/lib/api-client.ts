@@ -1,6 +1,7 @@
 "use client";
 
 import { getPublicFetchBases } from "@/lib/public-api-origin";
+import { z, type ZodSchema } from "zod";
 
 export interface ApiError extends Error {
   status?: number;
@@ -17,6 +18,24 @@ function isIdempotentMethod(method: string | undefined): boolean {
   return normalized === "GET" || normalized === "HEAD";
 }
 
+const ApiErrorDetailSchema = z.union([
+  z.string(),
+  z.object({
+    message: z.string().optional(),
+    errors: z.array(z.unknown()).optional(),
+  }),
+]);
+
+const ApiErrorBodySchema = z.object({
+  detail: ApiErrorDetailSchema.optional(),
+  message: z.string().optional(),
+  errors: z.array(z.unknown()).optional(),
+});
+
+const ApiErrorLikeSchema = z.object({
+  errors: z.array(z.unknown()).optional(),
+});
+
 async function parseError(response: Response): Promise<ApiError> {
   let message = response.statusText || `HTTP ${response.status}`;
   let detail: string | undefined;
@@ -26,26 +45,28 @@ async function parseError(response: Response): Promise<ApiError> {
     const text = await response.text();
     if (text) {
       try {
-        const json = JSON.parse(text) as {
-          detail?: string | { message?: string; errors?: unknown[] };
-          message?: string;
-          errors?: unknown[];
-        };
+        const parsed = ApiErrorBodySchema.safeParse(JSON.parse(text));
+        if (!parsed.success) {
+          detail = text;
+          message = text;
+        } else {
+          const json = parsed.data;
 
-        if (typeof json.detail === "string") {
-          detail = json.detail;
-          message = detail || message;
-        } else if (json.detail && typeof json.detail === "object") {
-          detail = typeof json.detail.message === "string" ? json.detail.message : detail;
-          errors = Array.isArray(json.detail.errors) ? json.detail.errors : errors;
-          message = detail || message;
-        }
+          if (typeof json.detail === "string") {
+            detail = json.detail;
+            message = detail || message;
+          } else if (json.detail) {
+            detail = json.detail.message ?? detail;
+            errors = json.detail.errors ?? errors;
+            message = detail || message;
+          }
 
-        if (typeof json.message === "string" && !detail) {
-          message = json.message;
-        }
-        if (Array.isArray(json.errors) && !errors) {
-          errors = json.errors;
+          if (json.message && !detail) {
+            message = json.message;
+          }
+          if (json.errors && !errors) {
+            errors = json.errors;
+          }
         }
       } catch {
         detail = text;
@@ -63,7 +84,8 @@ async function parseError(response: Response): Promise<ApiError> {
 
 export async function fetchJson<T>(
   path: string,
-  init: RequestInit & { signal?: AbortSignal; useFallback?: boolean } = {}
+  init: RequestInit & { signal?: AbortSignal; useFallback?: boolean } = {},
+  schema?: ZodSchema<T>
 ): Promise<T> {
   const { useFallback = false, ...requestInit } = init;
   const bases = getApiBases(useFallback && isIdempotentMethod(requestInit.method));
@@ -78,7 +100,8 @@ export async function fetchJson<T>(
       if (response.status === 204) {
         return undefined as T;
       }
-      return (await response.json()) as T;
+      const raw = await response.json();
+      return schema ? schema.parse(raw) : (raw as T);
     } catch (error) {
       if (requestInit.signal?.aborted) {
         throw error;
@@ -103,7 +126,7 @@ export function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 export function getErrorErrors<T = unknown>(error: unknown): T[] {
-  if (!error || typeof error !== "object" || !("errors" in error)) return [];
-  const errors = (error as { errors?: unknown[] }).errors;
-  return Array.isArray(errors) ? (errors as T[]) : [];
+  const parsed = ApiErrorLikeSchema.safeParse(error);
+  if (!parsed.success) return [];
+  return (parsed.data.errors ?? []) as T[];
 }

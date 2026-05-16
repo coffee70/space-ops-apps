@@ -24,13 +24,27 @@ test("ai-engineer client uses clean gateway routes for agent, chat, and document
     };
   const urls: string[] = [];
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async (input: string | URL | Request) => {
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
     urls.push(url);
     if (url.endsWith("/chat")) {
       return new Response("", { status: 200, headers: { "x-agent-run-id": "run-1", "x-request-id": "req-1" } });
     }
-    return new Response(JSON.stringify({ id: "conversation-1", document_id: "doc-1" }), {
+    const conversation = {
+      id: "conversation-1",
+      title: "Session",
+      mission_id: null,
+      vehicle_id: null,
+      execution_mode: "read_only",
+      created_at: "2026-05-16T00:00:00Z",
+      updated_at: "2026-05-16T00:00:00Z",
+    };
+    const payload = pathnameOfFetchUrl(url) === "/intelligence/documents"
+      ? { document_id: "doc-1" }
+      : pathnameOfFetchUrl(url) === "/intelligence/agent/conversations" && init?.method !== "POST"
+        ? [conversation]
+        : { ...conversation, messages: [], events: [] };
+    return new Response(JSON.stringify(payload), {
       status: 200,
       headers: { "content-type": "application/json" },
     });

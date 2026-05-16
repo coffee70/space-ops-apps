@@ -1,6 +1,8 @@
 "use client";
 
 import { getPublicFetchBases } from "@/lib/public-api-origin";
+import { PositionChannelMappingSchema, PositionErrorBodySchema, PositionSampleSchema } from "@/lib/position-schemas";
+import { z } from "zod";
 
 function getApiBases(): string[] {
   return getPublicFetchBases(false);
@@ -100,9 +102,9 @@ export async function fetchPositionConfig(
 ): Promise<PositionChannelMapping[]> {
   const qs = vehicleId ? `?vehicle_id=${encodeURIComponent(vehicleId)}` : "";
   const res = await fetchWithFallback(`/telemetry/position/config${qs}`);
-  const data = await res.json();
-  if (!Array.isArray(data)) return [];
-  return data as PositionChannelMapping[];
+  const parsed = z.array(PositionChannelMappingSchema).safeParse(await res.json());
+  if (!parsed.success) return [];
+  return parsed.data;
 }
 
 export async function fetchLatestPositions(
@@ -118,9 +120,9 @@ export async function fetchLatestPositions(
   const res = await fetchWithFallback(
     `/telemetry/position/latest${qs ? `?${qs}` : ""}`
   );
-  const data = await res.json();
-  if (!Array.isArray(data)) return [];
-  return data as PositionSample[];
+  const parsed = z.array(PositionSampleSchema).safeParse(await res.json());
+  if (!parsed.success) return [];
+  return parsed.data;
 }
 
 export async function upsertPositionConfig(
@@ -138,14 +140,14 @@ export async function upsertPositionConfig(
     const text = await res.text();
     let message = "Failed to save position mapping";
     try {
-      const json = JSON.parse(text) as { detail?: string };
-      if (typeof json.detail === "string") message = json.detail;
+      const parsed = PositionErrorBodySchema.safeParse(JSON.parse(text));
+      if (parsed.success && parsed.data.detail) message = parsed.data.detail;
     } catch {
       if (text) message = text;
     }
     throw new Error(message);
   }
-  return (await res.json()) as PositionChannelMapping;
+  return PositionChannelMappingSchema.parse(await res.json());
 }
 
 export async function deletePositionConfig(id: string): Promise<void> {
