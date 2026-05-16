@@ -114,7 +114,7 @@ export function AiEngineerComposer({
               onClick={onStop}
               className="bg-foreground text-background flex h-7 w-7 items-center justify-center rounded-xl transition-all duration-200 hover:opacity-85 active:scale-95"
             >
-              <Square className="size-3" />
+              <Square className="size-3" fill="currentColor" strokeWidth={0} />
             </button>
           ) : (
             <button

@@ -71,6 +71,7 @@ export async function sendChatMessage(params: {
   executionMode?: string;
   modelId?: string;
   persistedUserMessageId?: string;
+  signal?: AbortSignal;
   onChunk: (chunk: ChatStreamChunk) => void;
 }) {
   const response = await fetch(apiUrl(ROUTES.chat), {
@@ -83,6 +84,7 @@ export async function sendChatMessage(params: {
       persisted_user_message_id: params.persistedUserMessageId ?? undefined,
       messages: [{ role: "user", content: params.message }],
     }),
+    signal: params.signal,
   });
 
   if (!response.ok) {

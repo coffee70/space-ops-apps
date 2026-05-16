@@ -55,6 +55,15 @@ function createClientId() {
   return `client-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
+function isAbortError(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "name" in error &&
+      (error as { name?: unknown }).name === "AbortError",
+  );
+}
+
 function parseReasoningRepresentation(value: unknown): ReasoningStreamRepresentation | undefined {
   return value === "reasoning" || value === "reasoning_summary" || value === "thinking" ? value : undefined;
 }
@@ -147,6 +156,9 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const conversationIdRef = useRef<string | null>(null);
   const conversationPromiseRef = useRef<Promise<DraftCreationResult> | null>(null);
   const executionModeRef = useRef<ExecutionMode>(executionMode);
+  const activeChatAbortControllerRef = useRef<AbortController | null>(null);
+  const activeStreamingRunIdRef = useRef<string | null>(null);
+  const preserveCancelledDraftUntilRunHydratedRef = useRef<string | null>(null);
   const didBootstrapRef = useRef(false);
   const lastHydratedConversationIdRef = useRef<string | null>(null);
   const pendingMessageDeltasRef = useRef<PendingMessageDelta[]>([]);
@@ -256,11 +268,15 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   );
 
   const setActiveConversationId = useCallback((id: string) => {
+    preserveCancelledDraftUntilRunHydratedRef.current = null;
+    activeStreamingRunIdRef.current = null;
     conversationIdRef.current = id;
     setActiveConversationIdState(id);
   }, []);
 
   const clearActiveConversationId = useCallback(() => {
+    preserveCancelledDraftUntilRunHydratedRef.current = null;
+    activeStreamingRunIdRef.current = null;
     conversationIdRef.current = null;
     setActiveConversationIdState(null);
   }, []);
@@ -364,6 +380,14 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     const conversation = activeConversationQuery.data;
     if (!conversation || conversation.id !== conversationIdRef.current) return;
     if (isStreaming) return;
+    const cancelledRunId = preserveCancelledDraftUntilRunHydratedRef.current;
+    if (cancelledRunId) {
+      const hasPersistedCancellation = conversationEventsForHydration(conversation).some(
+        (event) => event.agent_run_id === cancelledRunId && event.event_type === "run.cancelled",
+      );
+      if (!hasPersistedCancellation) return;
+      preserveCancelledDraftUntilRunHydratedRef.current = null;
+    }
     hydratePersistedConversation(conversation);
     setIsSwitchingConversation(false);
   }, [activeConversationQuery.data, hydratePersistedConversation, isStreaming]);
@@ -458,6 +482,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
   const applyStreamChunk = (draftAssistantId: string, chunk: ChatStreamChunk) => {
     if (!isEventForConversation(chunk.event, conversationIdRef.current)) return;
+    activeStreamingRunIdRef.current = chunk.event.agent_run_id;
     appendBackendEvent(chunk.event);
     ingestPreviewEvent(chunk.event);
     if (chunk.event.event_type === "message.delta" || chunk.event.event_type === "message.reasoning.delta") {
@@ -467,7 +492,8 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     if (
       chunk.event.event_type === "message.completed" ||
       chunk.event.event_type === "message.reasoning.completed" ||
-      chunk.event.event_type === "run.failed"
+      chunk.event.event_type === "run.failed" ||
+      chunk.event.event_type === "run.cancelled"
     ) {
       flushPendingMessageDeltasNow();
     }
@@ -516,6 +542,9 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       userMessage,
       { id: assistantDraftId, role: "assistant", content: "", status: "streaming" },
     ]);
+    activeStreamingRunIdRef.current = null;
+    const abortController = new AbortController();
+    activeChatAbortControllerRef.current = abortController;
     setIsStreaming(true);
 
     try {
@@ -525,6 +554,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
         executionMode,
         modelId: selectedModelId ?? undefined,
         persistedUserMessageId: draftCreation?.messageId ?? undefined,
+        signal: abortController.signal,
         onChunk: (chunk) => applyStreamChunk(assistantDraftId, chunk),
       });
       flushPendingMessageDeltasNow();
@@ -532,23 +562,50 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversation(activeConversationId) });
     } catch (error) {
       flushPendingMessageDeltasNow();
-      const message = error instanceof Error ? error.message : "Failed to contact agent runtime.";
-      setMessages((previous) =>
-        previous.map((item) =>
-          item.id === assistantDraftId
-            ? {
-                ...item,
-                content: message,
-                status: "complete",
-                reasoning: item.reasoning ? { ...item.reasoning, status: "complete" } : item.reasoning,
-              }
-            : item,
-        ),
-      );
+      if (isAbortError(error)) {
+        const cancelledRunId = activeStreamingRunIdRef.current;
+        if (cancelledRunId) {
+          preserveCancelledDraftUntilRunHydratedRef.current = cancelledRunId;
+        }
+        setMessages((previous) =>
+          previous.map((item) =>
+            item.id === assistantDraftId
+              ? {
+                  ...item,
+                  status: "complete",
+                  reasoning: item.reasoning ? { ...item.reasoning, status: "complete" } : item.reasoning,
+                }
+              : item,
+          ),
+        );
+        void queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversations });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversation(activeConversationId) });
+      } else {
+        const message = error instanceof Error ? error.message : "Failed to contact agent runtime.";
+        setMessages((previous) =>
+          previous.map((item) =>
+            item.id === assistantDraftId
+              ? {
+                  ...item,
+                  content: message,
+                  status: "complete",
+                  reasoning: item.reasoning ? { ...item.reasoning, status: "complete" } : item.reasoning,
+                }
+              : item,
+          ),
+        );
+      }
     } finally {
+      if (activeChatAbortControllerRef.current === abortController) {
+        activeChatAbortControllerRef.current = null;
+      }
       setIsStreaming(false);
     }
   };
+
+  const handleStop = useCallback(() => {
+    activeChatAbortControllerRef.current?.abort();
+  }, []);
 
   const title = useMemo(() => props.application.title ?? "AI Engineer", [props.application.title]);
 
@@ -577,6 +634,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       disabled={isBootstrapping || isSwitchingConversation}
       isBootstrapping={isBootstrapping}
       isStreaming={isStreaming}
+      onStop={handleStop}
       getPreviewState={changePreviewFlow.getStateByKey}
       onDeployChange={changePreviewFlow.deployChange}
       onRevertChange={changePreviewFlow.revertChange}
