@@ -72,7 +72,11 @@ export interface AttachmentStatus {
   message?: string;
 }
 
-export type ExecutionMode = "read_only" | "suggest" | "execute";
+export type ExecutionMode =
+  | "read_only"
+  | "suggest"
+  | "execute"
+  | "governed_execute";
 
 export interface AiEngineerConversationSummary {
   id: string;

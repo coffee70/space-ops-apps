@@ -39,13 +39,20 @@ export const ConversationMessageSchema = z
   })
   .passthrough();
 
+const ExecutionModeSchema = z.enum([
+  "read_only",
+  "suggest",
+  "execute",
+  "governed_execute",
+]);
+
 export const ConversationSummarySchema = z
   .object({
     id: z.string(),
     title: z.string().nullable(),
     mission_id: z.string().nullable(),
     vehicle_id: z.string().nullable(),
-    execution_mode: z.enum(["read_only", "suggest", "execute"]),
+    execution_mode: ExecutionModeSchema,
     created_at: z.string(),
     updated_at: z.string(),
   })
@@ -87,7 +94,7 @@ const ModelOptionSchema = z
     defaultFor: z.array(z.string()),
     governance: z
       .object({
-        allowedModes: z.array(z.string()),
+        allowedModes: z.array(ExecutionModeSchema),
         dataBoundary: ModelDataBoundarySchema,
       })
       .passthrough(),
