@@ -119,7 +119,17 @@ test("Knowledge delete calls the document delete route", async () => {
 });
 
 test("Knowledge upload defaults derive clean title and document type from file", () => {
-  const file = new File(["hello"], "mission-procedure.md", { type: "text/markdown" });
+  const FileCtor =
+    globalThis.File ??
+    class extends Blob {
+      readonly name: string;
+
+      constructor(parts: BlobPart[], name: string, options?: FilePropertyBag) {
+        super(parts, options);
+        this.name = name;
+      }
+    };
+  const file = new FileCtor(["hello"], "mission-procedure.md", { type: "text/markdown" });
   assert.equal(titleFromFile(file), "mission procedure");
   assert.equal(documentTypeFromFile(file), "md");
 });

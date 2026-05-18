@@ -1,15 +1,21 @@
-import type { PlatformApplicationDefinition } from "@/platform/registry/application-types";
+import { PlatformApplicationDefinitionSchema } from "@/platform/registry/application-schemas";
+import { z } from "zod";
 
 export function getControlPlaneServerUrl(): string {
   return process.env.CONTROL_PLANE_SERVER_URL || "http://control-plane:8100";
 }
 
-async function readApplications(response: Response): Promise<PlatformApplicationDefinition[]> {
+async function readApplications(response: Response) {
   if (!response.ok) {
     throw new Error("Failed to load applications registry");
   }
 
-  return (await response.json()) as PlatformApplicationDefinition[];
+  const parsed = z.array(PlatformApplicationDefinitionSchema).safeParse(await response.json());
+  if (!parsed.success) {
+    console.error("Application registry validation error:", parsed.error.issues);
+    throw new Error("Application registry returned invalid application definitions");
+  }
+  return parsed.data;
 }
 
 export async function fetchPlatformApplications(signal?: AbortSignal) {

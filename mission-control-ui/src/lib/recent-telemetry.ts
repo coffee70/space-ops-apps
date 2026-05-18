@@ -1,27 +1,28 @@
+import { z } from "zod";
+
 const RECENT_STORAGE_KEY = "telemetry_recent";
 const RECENT_MAX = 12;
 
-interface RecentTelemetryEntry {
+export interface RecentTelemetryEntry {
   sourceId: string;
   name: string;
 }
+
+const RecentTelemetryEntrySchema = z.object({
+  sourceId: z.string().min(1),
+  name: z.string().min(1),
+});
+
+const RecentTelemetryStorageSchema = z.array(z.union([z.string(), RecentTelemetryEntrySchema]));
 
 export function getRecentChannels(): RecentTelemetryEntry[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(RECENT_STORAGE_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as Array<string | RecentTelemetryEntry>;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.flatMap((entry) => {
-      if (typeof entry === "string") {
-        return [];
-      }
-      if (entry && typeof entry.sourceId === "string" && typeof entry.name === "string") {
-        return [entry];
-      }
-      return [];
-    });
+    const parsed = RecentTelemetryStorageSchema.safeParse(JSON.parse(raw));
+    if (!parsed.success) return [];
+    return parsed.data.flatMap((entry) => (typeof entry === "string" ? [] : [entry]));
   } catch {
     return [];
   }

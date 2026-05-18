@@ -1,8 +1,21 @@
 "use client";
 
-import type { AttachmentStatus, ChatStreamChunk, ListAiEngineerModelsResponse } from "@/applications/ai-engineer/types";
+import type {
+  AiEngineerConversationDetail,
+  AiEngineerConversationSummary,
+  AttachmentStatus,
+  ChatStreamChunk,
+  ListAiEngineerModelsResponse,
+} from "@/applications/ai-engineer/types";
 import { chunkFromEvent, normalizeStreamLine } from "@/applications/ai-engineer/lib/agent-events";
+import {
+  ConversationDetailSchema,
+  ListAiEngineerModelsResponseSchema,
+  ListConversationsResponseSchema,
+  UploadDocumentResponseSchema,
+} from "@/applications/ai-engineer/schemas";
 import { resolvePublicApiUrl } from "@/lib/public-api-origin";
+import { z } from "zod";
 
 const ROUTES = {
   createConversation: "/intelligence/agent/conversations",
@@ -29,12 +42,22 @@ function isStreamDebugEnabled(): boolean {
   );
 }
 
+async function parseJsonResponse<T>(response: Response, schema: z.ZodType<T, z.ZodTypeDef, unknown>, label: string): Promise<T> {
+  const raw = await response.json();
+  const parsed = schema.safeParse(raw);
+  if (!parsed.success) {
+    console.error(`${label} response validation failed`, parsed.error.issues);
+    throw new Error(`Invalid ${label} response from server`);
+  }
+  return parsed.data;
+}
+
 export async function listModels(): Promise<ListAiEngineerModelsResponse> {
   const response = await fetch(apiUrl(ROUTES.models));
   if (!response.ok) {
     throw new Error(`Failed to load model catalog (${response.status}). Is the platform gateway up?`);
   }
-  return response.json();
+  return parseJsonResponse(response, ListAiEngineerModelsResponseSchema, "model catalog");
 }
 
 export async function createConversation(payload: {
@@ -43,26 +66,26 @@ export async function createConversation(payload: {
   vehicle_id?: string;
   execution_mode?: string;
   initial_message: { role: "user"; content: string; metadata?: Record<string, unknown> };
-}) {
+}): Promise<AiEngineerConversationDetail> {
   const response = await fetch(apiUrl(ROUTES.createConversation), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   if (!response.ok) throw new Error("Failed to create conversation");
-  return response.json();
+  return parseJsonResponse(response, ConversationDetailSchema, "created conversation");
 }
 
-export async function listConversations() {
+export async function listConversations(): Promise<AiEngineerConversationSummary[]> {
   const response = await fetch(apiUrl(ROUTES.listConversations));
   if (!response.ok) throw new Error("Failed to list conversations");
-  return response.json();
+  return parseJsonResponse(response, ListConversationsResponseSchema, "conversation list");
 }
 
-export async function getConversation(conversationId: string) {
+export async function getConversation(conversationId: string): Promise<AiEngineerConversationDetail> {
   const response = await fetch(apiUrl(ROUTES.getConversation(conversationId)));
   if (!response.ok) throw new Error("Failed to load conversation");
-  return response.json();
+  return parseJsonResponse(response, ConversationDetailSchema, "conversation");
 }
 
 export async function sendChatMessage(params: {
@@ -180,6 +203,6 @@ export async function uploadDocument(params: {
     const text = await response.text();
     return { fileName: params.file.name, status: "failed", message: text || "Upload failed" };
   }
-  const data = await response.json();
+  const data = await parseJsonResponse(response, UploadDocumentResponseSchema, "document upload");
   return { fileName: params.file.name, status: "ready", documentId: data.document_id };
 }

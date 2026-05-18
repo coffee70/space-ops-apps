@@ -4,45 +4,22 @@ import type {
   ChatStreamChunk,
   ReasoningStreamRepresentation,
 } from "@/applications/ai-engineer/types";
+import {
+  MessageCompletedPayloadSchema,
+  MessageDeltaPayloadSchema,
+  NormalizedAgentEventSchema,
+  ReasoningPayloadSchema,
+  RunFailedPayloadSchema,
+  StreamLineSchema,
+} from "@/applications/ai-engineer/schemas";
 
 export function normalizeStreamLine(line: string): AgentEvent {
-  const parsed = JSON.parse(line) as unknown;
-  const candidate =
-    parsed && typeof parsed === "object" && "kind" in parsed && (parsed as { kind?: unknown }).kind === "event"
-      ? (parsed as { event?: unknown }).event
-      : parsed;
-
-  if (!candidate || typeof candidate !== "object") {
-    throw new Error("NDJSON line did not contain an agent event");
+  const parsed = StreamLineSchema.safeParse(JSON.parse(line));
+  if (!parsed.success) {
+    throw new Error("NDJSON line did not contain a valid agent event");
   }
-
-  const event = candidate as Partial<AgentEvent>;
-  if (
-    typeof event.id !== "string" ||
-    typeof event.event_type !== "string" ||
-    typeof event.agent_run_id !== "string" ||
-    typeof event.request_id !== "string" ||
-    typeof event.sequence !== "number" ||
-    typeof event.emitted_by !== "string" ||
-    typeof event.created_at !== "string" ||
-    !event.payload ||
-    typeof event.payload !== "object"
-  ) {
-    throw new Error("Agent event envelope is incomplete");
-  }
-
-  return {
-    id: event.id,
-    event_type: event.event_type,
-    conversation_id: typeof event.conversation_id === "string" ? event.conversation_id : null,
-    agent_run_id: event.agent_run_id,
-    request_id: event.request_id,
-    tool_call_id: typeof event.tool_call_id === "string" ? event.tool_call_id : null,
-    sequence: event.sequence,
-    emitted_by: event.emitted_by,
-    created_at: event.created_at,
-    payload: event.payload as Record<string, unknown>,
-  };
+  const event = "kind" in parsed.data ? parsed.data.event : parsed.data;
+  return NormalizedAgentEventSchema.parse(event);
 }
 
 export function chunkFromEvent(event: AgentEvent): ChatStreamChunk {
@@ -55,7 +32,8 @@ function parseReasoningRepresentation(value: unknown): ReasoningStreamRepresenta
 
 export function applyAgentEventToAssistantMessage(messages: ChatMessage[], draftAssistantId: string, event: AgentEvent): ChatMessage[] {
   if (event.event_type === "message.reasoning.started") {
-    const representation = parseReasoningRepresentation(event.payload.representation);
+    const payload = ReasoningPayloadSchema.safeParse(event.payload);
+    const representation = parseReasoningRepresentation(payload.success ? payload.data.representation : undefined);
     return messages.map((message) =>
       message.id === draftAssistantId
         ? {
@@ -72,7 +50,8 @@ export function applyAgentEventToAssistantMessage(messages: ChatMessage[], draft
   }
 
   if (event.event_type === "message.reasoning.delta") {
-    const textDelta = typeof event.payload.text_delta === "string" ? event.payload.text_delta : "";
+    const payload = MessageDeltaPayloadSchema.safeParse(event.payload);
+    const textDelta = payload.success ? payload.data.text_delta : "";
     return messages.map((message) =>
       message.id === draftAssistantId
         ? {
@@ -89,7 +68,8 @@ export function applyAgentEventToAssistantMessage(messages: ChatMessage[], draft
   }
 
   if (event.event_type === "message.reasoning.completed") {
-    const representation = parseReasoningRepresentation(event.payload.representation);
+    const payload = ReasoningPayloadSchema.safeParse(event.payload);
+    const representation = parseReasoningRepresentation(payload.success ? payload.data.representation : undefined);
     return messages.map((message) =>
       message.id === draftAssistantId
         ? {
@@ -112,17 +92,20 @@ export function applyAgentEventToAssistantMessage(messages: ChatMessage[], draft
   }
 
   if (event.event_type === "message.delta") {
-    const textDelta = typeof event.payload.text_delta === "string" ? event.payload.text_delta : "";
+    const payload = MessageDeltaPayloadSchema.safeParse(event.payload);
+    const textDelta = payload.success ? payload.data.text_delta : "";
     return messages.map((message) => (message.id === draftAssistantId ? { ...message, content: `${message.content}${textDelta}` } : message));
   }
 
   if (event.event_type === "message.completed") {
-    const completedMessageId = typeof event.payload.message_id === "string" ? event.payload.message_id : draftAssistantId;
+    const payload = MessageCompletedPayloadSchema.safeParse(event.payload);
+    const completedMessageId = payload.success ? payload.data.message_id : draftAssistantId;
     return messages.map((message) => (message.id === draftAssistantId ? { ...message, id: completedMessageId, status: "complete" } : message));
   }
 
   if (event.event_type === "run.failed") {
-    const message = typeof event.payload.message === "string" ? event.payload.message : "Agent runtime failed.";
+    const payload = RunFailedPayloadSchema.safeParse(event.payload);
+    const message = payload.success && payload.data.message ? payload.data.message : "Agent runtime failed.";
     return messages.map((item) =>
       item.id === draftAssistantId
         ? {

@@ -1,6 +1,7 @@
 "use client";
 
 import { resolvePublicApiUrl } from "@/lib/public-api-origin";
+import { z } from "zod";
 
 /**
  * Typed WebSocket client for realtime telemetry.
@@ -28,81 +29,93 @@ function getWsUrl(): string {
   return `${wsBase}${DEFAULT_WS_PATH}`;
 }
 
-export interface RealtimeChannelUpdate {
-  source_id: string;
-  stream_id: string;
-  name: string;
-  units?: string | null;
-  description?: string | null;
-  subsystem_tag: string;
-  current_value: number;
-  generation_time: string;
-  reception_time: string;
-  state: string;
-  state_reason?: string | null;
-  z_score?: number | null;
-  quality?: string;
-  sparkline_data: { timestamp: string; value: number }[];
-}
+const SparklinePointSchema = z.object({
+  timestamp: z.string(),
+  value: z.number(),
+});
 
-export interface TelemetryAlert {
-  id: string;
-  source_id: string;
-  stream_id: string;
-  channel_name: string;
-  telemetry_id: string;
-  subsystem: string;
-  units?: string | null;
-  severity: string;
-  reason?: string | null;
-  status: string;
-  opened_at: string;
-  opened_reception_at: string;
-  last_update_at: string;
-  current_value: number;
-  red_low?: number | null;
-  red_high?: number | null;
-  z_score?: number | null;
-  acked_at?: string | null;
-  acked_by?: string | null;
-  cleared_at?: string | null;
-  resolved_at?: string | null;
-  resolved_by?: string | null;
-  resolution_text?: string | null;
-  resolution_code?: string | null;
-}
+export const RealtimeChannelUpdateSchema = z.object({
+  source_id: z.string(),
+  stream_id: z.string(),
+  name: z.string(),
+  units: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  subsystem_tag: z.string(),
+  current_value: z.number(),
+  generation_time: z.string(),
+  reception_time: z.string(),
+  state: z.string(),
+  state_reason: z.string().nullable().optional(),
+  z_score: z.number().nullable().optional(),
+  quality: z.string().optional(),
+  sparkline_data: z.array(SparklinePointSchema),
+});
 
-export interface OrbitStatusMessage {
-  type: "orbit_status";
-  vehicle_id: string;
-  status: string;
-  reason: string;
-  orbit_type?: string | null;
-  perigee_km?: number | null;
-  apogee_km?: number | null;
-  eccentricity?: number | null;
-  velocity_kms?: number | null;
-  period_sec?: number | null;
-}
+export const TelemetryAlertSchema = z.object({
+  id: z.string(),
+  source_id: z.string(),
+  stream_id: z.string(),
+  channel_name: z.string(),
+  telemetry_id: z.string(),
+  subsystem: z.string(),
+  units: z.string().nullable().optional(),
+  severity: z.string(),
+  reason: z.string().nullable().optional(),
+  status: z.string(),
+  opened_at: z.string(),
+  opened_reception_at: z.string(),
+  last_update_at: z.string(),
+  current_value: z.number(),
+  red_low: z.number().nullable().optional(),
+  red_high: z.number().nullable().optional(),
+  z_score: z.number().nullable().optional(),
+  acked_at: z.string().nullable().optional(),
+  acked_by: z.string().nullable().optional(),
+  cleared_at: z.string().nullable().optional(),
+  resolved_at: z.string().nullable().optional(),
+  resolved_by: z.string().nullable().optional(),
+  resolution_text: z.string().nullable().optional(),
+  resolution_code: z.string().nullable().optional(),
+});
 
-export interface FeedStatusMessage {
-  type: "feed_status";
-  source_id: string;
-  connected: boolean;
-  state?: "connected" | "degraded" | "disconnected";
-  last_reception_time: string | null;
-  approx_rate_hz?: number | null;
-}
+export const FeedStatusMessageSchema = z.object({
+  type: z.literal("feed_status"),
+  source_id: z.string(),
+  connected: z.boolean(),
+  state: z.enum(["connected", "degraded", "disconnected"]).optional(),
+  last_reception_time: z.string().nullable(),
+  approx_rate_hz: z.number().nullable().optional(),
+});
 
-export type RealtimeMessage =
-  | { type: "snapshot_watchlist"; channels: RealtimeChannelUpdate[] }
-  | { type: "telemetry_update"; channel: RealtimeChannelUpdate }
-  | { type: "snapshot_alerts"; active: TelemetryAlert[] }
-  | { type: "alert_event"; event_type: string; alert: TelemetryAlert }
-  | FeedStatusMessage
-  | OrbitStatusMessage
-  | { type: "hello_ack"; server_version: string }
-  | { type: "error"; error: string };
+export const OrbitStatusMessageSchema = z.object({
+  type: z.literal("orbit_status"),
+  vehicle_id: z.string(),
+  status: z.string(),
+  reason: z.string(),
+  orbit_type: z.string().nullable().optional(),
+  perigee_km: z.number().nullable().optional(),
+  apogee_km: z.number().nullable().optional(),
+  eccentricity: z.number().nullable().optional(),
+  velocity_kms: z.number().nullable().optional(),
+  period_sec: z.number().nullable().optional(),
+});
+
+export const RealtimeMessageSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("snapshot_watchlist"), channels: z.array(RealtimeChannelUpdateSchema) }),
+  z.object({ type: z.literal("telemetry_update"), channel: RealtimeChannelUpdateSchema }),
+  z.object({ type: z.literal("snapshot_alerts"), active: z.array(TelemetryAlertSchema) }),
+  z.object({ type: z.literal("alert_event"), event_type: z.string(), alert: TelemetryAlertSchema }),
+  FeedStatusMessageSchema,
+  OrbitStatusMessageSchema,
+  z.object({ type: z.literal("hello_ack"), server_version: z.string() }),
+  z.object({ type: z.literal("error"), error: z.string() }),
+]);
+
+export type RealtimeChannelUpdate = z.infer<typeof RealtimeChannelUpdateSchema>;
+export type TelemetryAlert = z.infer<typeof TelemetryAlertSchema>;
+export type OrbitStatusMessage = z.infer<typeof OrbitStatusMessageSchema>;
+export type FeedStatusMessage = z.infer<typeof FeedStatusMessageSchema>;
+export type RealtimeMessage = z.infer<typeof RealtimeMessageSchema>;
 
 export type RealtimeMessageHandler = (msg: RealtimeMessage) => void;
 
@@ -155,7 +168,12 @@ export class RealtimeWsClient {
       };
       this.ws.onmessage = (ev) => {
         try {
-          const msg = JSON.parse(ev.data as string) as RealtimeMessage;
+          const parsed = RealtimeMessageSchema.safeParse(JSON.parse(String(ev.data)));
+          if (!parsed.success) {
+            console.error("Realtime message validation error:", parsed.error.issues);
+            return;
+          }
+          const msg = parsed.data;
           this.handlers.forEach((h) => {
             try {
               h(msg);

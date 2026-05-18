@@ -9,6 +9,7 @@ const modeLabel: Record<ExecutionMode, string> = {
   read_only: "Read only",
   suggest: "Suggest",
   execute: "Execute",
+  governed_execute: "Governed execute",
 };
 
 export function AiEngineerHeader({

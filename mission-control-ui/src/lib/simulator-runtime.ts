@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { resolvePublicApiUrl } from "@/lib/public-api-origin";
 import { useSimulatorStatusQuery } from "@/lib/query-hooks";
+import { SimulatorRuntimeStatusSchema } from "@/lib/simulator-schemas";
 
 export interface SimulatorRuntimeStatus {
   connected: boolean;
@@ -65,8 +66,12 @@ export async function fetchSimulatorRuntimeStatus(
   if (!response.ok) {
     return { connected: false };
   }
-  const data = (await response.json()) as SimulatorRuntimeStatus;
-  return data ?? { connected: false };
+  const parsed = SimulatorRuntimeStatusSchema.safeParse(await response.json());
+  if (!parsed.success) {
+    console.error("Simulator runtime status validation error:", parsed.error.issues);
+    return { connected: false };
+  }
+  return parsed.data;
 }
 
 export function useSimulatorRuntime({
