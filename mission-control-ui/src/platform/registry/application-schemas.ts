@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const OptionalNullableStringSchema = z.preprocess(
+  (value) => (value === null ? undefined : value),
+  z.string().optional(),
+);
+
 export const PlatformApplicationDefinitionSchema = z
   .object({
     applicationId: z.string(),
@@ -11,12 +16,12 @@ export const PlatformApplicationDefinitionSchema = z
     applicationType: z.enum(["native", "embedded"]),
     routePath: z.string(),
     loaderKey: z.string().optional(),
-    embeddedUrl: z.string().optional(),
-    proxyBasePath: z.string().optional(),
+    embeddedUrl: OptionalNullableStringSchema,
+    proxyBasePath: OptionalNullableStringSchema,
     version: z.string(),
     enabled: z.boolean(),
-    iframeSandbox: z.string().optional(),
-    iframeAllow: z.string().optional(),
+    iframeSandbox: OptionalNullableStringSchema,
+    iframeAllow: OptionalNullableStringSchema,
     sortOrder: z.number(),
     owner: z.string().optional(),
     capabilities: z.array(z.string()),
