@@ -7,7 +7,7 @@ import { AiEngineerStatusPill } from "@/applications/ai-engineer/components/ai-e
 import { getAttachmentDisplayLabel, getAttachmentDisplayStatus } from "@/applications/ai-engineer/lib/ui-event-formatting";
 import type { AttachmentStatus, ChatEvent } from "@/applications/ai-engineer/types";
 
-const hiddenEventTypes = new Set(["message.delta"]);
+const hiddenEventTypes = new Set(["message.delta", "message.reasoning.delta"]);
 
 function DocumentActivity({ attachment }: { attachment: AttachmentStatus }) {
   return (

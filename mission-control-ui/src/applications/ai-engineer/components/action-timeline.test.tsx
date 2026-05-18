@@ -54,3 +54,21 @@ test("ActionTimeline renders document, code, and navigation lifecycle events in 
   assert.match(markup, /Navigation requested/);
   assert.match(markup, /tool-nav/);
 });
+
+test("ActionTimeline hides streamed message and reasoning deltas without hiding reasoning lifecycle events", () => {
+  const markup = renderToStaticMarkup(
+    <ActionTimeline
+      events={[
+        buildEvent({ id: "e1", event_type: "message.delta", sequence: 1, payload: { text_delta: "assistant text" } }),
+        buildEvent({ id: "e2", event_type: "message.reasoning.delta", sequence: 2, payload: { text_delta: "reasoning text" } }),
+        buildEvent({ id: "e3", event_type: "message.reasoning.started", sequence: 3 }),
+        buildEvent({ id: "e4", event_type: "message.reasoning.completed", sequence: 4 }),
+      ]}
+    />,
+  );
+
+  assert.doesNotMatch(markup, /assistant text/);
+  assert.doesNotMatch(markup, /reasoning text/);
+  assert.match(markup, /Message Reasoning Started/);
+  assert.match(markup, /Message Reasoning Completed/);
+});
