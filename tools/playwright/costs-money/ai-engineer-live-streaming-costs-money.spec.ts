@@ -31,6 +31,10 @@ test.describe("COSTS MONEY: AI Engineer live provider diagnostics", () => {
       }
     });
 
+    await page.addInitScript(() => {
+      window.localStorage.setItem("ai-engineer.selectedModelId", "openai-gpt-5-5");
+    });
+
     await page.goto(`${appUrl("ai-engineer")}?debugAiEngineerStream=1`);
     await expect(page.getByTestId("ai-engineer-shell")).toBeVisible();
     await expect(page.getByTestId("ai-engineer-composer")).toBeVisible();
