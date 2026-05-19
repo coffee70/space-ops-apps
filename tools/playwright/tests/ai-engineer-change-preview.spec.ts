@@ -3,6 +3,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { appUrl } from "./support/application-routes";
 
 const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://platform-edge-proxy:8080";
+const controlPlaneUrl = process.env.PLAYWRIGHT_CONTROL_PLANE_URL || "http://control-plane:8100";
+const previewBranch = "preview/derived-telemetry-preview";
 
 test.setTimeout(180_000);
 
@@ -239,9 +241,17 @@ test("AI Engineer chat-native deploy and revert flow @smoke", async ({ page }) =
   expect(typeof baselineCommitSha).toBe("string");
   expect(baselineCommitSha.length).toBeGreaterThan(0);
 
+  // Prior local runs can leave the scripted preview branch behind, which makes
+  // the deterministic create_commit step fail with "no changes to commit".
+  const cleanupResponse = await page.request.post(`${controlPlaneUrl}/internal/delete/code`, {
+    data: { branch: previewBranch },
+  });
+  expect(cleanupResponse.ok()).toBeTruthy();
+
   await page.goto(appUrl("ai-engineer"));
 
   await expect(page.getByTestId("ai-engineer-shell")).toBeVisible();
+  await page.getByTestId("ai-engineer-new-chat-button").click();
   await page.getByTestId("ai-engineer-composer").getByRole("button", { name: "Execute" }).click();
 
   await fillAndSend(page, "[scripted:scripted_change_preview] Prepare a scoped change preview.");
