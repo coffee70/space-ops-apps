@@ -21,6 +21,7 @@ test("AI Engineer can send a chat message through the live stack", async ({ page
   await expect(page.getByTestId("ai-engineer-shell").getByText("AI Engineer", { exact: true })).toBeVisible();
   await expect(page.getByTestId("ai-engineer-activity-panel")).toBeVisible();
   await expect(page.getByTestId("ai-engineer-composer")).toBeVisible();
+  await page.getByTestId("ai-engineer-new-chat-button").click();
 
   await page.getByTestId("ai-engineer-chat-input").fill("Say whether fallback mode is active.");
   await page.getByRole("button", { name: "Send message" }).click();
@@ -30,8 +31,11 @@ test("AI Engineer can send a chat message through the live stack", async ({ page
     .not.toBeNull();
   const conversationId = String(new URL(page.url()).searchParams.get("conversation_id"));
 
-  await expect(page.getByText("run.started")).toBeVisible();
-  await expect(page.getByText("run.completed")).toBeVisible({ timeout: 30_000 });
+  const activityPanel = page.getByTestId("ai-engineer-activity-panel");
+  await expect(activityPanel.getByText("Run started", { exact: true })).toBeVisible();
+  await expect(activityPanel.getByText("Run completed", { exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
 
   await expect
     .poll(async () => {
@@ -76,7 +80,16 @@ test("AI Engineer can send a chat message through the live stack", async ({ page
   expect(detail.messages[1].role).toBe("assistant");
   expect(String(detail.messages[1].content).trim().length).toBeGreaterThan(0);
 
-  await expect(page.getByText(String(detail.messages[1].content).trim().slice(0, 60)).first()).toBeVisible();
+  const assistantMessage = page.getByTestId("ai-engineer-assistant-message").last();
+  const visibleAssistantLine = String(detail.messages[1].content)
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .split(/\n+/)
+    .map((line) => line.replace(/^- /, "").trim())
+    .find((line) => line.length > 0);
+  expect(visibleAssistantLine).toBeTruthy();
+  await expect(assistantMessage.getByText(String(visibleAssistantLine), { exact: true })).toBeVisible();
   await expect(page.getByText("No activity yet.")).toHaveCount(0);
 
   expect(browserErrors).toEqual([]);
