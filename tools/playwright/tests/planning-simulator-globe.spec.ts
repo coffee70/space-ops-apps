@@ -204,7 +204,12 @@ test("planning renders the live simulator marker on the globe", async ({
   ).toBeVisible();
   await expect(await getPositionMapping(request, simulator.id)).toBeTruthy();
 
-  await mappingDialog.getByTestId("position-mapping-remove").click();
+  await expect(mappingDialog.getByText("Loading existing mapping…")).toHaveCount(0);
+  const removeButton = mappingDialog.getByTestId("position-mapping-remove");
+  await expect(removeButton).toBeVisible();
+  await expect(removeButton).toBeEnabled();
+  await removeButton.scrollIntoViewIfNeeded();
+  await removeButton.click();
   const deleteConfirm = page.getByRole("alertdialog", {
     name: new RegExp(
       `Delete position mapping for ${escapeRegExp(simulator.name)}`

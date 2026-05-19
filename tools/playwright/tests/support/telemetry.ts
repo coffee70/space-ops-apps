@@ -123,7 +123,11 @@ export async function registerTelemetryChannel(
       subsystem_tag: input.subsystemTag,
     },
   });
-  expect(response.ok()).toBeTruthy();
+  const responseText = await response.text();
+  expect(
+    response.ok(),
+    `POST /telemetry/schema failed: ${response.status()} ${responseText}`,
+  ).toBeTruthy();
 }
 
 export async function ingestRealtimeSample(

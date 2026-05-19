@@ -21,22 +21,34 @@ test.setTimeout(180_000);
 
 async function waitForComposerReady(page: Page) {
   const input = page.getByTestId("ai-engineer-chat-input");
-  const send = page.getByRole("button", { name: "Send message" });
   await expect(input).toBeVisible();
-  await expect(input).toBeEnabled();
-  await expect
-    .poll(
-      async () => {
-        if (await send.isDisabled()) return false;
-        const label = await send.textContent();
-        return label != null && !label.includes("Sending");
-      },
-      { timeout: 120_000, intervals: [200, 500, 1000] },
-    )
-    .toBe(true);
+  await expect(input).toBeEnabled({ timeout: 120_000 });
 }
 
-test("AI Engineer deterministic Phase 3 no-LLM flow covers upload, read tools, deploy, and cleanup", async ({ page }) => {
+async function uploadKnowledgeDocument(page: Page) {
+  const documentTitle = `battery efficiency notes ${Date.now()}`;
+  await page.goto(appUrl("knowledge"));
+
+  await expect(page.getByTestId("knowledge-app")).toBeVisible();
+  await page.getByTestId("knowledge-upload-button").click();
+
+  const uploadDialog = page.getByTestId("knowledge-upload-dialog");
+  await expect(uploadDialog).toBeVisible();
+  await uploadDialog.locator('input[type="file"]').setInputFiles(fixtureDocumentPath);
+  await expect(uploadDialog.getByText("battery_efficiency_notes.md").first()).toBeVisible();
+  await uploadDialog.locator("#knowledge-title").fill(documentTitle);
+
+  await uploadDialog.getByRole("button", { name: "Upload" }).click();
+  await expect(uploadDialog).toBeHidden({ timeout: 30_000 });
+
+  const documentCard = page
+    .getByTestId("knowledge-document-card")
+    .filter({ hasText: documentTitle })
+    .first();
+  await expect(documentCard).toContainText("Ready", { timeout: 120_000 });
+}
+
+test("AI Engineer deterministic Phase 3 no-LLM flow covers Knowledge upload, read tools, deploy, and cleanup", async ({ page }) => {
   const browserErrors: string[] = [];
   page.on("console", (message) => {
     if (message.type() === "error") {
@@ -47,30 +59,38 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers upload, read tools, d
     browserErrors.push(`pageerror:${error.message}`);
   });
 
+  await uploadKnowledgeDocument(page);
   await page.goto(appUrl("ai-engineer"));
 
   await expect(page.getByTestId("ai-engineer-shell")).toBeVisible();
   await expect(page.getByTestId("ai-engineer-shell").getByText("AI Engineer", { exact: true })).toBeVisible();
+  await page.getByTestId("ai-engineer-new-chat-button").click();
+  await waitForComposerReady(page);
   await page.getByTestId("ai-engineer-composer").getByRole("button", { name: "Execute" }).click();
-
-  await page.getByTestId("ai-engineer-composer").locator('input[type="file"]').setInputFiles(fixtureDocumentPath);
-  await expect(page.getByText("battery_efficiency_notes.md").first()).toBeVisible();
-  await expect(page.getByText("ready").first()).toBeVisible({ timeout: 30_000 });
 
   await waitForComposerReady(page);
   const composer = page.getByTestId("ai-engineer-chat-input");
   const readMsg = "[scripted:scripted_read_tools] Validate deterministic read tools.";
   await composer.fill(readMsg);
   await expect(composer).toHaveValue(readMsg);
+  await expect(page.getByRole("button", { name: "Send message" })).toBeEnabled();
   await page.getByRole("button", { name: "Send message" }).click();
 
-  await expect(page.getByText("navigation.requested")).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText("run.completed")).toBeVisible({ timeout: 30_000 });
+  await expect(
+    page
+      .getByTestId("ai-engineer-chat-transcript")
+      .getByTestId("ai-engineer-assistant-message")
+      .filter({ hasText: "Deterministic scripted read workflow completed through Tool Execution." }),
+  ).toBeVisible({ timeout: 30_000 });
+  const activityPanel = page.getByTestId("ai-engineer-activity-panel");
+  await expect(activityPanel.getByText("Navigation requested").first()).toBeVisible({ timeout: 30_000 });
+  await expect(activityPanel.getByText("Run completed").first()).toBeVisible({ timeout: 30_000 });
 
   await waitForComposerReady(page);
   const deployMsg = "[scripted:scripted_write_deploy] Deploy the deterministic fixture.";
   await composer.fill(deployMsg);
   await expect(composer).toHaveValue(deployMsg);
+  await expect(page.getByRole("button", { name: "Send message" })).toBeEnabled();
   await page.getByRole("button", { name: "Send message" }).click();
 
   await expect
@@ -103,6 +123,7 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers upload, read tools, d
   const cleanupMsg = "[scripted:scripted_delete_cleanup] Delete the deterministic fixture.";
   await composer.fill(cleanupMsg);
   await expect(composer).toHaveValue(cleanupMsg);
+  await expect(page.getByRole("button", { name: "Send message" })).toBeEnabled();
   await page.getByRole("button", { name: "Send message" }).click();
 
   await expect(
@@ -128,7 +149,7 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers upload, read tools, d
     }, { timeout: 120_000 })
     .toBe(404);
 
-  await expect(page.getByText("tool.started").first()).toBeVisible();
-  await expect(page.getByText("tool.completed").first()).toBeVisible();
+  await expect(activityPanel.getByText("Tool started").first()).toBeVisible();
+  await expect(activityPanel.getByText("Tool completed").first()).toBeVisible();
   expect(browserErrors).toEqual([]);
 });

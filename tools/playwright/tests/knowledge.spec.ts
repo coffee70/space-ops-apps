@@ -83,5 +83,5 @@ test("Knowledge opens from launcher and shows document library controls @smoke",
   await expect(page.getByRole("heading", { name: "Knowledge" })).toBeVisible();
   await expect(page.getByTestId("knowledge-upload-button")).toBeVisible();
   await expect(page.getByTestId("knowledge-document-card")).toContainText("Telemetry Dictionary");
-  await expect(page.getByTestId("knowledge-document-card")).toContainText("ready");
+  await expect(page.getByTestId("knowledge-document-card")).toContainText("Ready");
 });
