@@ -27,7 +27,7 @@ test.describe("COSTS MONEY: AI Engineer live provider tool calling", () => {
     await page
       .getByTestId("ai-engineer-chat-input")
       .fill(
-        "Use the list_platform_applications tool exactly once. Do not answer from memory. After the tool result arrives, answer with one short sentence confirming that you inspected the registered platform applications.",
+        "Use the list_available_tools tool exactly once. Do not answer from memory. After the tool result arrives, answer with one short sentence confirming that you inspected the registered platform tools.",
       );
     await page.getByRole("button", { name: "Send message" }).click();
 
@@ -48,12 +48,12 @@ test.describe("COSTS MONEY: AI Engineer live provider tool calling", () => {
     expect(events.some((event) => event.event_type === "run.completed")).toBe(true);
     expect(
       events.some(
-        (event) => event.event_type === "tool.started" && event.payload?.tool_name === "list_platform_applications",
+        (event) => event.event_type === "tool.started" && event.payload?.tool_name === "list_available_tools",
       ),
     ).toBe(true);
     expect(
       events.some(
-        (event) => event.event_type === "tool.completed" && event.payload?.tool_name === "list_platform_applications",
+        (event) => event.event_type === "tool.completed" && event.payload?.tool_name === "list_available_tools",
       ),
     ).toBe(true);
 
