@@ -502,7 +502,7 @@ export function OverviewContent() {
 
   if (!sourceReady || bootstrapLoading) {
     return (
-      <div className="min-h-full p-4 sm:p-6 lg:p-8">
+      <div className="h-full min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8" data-testid="overview-scroll-root">
         <div className="mx-auto max-w-6xl space-y-8">
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -522,7 +522,7 @@ export function OverviewContent() {
 
   if (bootstrapFailed) {
     return (
-      <div className="min-h-full p-4 sm:p-6 lg:p-8">
+      <div className="h-full min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8" data-testid="overview-scroll-root">
         <div className="mx-auto max-w-6xl space-y-8">
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -549,7 +549,7 @@ export function OverviewContent() {
   }
 
   return (
-    <div className="min-h-full p-4 sm:p-6 lg:p-8">
+    <div className="h-full min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8" data-testid="overview-scroll-root">
       <div className="mx-auto max-w-6xl space-y-8">
         {error && (
           <Alert variant="destructive">

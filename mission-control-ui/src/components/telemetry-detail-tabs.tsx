@@ -203,7 +203,7 @@ function TelemetryDetailTabsContent({
     : telemetryScopeSubtitle(scope);
 
   return (
-    <div className="px-4 py-8 sm:px-6 lg:px-8">
+    <div className="h-full min-h-0 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8" data-testid="telemetry-detail-scroll-root">
       <div className="mx-auto max-w-6xl space-y-6">
         <ContextBanner
           sourceId={sourceId}

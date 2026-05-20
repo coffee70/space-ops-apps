@@ -73,6 +73,7 @@ test("vehicle config explorer switches files and keeps the workspace interactive
   });
 
   await page.goto(appUrl("control-panel", ["configs"]));
+  await expect(page.getByTestId("vehicle-config-workspace-root")).toHaveCSS("overflow-y", "visible");
 
   const fileButtons = page.getByTestId("vehicle-config-file-button");
   await expect.poll(async () => fileButtons.count()).toBeGreaterThanOrEqual(2);

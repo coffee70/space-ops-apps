@@ -594,7 +594,7 @@ export function VehicleConfigsPage() {
   }
 
   return (
-    <div className="bg-background flex h-dvh min-h-0 flex-col">
+    <div className="bg-background flex h-full min-h-0 flex-col" data-testid="vehicle-config-workspace-root">
       <div className="px-4 pt-3 pb-2 sm:px-5">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" className="text-muted-foreground" asChild>
