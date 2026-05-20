@@ -54,6 +54,7 @@ export function ControlPanelShell({ activeTab, children }: ControlPanelShellProp
               <Link
                 key={tab.id}
                 href={tab.href}
+                aria-current={selected ? "page" : undefined}
                 data-testid={tab.testId}
                 className={cn(
                   "rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors lg:w-full",

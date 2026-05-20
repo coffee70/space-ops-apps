@@ -24,7 +24,11 @@ function ControlPanelApplication({ appPath }: NativeApplicationProps) {
   }
 
   if (route === "simulator" && appPath[1]) {
-    return <SimulatorManagePageClient sourceId={appPath[1]} />;
+    return (
+      <ControlPanelShell activeTab="sources">
+        <SimulatorManagePageClient sourceId={appPath[1]} />
+      </ControlPanelShell>
+    );
   }
 
   if (route === "ai-engineer") {

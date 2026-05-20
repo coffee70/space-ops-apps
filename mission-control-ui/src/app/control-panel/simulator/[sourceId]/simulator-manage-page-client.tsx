@@ -1,15 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+import { ArrowLeft } from "lucide-react";
 import { SimulatorPanel } from "@/components/simulator-panel";
+import { Button } from "@/components/ui/button";
 import { useTelemetrySourcesQuery } from "@/lib/query-hooks";
 import { buildApplicationRoute } from "@/platform/registry/application-routes";
 
@@ -22,28 +16,23 @@ export function SimulatorManagePageClient({ sourceId }: { sourceId: string }) {
   }
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8" data-testid="simulator-manage-scroll-root">
+    <div className="p-4 sm:p-6 lg:p-8" data-testid="simulator-manage-content">
       <div className="mx-auto max-w-2xl space-y-6">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link
-                  href={buildApplicationRoute("control-panel")}
-                  className="text-primary underline-offset-4 hover:underline"
-                >
-                  Sources
-                </Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage className="max-w-[200px] truncate" title={sourceName ?? sourceId}>
-                {sourceName ?? sourceId}
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+        <div className="space-y-3">
+          <Button variant="ghost" size="sm" className="text-muted-foreground" asChild>
+            <Link href={buildApplicationRoute("control-panel")}>
+              <ArrowLeft className="size-4" />
+              Back to Sources
+            </Link>
+          </Button>
+
+          <div>
+            <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl" title={sourceName}>
+              {sourceName}
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm">Manage simulator playback and runtime controls.</p>
+          </div>
+        </div>
 
         <SimulatorPanel sourceId={sourceId} />
       </div>

@@ -327,7 +327,7 @@ test("AI Engineer tab shows model config editor shell @control-panel", async ({ 
   expect(editorBox?.height ?? 0).toBeGreaterThan(300);
 });
 
-test("Simulator manage route scrolls inside the native application host @control-panel", async ({ page }) => {
+test("Simulator manage route keeps Sources shell navigation while remaining scrollable @control-panel", async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 420 });
   await page.route("**/registry/applications", async (route) => {
     await route.fulfill({
@@ -367,18 +367,34 @@ test("Simulator manage route scrolls inside the native application host @control
   });
 
   await page.goto(appUrl("control-panel", ["simulator", "sim-source"]));
-  const scrollRoot = page.getByTestId("simulator-manage-scroll-root");
-  await expect(scrollRoot).toHaveCSS("overflow-y", "auto");
-  const metrics = await scrollRoot.evaluate((element) => ({
+
+  const shell = page.getByTestId("control-panel-shell");
+  await expect(shell).toBeVisible();
+
+  const sourcesTab = page.getByTestId("control-panel-tab-sources");
+  await expect(sourcesTab).toBeVisible();
+  await expect(sourcesTab).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("link", { name: "Back to Sources" })).toBeVisible();
+  await expect(page.getByTestId("simulator-manage-scroll-root")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Simulator Source" })).toBeVisible();
+
+  const shellMain = shell.locator("main");
+  await expect(shellMain).toHaveCSS("overflow-y", "auto");
+  const metrics = await shellMain.evaluate((element) => ({
     clientHeight: element.clientHeight,
     scrollHeight: element.scrollHeight,
   }));
   expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight);
-  await scrollRoot.evaluate((element) => {
+  await shellMain.evaluate((element) => {
     element.scrollTop = element.scrollHeight;
   });
   await expect
-    .poll(() => scrollRoot.evaluate((element) => element.scrollTop))
+    .poll(() => shellMain.evaluate((element) => element.scrollTop))
     .toBeGreaterThan(0);
+  await page.getByTestId("simulator-play-button").scrollIntoViewIfNeeded();
   await expect(page.getByTestId("simulator-play-button")).toBeVisible();
+
+  await page.getByRole("link", { name: "Back to Sources" }).click();
+  await expect(page).toHaveURL(/\/apps\/control-panel(?:\?.*)?$/);
+  await expect(page.getByRole("heading", { name: "Sources" })).toBeVisible();
 });
