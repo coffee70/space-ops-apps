@@ -27,7 +27,7 @@ import {
 } from "@/applications/knowledge/lib/knowledge-client";
 import type { KnowledgeDeleteResponse, KnowledgeDocument, KnowledgeUploadInput, KnowledgeUploadResponse } from "@/applications/knowledge/types";
 import { auditLog } from "@/lib/audit-log";
-import { fetchJson, fetchVoid } from "@/lib/api-client";
+import { fetchJson, fetchVoid, type ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import type { SimulatorRuntimeStatus } from "@/lib/simulator-runtime";
 import { fetchFeedStatus, type FeedStatus } from "@/lib/feed-status";
@@ -41,6 +41,7 @@ import {
   AiEngineerModelConfigDocumentSchema,
   AiEngineerModelConfigSaveResponseSchema,
   AiEngineerModelConfigValidationResponseSchema,
+  CodeRepositoryStatusSchema,
   ExplainResponseSchema,
   OpsEventsResponseSchema,
   SimulatorActionResponseSchema,
@@ -353,6 +354,34 @@ export interface SystemDeploymentOverviewResponse {
   core: ServiceGroupSummary;
   runtime: ServiceGroupSummary;
   bootstrap?: BootstrapSummary | null;
+}
+
+export interface CodeRepositoryStatus {
+  id: string;
+  name: string;
+  source_uri: string;
+  layer: string;
+  default_branch: string;
+  created_at: string;
+  updated_at: string;
+  chunk_count: number;
+  index_status: string;
+  indexed_commit_sha?: string | null;
+  current_commit_sha?: string | null;
+  file_count: number;
+  skipped_file_count: number;
+  failed_file_count: number;
+  last_error?: string | null;
+  index_requested_at?: string | null;
+  index_started_at?: string | null;
+  index_completed_at?: string | null;
+}
+
+export interface CodeRepositoryStatusLookupResult {
+  root: string;
+  branch: string;
+  status: CodeRepositoryStatus | null;
+  notFound: boolean;
 }
 
 export interface SearchResult {
@@ -815,6 +844,34 @@ export function useDeploymentOverviewQuery() {
         cache: "no-store",
         useFallback: true,
       }, SystemDeploymentOverviewResponseSchema),
+  });
+}
+
+function isNotFoundError(error: unknown): error is ApiError {
+  return typeof error === "object" && error !== null && "status" in error && (error as ApiError).status === 404;
+}
+
+export function useCodeRepositoryStatusQueries(repositories: readonly { root: string; branch: string }[]) {
+  return useQueries({
+    queries: repositories.map((repository) => ({
+      queryKey: queryKeys.codeRepositoryStatus(repository.root, repository.branch),
+      staleTime: 15 * 1000,
+      queryFn: async ({ signal }): Promise<CodeRepositoryStatusLookupResult> => {
+        try {
+          const status = await fetchJson(
+            `/intelligence/code/repositories/status?root=${encodeURIComponent(repository.root)}&branch=${encodeURIComponent(repository.branch)}`,
+            { signal, cache: "no-store", useFallback: true },
+            CodeRepositoryStatusSchema,
+          );
+          return { ...repository, status, notFound: false };
+        } catch (error) {
+          if (isNotFoundError(error)) {
+            return { ...repository, status: null, notFound: true };
+          }
+          throw error;
+        }
+      },
+    })),
   });
 }
 

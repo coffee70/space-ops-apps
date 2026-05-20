@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { buildApplicationRoute } from "@/platform/registry/application-routes";
 
-export type ControlPanelTabId = "sources" | "deployments" | "ai-engineer";
+export type ControlPanelTabId = "sources" | "deployments" | "ai-engineer" | "code-repository";
 
 type ControlPanelShellProps = {
   activeTab: ControlPanelTabId;
@@ -25,6 +25,12 @@ const TABS: { id: ControlPanelTabId; label: string; href: string; testId: string
     label: "AI Engineer",
     href: buildApplicationRoute("control-panel", ["ai-engineer"]),
     testId: "control-panel-tab-ai-engineer",
+  },
+  {
+    id: "code-repository",
+    label: "Code Repository",
+    href: buildApplicationRoute("control-panel", ["code-repository"]),
+    testId: "control-panel-tab-code-repository",
   },
 ];
 

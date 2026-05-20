@@ -260,6 +260,29 @@ export const SystemDeploymentOverviewResponseSchema = z
   })
   .passthrough();
 
+export const CodeRepositoryStatusSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    source_uri: z.string(),
+    layer: z.string(),
+    default_branch: z.string(),
+    created_at: z.string(),
+    updated_at: z.string(),
+    chunk_count: z.number(),
+    index_status: z.string(),
+    indexed_commit_sha: z.string().nullable().optional(),
+    current_commit_sha: z.string().nullable().optional(),
+    file_count: z.number(),
+    skipped_file_count: z.number(),
+    failed_file_count: z.number(),
+    last_error: z.string().nullable().optional(),
+    index_requested_at: z.string().nullable().optional(),
+    index_started_at: z.string().nullable().optional(),
+    index_completed_at: z.string().nullable().optional(),
+  })
+  .passthrough();
+
 export const SearchResultSchema = z
   .object({
     name: z.string(),
