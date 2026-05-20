@@ -60,6 +60,8 @@ import {
   VehicleConfigSaveResponseSchema,
   VehicleConfigValidationResponseSchema,
   WatchlistResponseSchema,
+  ActiveFrontendPreviewRuntimeResponseSchema,
+  type ActiveFrontendPreviewRuntimeResponse,
 } from "@/lib/ui-boundary-schemas";
 import { z } from "zod";
 
@@ -844,6 +846,21 @@ export function useDeploymentOverviewQuery() {
         cache: "no-store",
         useFallback: true,
       }, SystemDeploymentOverviewResponseSchema),
+  });
+}
+
+export function useActiveFrontendPreviewRuntimeQuery() {
+  return useQuery<ActiveFrontendPreviewRuntimeResponse>({
+    queryKey: queryKeys.activeFrontendPreviewRuntime,
+    staleTime: 0,
+    refetchInterval: 2000,
+    refetchIntervalInBackground: false,
+    queryFn: async ({ signal }) =>
+      fetchJson(
+        "/registry/frontend-runtime/preview-context",
+        { signal, cache: "no-store", useFallback: true },
+        ActiveFrontendPreviewRuntimeResponseSchema,
+      ),
   });
 }
 
