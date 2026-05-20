@@ -22,7 +22,7 @@ export function SimulatorManagePageClient({ sourceId }: { sourceId: string }) {
   }
 
   return (
-    <div className="min-h-full p-4 sm:p-6 lg:p-8">
+    <div className="h-full min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8" data-testid="simulator-manage-scroll-root">
       <div className="mx-auto max-w-2xl space-y-6">
         <Breadcrumb>
           <BreadcrumbList>

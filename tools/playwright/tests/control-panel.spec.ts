@@ -326,3 +326,59 @@ test("AI Engineer tab shows model config editor shell @control-panel", async ({ 
   const editorBox = await page.locator(".monaco-editor").boundingBox();
   expect(editorBox?.height ?? 0).toBeGreaterThan(300);
 });
+
+test("Simulator manage route scrolls inside the native application host @control-panel", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 420 });
+  await page.route("**/registry/applications", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(registryPayload),
+    });
+  });
+  await page.route("**/telemetry/sources", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([
+        {
+          id: "sim-source",
+          name: "Simulator Source",
+          source_type: "simulator",
+        },
+      ]),
+    });
+  });
+  await page.route("**/simulator/status?**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        connected: true,
+        state: "idle",
+        supported_scenarios: [
+          {
+            name: "nominal",
+            description: "Nominal telemetry playback.",
+          },
+        ],
+      }),
+    });
+  });
+
+  await page.goto(appUrl("control-panel", ["simulator", "sim-source"]));
+  const scrollRoot = page.getByTestId("simulator-manage-scroll-root");
+  await expect(scrollRoot).toHaveCSS("overflow-y", "auto");
+  const metrics = await scrollRoot.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+  }));
+  expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight);
+  await scrollRoot.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect
+    .poll(() => scrollRoot.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(0);
+  await expect(page.getByTestId("simulator-play-button")).toBeVisible();
+});
