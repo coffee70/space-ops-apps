@@ -201,9 +201,9 @@ export function TelemetryInventoryPage() {
   }
 
   return (
-    <div className="min-h-full px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div className="space-y-1">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-6">
+        <div className="shrink-0 space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Telemetry</h1>
           <p className="text-muted-foreground text-sm">
             Browse source telemetry, inspect operational state, and manage the watchlist.
@@ -239,7 +239,7 @@ export function TelemetryInventoryPage() {
             description="Register a telemetry source before using the telemetry inventory."
           />
         ) : (
-          <>
+          <div className="flex min-h-0 flex-1 flex-col gap-6">
             <TelemetryInventoryFilters
               searchText={searchText}
               onSearchTextChange={setSearchText}
@@ -255,7 +255,7 @@ export function TelemetryInventoryPage() {
             />
 
             {inventoryQuery.isLoading ? (
-              <div className="flex min-h-64 items-center justify-center">
+              <div className="flex min-h-0 flex-1 items-center justify-center">
                 <Spinner size="lg" className="h-10 w-10" />
               </div>
             ) : inventoryQuery.isError ? (
@@ -280,16 +280,18 @@ export function TelemetryInventoryPage() {
                 description="Adjust the filters to see telemetry channels for this source."
               />
             ) : (
-              <TelemetryInventoryTable
-                sourceId={selectedSource ?? ""}
-                rows={filteredRows}
-                watchlistNames={watchlistNames}
-                watchlistBusyName={watchlistBusyName}
-                onAddToWatchlist={handleAddToWatchlist}
-                onRemoveFromWatchlist={handleRemoveFromWatchlist}
-              />
+              <div className="min-h-0 flex-1">
+                <TelemetryInventoryTable
+                  sourceId={selectedSource ?? ""}
+                  rows={filteredRows}
+                  watchlistNames={watchlistNames}
+                  watchlistBusyName={watchlistBusyName}
+                  onAddToWatchlist={handleAddToWatchlist}
+                  onRemoveFromWatchlist={handleRemoveFromWatchlist}
+                />
+              </div>
             )}
-          </>
+          </div>
         )}
       </div>
     </div>

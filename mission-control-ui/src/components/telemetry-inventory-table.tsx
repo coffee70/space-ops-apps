@@ -59,95 +59,97 @@ export function TelemetryInventoryTable({
   const router = useRouter();
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Status</TableHead>
-          <TableHead>Name</TableHead>
-          <TableHead>Current value</TableHead>
-          <TableHead>Units</TableHead>
-          <TableHead>Subsystem</TableHead>
-          <TableHead>Last updated</TableHead>
-          <TableHead>Origin</TableHead>
-          <TableHead className="text-right">Watchlist</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((row) => {
-          const href = buildTelemetryDetailHref(sourceId, row.name);
-          const inWatchlist = watchlistNames.has(row.name);
-          const watchlistBusy = watchlistBusyName === row.name;
-          return (
-            <TableRow
-              key={row.name}
-              className="cursor-pointer"
-              tabIndex={0}
-              onClick={() => router.push(href)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  router.push(href);
-                }
-              }}
-            >
-              <TableCell>
-                <Badge variant={statusVariant(row.state)} className="text-xs">
-                  {row.state}
-                </Badge>
-              </TableCell>
-              <TableCell className="max-w-[320px] whitespace-normal">
-                <div className="font-medium">{row.name}</div>
-                {row.description && (
-                  <div className="text-muted-foreground line-clamp-2 text-xs">
-                    {row.description}
-                  </div>
-                )}
-                {row.aliases.length > 0 && (
-                  <div className="text-muted-foreground mt-1 text-xs">
-                    Aliases: {row.aliases.join(", ")}
-                  </div>
-                )}
-              </TableCell>
-              <TableCell>{formatSmartValue(row.current_value, row.units)}</TableCell>
-              <TableCell>{row.units || "—"}</TableCell>
-              <TableCell>{row.subsystem_tag}</TableCell>
-              <TableCell>{formatRelativeTime(row.last_timestamp)}</TableCell>
-              <TableCell>
-                <div>{row.channel_origin}</div>
-                {row.discovery_namespace && (
-                  <div className="text-muted-foreground text-xs">
-                    {row.discovery_namespace}
-                  </div>
-                )}
-              </TableCell>
-              <TableCell className="text-right">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={watchlistBusy}
-                  aria-label={inWatchlist ? `Remove ${row.name} from watchlist` : `Add ${row.name} to watchlist`}
-                  onClick={(event) => {
+    <div className="h-full min-h-0 overflow-auto overscroll-contain" data-testid="telemetry-inventory-table-scroll">
+      <Table className="min-w-[980px]">
+        <TableHeader className="sticky top-0 z-10">
+          <TableRow>
+            <TableHead>Status</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Current value</TableHead>
+            <TableHead>Units</TableHead>
+            <TableHead>Subsystem</TableHead>
+            <TableHead>Last updated</TableHead>
+            <TableHead>Origin</TableHead>
+            <TableHead className="text-right">Watchlist</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => {
+            const href = buildTelemetryDetailHref(sourceId, row.name);
+            const inWatchlist = watchlistNames.has(row.name);
+            const watchlistBusy = watchlistBusyName === row.name;
+            return (
+              <TableRow
+                key={row.name}
+                className="cursor-pointer"
+                tabIndex={0}
+                onClick={() => router.push(href)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
-                    event.stopPropagation();
-                    if (inWatchlist) {
-                      onRemoveFromWatchlist(row.name);
-                    } else {
-                      onAddToWatchlist(row.name);
-                    }
-                  }}
-                >
-                  {inWatchlist ? (
-                    <Star className="size-4 fill-current" />
-                  ) : (
-                    <StarOff className="size-4" />
+                    router.push(href);
+                  }
+                }}
+              >
+                <TableCell>
+                  <Badge variant={statusVariant(row.state)} className="text-xs">
+                    {row.state}
+                  </Badge>
+                </TableCell>
+                <TableCell className="max-w-[320px] whitespace-normal">
+                  <div className="font-medium">{row.name}</div>
+                  {row.description && (
+                    <div className="text-muted-foreground line-clamp-2 text-xs">
+                      {row.description}
+                    </div>
                   )}
-                </Button>
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+                  {row.aliases.length > 0 && (
+                    <div className="text-muted-foreground mt-1 text-xs">
+                      Aliases: {row.aliases.join(", ")}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell>{formatSmartValue(row.current_value, row.units)}</TableCell>
+                <TableCell>{row.units || "—"}</TableCell>
+                <TableCell>{row.subsystem_tag}</TableCell>
+                <TableCell>{formatRelativeTime(row.last_timestamp)}</TableCell>
+                <TableCell>
+                  <div>{row.channel_origin}</div>
+                  {row.discovery_namespace && (
+                    <div className="text-muted-foreground text-xs">
+                      {row.discovery_namespace}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={watchlistBusy}
+                    aria-label={inWatchlist ? `Remove ${row.name} from watchlist` : `Add ${row.name} to watchlist`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      if (inWatchlist) {
+                        onRemoveFromWatchlist(row.name);
+                      } else {
+                        onAddToWatchlist(row.name);
+                      }
+                    }}
+                  >
+                    {inWatchlist ? (
+                      <Star className="size-4 fill-current" />
+                    ) : (
+                      <StarOff className="size-4" />
+                    )}
+                  </Button>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
