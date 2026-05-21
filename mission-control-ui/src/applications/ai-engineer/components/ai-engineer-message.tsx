@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Sparkles, Wrench } from "lucide-react";
+import { FileText, Sparkles } from "lucide-react";
 
 import { AiEngineerMarkdown } from "@/applications/ai-engineer/components/ai-engineer-markdown";
 import { AiEngineerReasoningPanel } from "@/applications/ai-engineer/components/ai-engineer-reasoning-panel";
@@ -63,15 +63,7 @@ export function AiEngineerMessage({
   }
 
   if (message.role === "tool") {
-    return (
-      <div className="border-border/40 bg-card/70 ml-10 w-[min(100%,520px)] rounded-xl border p-3 text-xs shadow-[var(--shadow-card)]" data-role="tool">
-        <div className="text-muted-foreground mb-2 flex items-center gap-2">
-          <Wrench className="size-3.5" />
-          <span>Tool result</span>
-        </div>
-        <AiEngineerMarkdown content={message.content} />
-      </div>
-    );
+    return null;
   }
 
   const permissionPart = message.part?.kind === "tool-permission" ? message.part : undefined;

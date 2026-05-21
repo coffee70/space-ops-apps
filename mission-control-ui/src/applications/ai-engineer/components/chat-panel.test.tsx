@@ -21,7 +21,9 @@ test("ChatPanel renders role-specific AI Engineer messages", () => {
 
   assert.match(markup, /User question/);
   assert.match(markup, /Assistant response/);
-  assert.match(markup, /Tool output/);
+  assert.doesNotMatch(markup, /Tool output/);
+  assert.doesNotMatch(markup, /Tool result/);
+  assert.doesNotMatch(markup, /data-role="tool"/);
   assert.match(markup, /data-testid="ai-engineer-message-user"/);
   assert.match(markup, /data-testid="ai-engineer-message-assistant"/);
   assert.doesNotMatch(markup, />USER</);
