@@ -2,8 +2,9 @@
 
 import { ShieldCheck, Sparkles } from "lucide-react";
 
+import { AiEngineerOperationStatusPill } from "@/applications/ai-engineer/components/ai-engineer-operation-status-pill";
 import { AiEngineerStatusPill } from "@/applications/ai-engineer/components/ai-engineer-status-pill";
-import type { ExecutionMode } from "@/applications/ai-engineer/types";
+import type { ChatEvent, ExecutionMode } from "@/applications/ai-engineer/types";
 
 const modeLabel: Record<ExecutionMode, string> = {
   read_only: "Read only",
@@ -16,10 +17,12 @@ export function AiEngineerHeader({
   title,
   executionMode,
   selectedModelName,
+  events,
 }: {
   title: string;
   executionMode: ExecutionMode;
   selectedModelName?: string | null;
+  events: ChatEvent[];
 }) {
   return (
     <div className="border-border/40 flex h-12 shrink-0 items-center justify-between border-b px-4">
@@ -35,6 +38,7 @@ export function AiEngineerHeader({
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <AiEngineerOperationStatusPill events={events} />
         <ShieldCheck className="text-muted-foreground hidden size-3.5 sm:block" aria-hidden="true" />
         <AiEngineerStatusPill status={executionMode === "execute" ? "running" : "info"} label={modeLabel[executionMode]} />
       </div>

@@ -9,6 +9,19 @@ import { AiEngineerThinking } from "@/applications/ai-engineer/components/ai-eng
 import type { ChatEvent, ChatMessage } from "@/applications/ai-engineer/types";
 import { cn } from "@/lib/utils";
 
+function permissionOperationKey(message: ChatMessage): string | null {
+  const part = message.part?.kind === "tool-permission" ? message.part : null;
+  if (!part) return null;
+  const details = part.prompt.details ?? {};
+  return JSON.stringify({
+    toolName: part.toolName,
+    branch: details.branch,
+    target_application_id: details.target_application_id,
+    target_unit_id: details.target_unit_id,
+    changed_files: details.changed_files,
+  });
+}
+
 export function AiEngineerMessages({
   messages,
   events,
@@ -46,6 +59,11 @@ export function AiEngineerMessages({
   }, [isAtBottom, isStreaming, messages, events, scrollToBottom]);
 
   const shouldShowThinking = isStreaming && messages.at(-1)?.role !== "assistant";
+  const latestPermissionByOperation = new Map<string, string>();
+  for (const message of messages) {
+    const key = permissionOperationKey(message);
+    if (key && message.part?.kind === "tool-permission") latestPermissionByOperation.set(key, message.part.permissionRequestId);
+  }
 
   return (
     <div className="bg-background relative min-h-0 flex-1 overflow-hidden" data-testid="ai-engineer-messages">
@@ -58,9 +76,12 @@ export function AiEngineerMessages({
       ) : null}
       <div ref={scrollRef} className="absolute inset-0 touch-pan-y overflow-y-auto" onScroll={handleScroll} data-testid="ai-engineer-chat-transcript">
         <div className="mx-auto flex min-h-full max-w-4xl min-w-0 flex-col gap-5 px-2 py-6 md:gap-7 md:px-4">
-          {messages.map((message) => (
-            <AiEngineerMessage key={message.id} message={message} events={events} />
-          ))}
+          {messages.map((message) => {
+            const key = permissionOperationKey(message);
+            const permissionRequestId = message.part?.kind === "tool-permission" ? message.part.permissionRequestId : null;
+            const compactPermission = Boolean(key && permissionRequestId && latestPermissionByOperation.get(key) !== permissionRequestId);
+            return <AiEngineerMessage key={message.id} message={message} events={events} compactPermission={compactPermission} />;
+          })}
           {shouldShowThinking ? <AiEngineerThinking /> : null}
           <div ref={endRef} className="min-h-6 min-w-6 shrink-0" />
         </div>

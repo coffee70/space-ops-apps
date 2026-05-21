@@ -36,11 +36,13 @@ function MessageAttachments({ message }: { message: ChatMessage }) {
 export interface AiEngineerMessageProps {
   message: ChatMessage;
   events?: ChatEvent[];
+  compactPermission?: boolean;
 }
 
 export function AiEngineerMessage({
   message,
   events = [],
+  compactPermission = false,
 }: AiEngineerMessageProps) {
   const hasReasoning = Boolean(message.reasoning && message.reasoning.content.trim().length > 0);
   const isEmptyStreamingAssistant =
@@ -76,7 +78,7 @@ export function AiEngineerMessage({
         <div className="flex min-w-0 flex-1 flex-col gap-2 text-[13px] leading-[1.65]">
           {permissionPart ? (
             <div data-testid="ai-engineer-tool-permission-message" data-permission-request-id={permissionPart.permissionRequestId}>
-              <ToolPermissionCard part={permissionPart} events={events} />
+              <ToolPermissionCard part={permissionPart} events={events} compact={compactPermission} />
             </div>
           ) : (
             <div data-testid="ai-engineer-assistant-message" className="flex flex-col gap-3">
