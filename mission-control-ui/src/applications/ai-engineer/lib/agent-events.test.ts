@@ -65,6 +65,15 @@ test("assistant text resumes after tool activity with one paragraph boundary", (
   assert.equal(resumed[0].pendingToolTextBoundary, false);
 });
 
+test("assistant text does not double separate when backend delta already includes a paragraph boundary", () => {
+  let messages: ChatMessage[] = [{ id: "draft", role: "assistant", content: "", status: "streaming" }];
+  messages = applyAgentEventToAssistantMessage(messages, "draft", event({ event_type: "message.delta", payload: { text_delta: "Before tools." }, sequence: 1 }));
+  messages = applyAgentEventToAssistantMessage(messages, "draft", event({ event_type: "tool.completed", tool_call_id: "tool-1", sequence: 2 }));
+  messages = applyAgentEventToAssistantMessage(messages, "draft", event({ event_type: "message.delta", payload: { text_delta: "\n\nAfter tools." }, sequence: 3 }));
+
+  assert.equal(messages[0].content, "Before tools.\n\nAfter tools.");
+});
+
 test("multiple tool events between assistant text deltas create only one boundary", () => {
   let messages: ChatMessage[] = [{ id: "draft", role: "assistant", content: "", status: "streaming" }];
   messages = applyAgentEventToAssistantMessage(messages, "draft", event({ event_type: "message.delta", payload: { text_delta: "Before tools." }, sequence: 1 }));

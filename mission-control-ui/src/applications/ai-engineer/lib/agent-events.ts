@@ -34,7 +34,7 @@ function contentWithToolBoundary(content: string, textDelta: string, hasPendingT
   if (!hasPendingToolBoundary || content.trim().length === 0) {
     return `${content}${textDelta}`;
   }
-  return `${content}${content.endsWith("\n\n") ? "" : "\n\n"}${textDelta}`;
+  return `${content}${content.endsWith("\n\n") || textDelta.startsWith("\n\n") ? "" : "\n\n"}${textDelta}`;
 }
 
 export function applyAgentEventToAssistantMessage(messages: ChatMessage[], draftAssistantId: string, event: AgentEvent): ChatMessage[] {
