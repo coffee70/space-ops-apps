@@ -49,7 +49,6 @@ test("AiEngineerMessage still renders tool permission cards", () => {
           permissionRequestId: "permission-1",
           toolCallId: "44444444-4444-4444-4444-444444444444",
           toolName: "deploy_preview_change",
-          approvalToken: "approval-token",
           prompt: {
             title: "Deploy preview changes?",
             description: "The AI Engineer wants to deploy mission-control-frontend-shell.",

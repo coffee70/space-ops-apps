@@ -29,11 +29,9 @@ async function parsePermissionResponse(response: Response): Promise<ToolPermissi
   return parsed.data;
 }
 
-export async function approveToolPermission(permissionRequestId: string, approvalToken: string): Promise<ToolPermissionStatusResponse> {
+export async function approveToolPermission(permissionRequestId: string): Promise<ToolPermissionStatusResponse> {
   const response = await fetch(apiUrl(`/intelligence/tools/permissions/${permissionRequestId}/approve`), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ approval_token: approvalToken }),
   });
   if (!response.ok) {
     throw new Error((await response.text()) || "Failed to approve tool permission");
@@ -41,11 +39,11 @@ export async function approveToolPermission(permissionRequestId: string, approva
   return parsePermissionResponse(response);
 }
 
-export async function denyToolPermission(permissionRequestId: string, approvalToken: string, reason = "user_denied"): Promise<ToolPermissionStatusResponse> {
+export async function denyToolPermission(permissionRequestId: string, reason = "user_denied"): Promise<ToolPermissionStatusResponse> {
   const response = await fetch(apiUrl(`/intelligence/tools/permissions/${permissionRequestId}/deny`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ approval_token: approvalToken, reason }),
+    body: JSON.stringify({ reason }),
   });
   if (!response.ok) {
     throw new Error((await response.text()) || "Failed to deny tool permission");

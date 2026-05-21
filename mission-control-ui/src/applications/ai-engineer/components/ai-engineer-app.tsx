@@ -132,7 +132,6 @@ function permissionMessageFromEvent(event: ChatEvent): ChatMessage | null {
   if (event.event_type !== "tool.permission_required") return null;
   const payload = event.payload;
   const permissionRequestId = typeof payload.permission_request_id === "string" ? payload.permission_request_id : null;
-  const approvalToken = typeof payload.approval_token === "string" ? payload.approval_token : null;
   const toolCallId =
     typeof payload.tool_call_id === "string" ? payload.tool_call_id : event.tool_call_id;
   const toolName = typeof payload.tool_name === "string" ? payload.tool_name : "tool";
@@ -140,7 +139,7 @@ function permissionMessageFromEvent(event: ChatEvent): ChatMessage | null {
     payload.prompt && typeof payload.prompt === "object" && !Array.isArray(payload.prompt)
       ? (payload.prompt as ToolPermissionPrompt)
       : {};
-  if (!permissionRequestId || !approvalToken || !toolCallId) return null;
+  if (!permissionRequestId || !toolCallId) return null;
   return {
     id: `${PERMISSION_MESSAGE_PREFIX}${permissionRequestId}`,
     role: "assistant",
@@ -149,7 +148,6 @@ function permissionMessageFromEvent(event: ChatEvent): ChatMessage | null {
     part: {
       kind: "tool-permission",
       permissionRequestId,
-      approvalToken,
       toolCallId,
       toolName,
       prompt,

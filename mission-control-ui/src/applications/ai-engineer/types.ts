@@ -45,7 +45,6 @@ export interface ChatMessageToolPermissionPart {
   permissionRequestId: string;
   toolCallId: string;
   toolName: string;
-  approvalToken: string;
   prompt: ToolPermissionPrompt;
 }
 

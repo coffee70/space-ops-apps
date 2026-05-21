@@ -40,7 +40,7 @@ export function ToolPermissionCard({ part, events }: { part: ChatMessageToolPerm
     setError(null);
     setLocalStatus("approving");
     try {
-      await approveToolPermission(part.permissionRequestId, part.approvalToken);
+      await approveToolPermission(part.permissionRequestId);
       setLocalStatus("idle");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to approve permission");
@@ -52,7 +52,7 @@ export function ToolPermissionCard({ part, events }: { part: ChatMessageToolPerm
     setError(null);
     setLocalStatus("denying");
     try {
-      await denyToolPermission(part.permissionRequestId, part.approvalToken);
+      await denyToolPermission(part.permissionRequestId);
       setLocalStatus("idle");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to deny permission");
