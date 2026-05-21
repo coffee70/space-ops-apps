@@ -4,14 +4,8 @@ import { FileText, Sparkles, Wrench } from "lucide-react";
 
 import { AiEngineerMarkdown } from "@/applications/ai-engineer/components/ai-engineer-markdown";
 import { AiEngineerReasoningPanel } from "@/applications/ai-engineer/components/ai-engineer-reasoning-panel";
-import { AiEngineerStatusPill } from "@/applications/ai-engineer/components/ai-engineer-status-pill";
-import { ChangePreviewCardStack } from "@/applications/ai-engineer/components/change-preview-cards";
+import { ToolPermissionCard } from "@/applications/ai-engineer/components/tool-permission-card";
 import { formatFileSize } from "@/applications/ai-engineer/lib/file-formatting";
-import type {
-  AiEngineerChangeSummary,
-  ChangePreviewState,
-} from "@/applications/ai-engineer/lib/change-preview-types";
-import { getEventDisplayDescription, getEventDisplayStatus, getEventDisplayTitle } from "@/applications/ai-engineer/lib/ui-event-formatting";
 import type { ChatEvent, ChatMessage } from "@/applications/ai-engineer/types";
 
 function AssistantAvatar() {
@@ -39,65 +33,14 @@ function MessageAttachments({ message }: { message: ChatMessage }) {
   );
 }
 
-const INLINE_EVENT_TYPES = new Set([
-  "tool.started",
-  "tool.completed",
-  "tool.failed",
-  "document.ingestion_completed",
-  "code.index_completed",
-  "navigation.requested",
-  "change.summary",
-  "deployment.requested",
-  "deployment.submitted",
-  "deployment.build_started",
-  "deployment.build_finished",
-  "deployment.health_passed",
-  "deployment.failed",
-  "preview.active",
-  "revert.requested",
-  "baseline.deployment_submitted",
-  "baseline.build_started",
-  "baseline.active",
-  "revert.failed",
-]);
-
-function InlineEventCards({ events }: { events: ChatEvent[] }) {
-  const inlineEvents = events.filter((event) => INLINE_EVENT_TYPES.has(event.event_type));
-  if (inlineEvents.length === 0) return null;
-
-  return (
-    <div className="mt-2 flex flex-col gap-2">
-      {inlineEvents.slice(-4).map((event) => (
-        <div key={event.id} className="border-border/40 bg-card/70 w-[min(100%,520px)] rounded-xl border px-3 py-2 text-[11px] shadow-[var(--shadow-card)]">
-          <div className="flex items-center justify-between gap-2">
-            <span className="truncate font-medium">{getEventDisplayTitle(event)}</span>
-            <AiEngineerStatusPill status={getEventDisplayStatus(event)} />
-          </div>
-          <p className="text-muted-foreground mt-1 line-clamp-2">{getEventDisplayDescription(event)}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export interface AiEngineerMessageProps {
   message: ChatMessage;
   events?: ChatEvent[];
-  previewState?: ChangePreviewState | null;
-  onDeployChange?: (change: AiEngineerChangeSummary) => void;
-  onRevertChange?: (change: AiEngineerChangeSummary) => void;
-  onOpenApp?: (change: AiEngineerChangeSummary) => void;
-  isPreviewBusy?: (change: AiEngineerChangeSummary) => boolean;
 }
 
 export function AiEngineerMessage({
   message,
   events = [],
-  previewState = null,
-  onDeployChange,
-  onRevertChange,
-  onOpenApp,
-  isPreviewBusy,
 }: AiEngineerMessageProps) {
   const hasReasoning = Boolean(message.reasoning && message.reasoning.content.trim().length > 0);
   const isEmptyStreamingAssistant =
@@ -131,9 +74,7 @@ export function AiEngineerMessage({
     );
   }
 
-  const previewPart = message.part?.kind === "change-preview" ? message.part : undefined;
-  const isChangePreviewMessage =
-    Boolean(previewPart) && previewState && onDeployChange && onRevertChange && onOpenApp;
+  const permissionPart = message.part?.kind === "tool-permission" ? message.part : undefined;
   const isStreamingAssistantWithContent = message.role === "assistant" && message.status === "streaming" && message.content.trim().length > 0;
 
   return (
@@ -141,15 +82,9 @@ export function AiEngineerMessage({
       <div className="flex items-start gap-3">
         <AssistantAvatar />
         <div className="flex min-w-0 flex-1 flex-col gap-2 text-[13px] leading-[1.65]">
-          {isChangePreviewMessage ? (
-            <div data-testid="ai-engineer-change-preview-message" data-preview-key={previewPart?.previewKey}>
-              <ChangePreviewCardStack
-                state={previewState!}
-                isBusy={isPreviewBusy?.(previewState!.change) ?? false}
-                onDeploy={onDeployChange!}
-                onRevert={onRevertChange!}
-                onOpenApp={onOpenApp!}
-              />
+          {permissionPart ? (
+            <div data-testid="ai-engineer-tool-permission-message" data-permission-request-id={permissionPart.permissionRequestId}>
+              <ToolPermissionCard part={permissionPart} events={events} />
             </div>
           ) : (
             <div data-testid="ai-engineer-assistant-message" className="flex flex-col gap-3">
@@ -170,7 +105,6 @@ export function AiEngineerMessage({
               ) : null}
             </div>
           )}
-          {!isChangePreviewMessage ? <InlineEventCards events={events} /> : null}
         </div>
       </div>
     </div>

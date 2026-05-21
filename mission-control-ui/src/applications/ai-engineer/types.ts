@@ -31,15 +31,22 @@ export interface ChatMessageReasoning {
   source?: "provider_exposed";
 }
 
-/**
- * Identifies an assistant message that owns a change-preview lifecycle card
- * stack. The actual card state lives in the `useChangePreviewFlow` hook keyed
- * by `previewKey`. The chat stream owns the placement: each preview becomes a
- * real assistant message in transcript order, not a detached floating lane.
- */
-export interface ChatMessagePreviewPart {
-  kind: "change-preview";
-  previewKey: string;
+export interface ToolPermissionPrompt {
+  title?: string;
+  description?: string;
+  primary_action?: string;
+  secondary_action?: string;
+  risk_level?: "low" | "medium" | "high" | string;
+  details?: Record<string, unknown>;
+}
+
+export interface ChatMessageToolPermissionPart {
+  kind: "tool-permission";
+  permissionRequestId: string;
+  toolCallId: string;
+  toolName: string;
+  approvalToken: string;
+  prompt: ToolPermissionPrompt;
 }
 
 export interface ChatMessage {
@@ -50,11 +57,7 @@ export interface ChatMessage {
   createdAt?: string;
   attachments?: ChatMessageAttachment[];
   reasoning?: ChatMessageReasoning;
-  /**
-   * When set, the assistant message renders one structured message part in
-   * place of free-form markdown. Used today by the change-preview lifecycle.
-   */
-  part?: ChatMessagePreviewPart;
+  part?: ChatMessageToolPermissionPart;
 }
 
 export interface ChatEventChunk {

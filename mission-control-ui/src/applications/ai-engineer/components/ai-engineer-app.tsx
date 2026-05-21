@@ -1,14 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AiEngineerShell } from "@/applications/ai-engineer/components/ai-engineer-shell";
 import { applyAgentEventToAssistantMessage } from "@/applications/ai-engineer/lib/agent-events";
 import { sendChatMessage } from "@/applications/ai-engineer/lib/ai-engineer-client";
-import type { AiEngineerChangeSummary } from "@/applications/ai-engineer/lib/change-preview-types";
-import { useChangePreviewFlow } from "@/applications/ai-engineer/lib/use-change-preview-flow";
 import type {
   AiEngineerConversationDetail,
   AiEngineerConversationMessage,
@@ -20,8 +17,9 @@ import type {
   ChatStreamChunk,
   ExecutionMode,
   ReasoningStreamRepresentation,
+  ToolPermissionPrompt,
 } from "@/applications/ai-engineer/types";
-import { buildApplicationRoute, buildApplicationRouteWithQuery } from "@/platform/registry/application-routes";
+import { buildApplicationRouteWithQuery } from "@/platform/registry/application-routes";
 import type { NativeApplicationProps } from "@/platform/sdk/native-application-contract";
 import {
   useAiEngineerConversationQuery,
@@ -31,7 +29,7 @@ import {
 } from "@/lib/query-hooks";
 import { queryKeys } from "@/lib/query-keys";
 
-const PREVIEW_MESSAGE_PREFIX = "preview-message::";
+const PERMISSION_MESSAGE_PREFIX = "permission-message::";
 const SELECTED_MODEL_STORAGE_KEY = "ai-engineer.selectedModelId";
 const DRAFT_INTENT_STORAGE_KEY = "ai-engineer.openDraft";
 
@@ -93,6 +91,42 @@ function mapConversationMessagesToChatMessages(messages: AiEngineerConversationM
   }));
 }
 
+function permissionMessageFromEvent(event: ChatEvent): ChatMessage | null {
+  if (event.event_type !== "tool.permission_required") return null;
+  const payload = event.payload;
+  const permissionRequestId = typeof payload.permission_request_id === "string" ? payload.permission_request_id : null;
+  const approvalToken = typeof payload.approval_token === "string" ? payload.approval_token : null;
+  const toolCallId =
+    typeof payload.tool_call_id === "string" ? payload.tool_call_id : event.tool_call_id;
+  const toolName = typeof payload.tool_name === "string" ? payload.tool_name : "tool";
+  const prompt =
+    payload.prompt && typeof payload.prompt === "object" && !Array.isArray(payload.prompt)
+      ? (payload.prompt as ToolPermissionPrompt)
+      : {};
+  if (!permissionRequestId || !approvalToken || !toolCallId) return null;
+  return {
+    id: `${PERMISSION_MESSAGE_PREFIX}${permissionRequestId}`,
+    role: "assistant",
+    content: "",
+    status: "complete",
+    part: {
+      kind: "tool-permission",
+      permissionRequestId,
+      approvalToken,
+      toolCallId,
+      toolName,
+      prompt,
+    },
+  };
+}
+
+function appendPermissionMessage(messages: ChatMessage[], event: ChatEvent): ChatMessage[] {
+  const permissionMessage = permissionMessageFromEvent(event);
+  if (!permissionMessage) return messages;
+  if (messages.some((message) => message.id === permissionMessage.id)) return messages;
+  return [...messages, permissionMessage];
+}
+
 type DraftCreationResult = {
   conversationId: string;
   messageId: string | null;
@@ -141,7 +175,6 @@ function consumeDraftIntent() {
 }
 
 export function AiEngineerApp(props: NativeApplicationProps) {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [events, setEvents] = useState<ChatEvent[]>([]);
@@ -175,35 +208,6 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   useEffect(() => {
     executionModeRef.current = executionMode;
   }, [executionMode]);
-
-  const changePreviewFlow = useChangePreviewFlow({
-    onTimelineEvent: (event) => {
-      if (!isEventForConversation(event, conversationIdRef.current)) return;
-      setEvents((previous) => {
-        const next = previous.filter((existing) => existing.id !== event.id);
-        next.push(event);
-        return next;
-      });
-    },
-    onPreviewSummaryReceived: ({ previewKey }) => {
-      setMessages((previous) => {
-        const messageId = `${PREVIEW_MESSAGE_PREFIX}${previewKey}`;
-        if (previous.some((existing) => existing.id === messageId)) return previous;
-        return [
-          ...previous,
-          {
-            id: messageId,
-            role: "assistant",
-            content: "",
-            status: "complete",
-            part: { kind: "change-preview", previewKey },
-          },
-        ];
-      });
-    },
-  });
-  const ingestPreviewEvent = changePreviewFlow.ingestEvent;
-  const resetChangePreviewFlow = changePreviewFlow.reset;
 
   const applyPendingMessageDeltas = useCallback((pending: PendingMessageDelta[]) => {
     if (pending.length === 0) return;
@@ -255,16 +259,16 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const hydratePersistedConversation = useCallback(
     (conversation: AiEngineerConversationDetail) => {
       const persistedEvents = conversationEventsForHydration(conversation);
-      resetChangePreviewFlow();
-      setMessages(mapConversationMessagesToChatMessages(conversation.messages));
+      const persistedMessages = persistedEvents.reduce(
+        (current, event) => appendPermissionMessage(current, event),
+        mapConversationMessagesToChatMessages(conversation.messages),
+      );
+      setMessages(persistedMessages);
       setEvents(persistedEvents);
       setAttachments([]);
-      for (const event of persistedEvents) {
-        ingestPreviewEvent(event);
-      }
       lastHydratedConversationIdRef.current = conversation.id;
     },
-    [ingestPreviewEvent, resetChangePreviewFlow],
+    [],
   );
 
   const setActiveConversationId = useCallback((id: string) => {
@@ -426,7 +430,6 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       flushPendingMessageDeltasNow();
       clearActiveConversationId();
       lastHydratedConversationIdRef.current = null;
-      resetChangePreviewFlow();
       setMessages([]);
       resetTransientConversationState();
       markDraftIntent();
@@ -436,7 +439,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     } finally {
       setIsSwitchingConversation(false);
     }
-  }, [clearActiveConversationId, flushPendingMessageDeltasNow, isStreaming, replaceDraftRoute, resetChangePreviewFlow, resetTransientConversationState]);
+  }, [clearActiveConversationId, flushPendingMessageDeltasNow, isStreaming, replaceDraftRoute, resetTransientConversationState]);
 
   const handleSelectConversation = useCallback(
     (conversationId: string) => {
@@ -453,7 +456,6 @@ export function AiEngineerApp(props: NativeApplicationProps) {
         hydratePersistedConversation(cached);
         setIsSwitchingConversation(false);
       } else {
-        resetChangePreviewFlow();
         setMessages([]);
       }
       replaceConversationRoute(conversationId);
@@ -465,7 +467,6 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       isStreaming,
       queryClient,
       replaceConversationRoute,
-      resetChangePreviewFlow,
       resetTransientConversationState,
       setActiveConversationId,
     ],
@@ -484,7 +485,9 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     if (!isEventForConversation(chunk.event, conversationIdRef.current)) return;
     activeStreamingRunIdRef.current = chunk.event.agent_run_id;
     appendBackendEvent(chunk.event);
-    ingestPreviewEvent(chunk.event);
+    if (chunk.event.event_type === "tool.permission_required") {
+      setMessages((previous) => appendPermissionMessage(previous, chunk.event));
+    }
     if (chunk.event.event_type === "message.delta" || chunk.event.event_type === "message.reasoning.delta") {
       scheduleMessageDeltaFlush(draftAssistantId, chunk.event);
       return;
@@ -614,14 +617,6 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     return models.find((m) => m.id === selectedModelId)?.name ?? null;
   }, [models, selectedModelId]);
 
-  const handleOpenApp = useCallback(
-    (change: AiEngineerChangeSummary) => {
-      if (!change.targetApplicationId) return;
-      router.push(buildApplicationRoute(change.targetApplicationId));
-    },
-    [router],
-  );
-
   return (
     <AiEngineerShell
       title={title}
@@ -635,11 +630,6 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       isBootstrapping={isBootstrapping}
       isStreaming={isStreaming}
       onStop={handleStop}
-      getPreviewState={changePreviewFlow.getStateByKey}
-      onDeployChange={changePreviewFlow.deployChange}
-      onRevertChange={changePreviewFlow.revertChange}
-      onOpenApp={handleOpenApp}
-      isPreviewBusy={changePreviewFlow.isBusyForChange}
       models={models}
       selectedModelId={selectedModelId}
       onModelSelect={handleModelSelect}
