@@ -260,6 +260,24 @@ export const SystemDeploymentOverviewResponseSchema = z
   })
   .passthrough();
 
+export const ActiveFrontendPreviewRuntimeResponseSchema = z
+  .object({
+    is_preview: z.boolean(),
+    frontend_unit_id: z.string().nullable().optional(),
+    active_deployment_id: z.string().nullable().optional(),
+    branch: z.string().nullable().optional(),
+    commit_sha: z.string().nullable().optional(),
+    deployment_status: z.string().nullable().optional(),
+    health_status: z.string().nullable().optional(),
+    baseline_branch: z.string(),
+    baseline_commit_sha: z.string().nullable().optional(),
+    preview_deployment_id: z.string().nullable().optional(),
+    target_application_id: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+export type ActiveFrontendPreviewRuntimeResponse = z.infer<typeof ActiveFrontendPreviewRuntimeResponseSchema>;
+
 export const CodeRepositoryStatusSchema = z
   .object({
     id: z.string(),
