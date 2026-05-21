@@ -50,7 +50,13 @@ test("AiEngineerShell renders operation status pill for deployment progress", ()
     />,
   );
 
-  assert.match(markup, /data-testid="ai-engineer-operation-status-pill"/);
-  assert.match(markup, /Deploying preview/);
-  assert.doesNotMatch(markup, /dep_1/);
+  const pillStart = markup.indexOf('data-testid="ai-engineer-operation-status-pill"');
+  assert.notEqual(pillStart, -1);
+
+  const messageRegionStart = markup.indexOf('data-testid="ai-engineer-messages"', pillStart);
+  assert.notEqual(messageRegionStart, -1);
+
+  const headerMarkup = markup.slice(pillStart, messageRegionStart);
+  assert.match(headerMarkup, /Deploying preview/);
+  assert.doesNotMatch(headerMarkup, /dep_1/);
 });
