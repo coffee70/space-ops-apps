@@ -91,6 +91,43 @@ function mapConversationMessagesToChatMessages(messages: AiEngineerConversationM
   }));
 }
 
+function rebuildAssistantTextFromEvents(message: ChatMessage, events: ChatEvent[]): ChatMessage {
+  if (message.role !== "assistant" || message.part) return message;
+  const relevantEvents = events
+    .filter((event) => event.event_type === "message.delta" || event.event_type.startsWith("tool."))
+    .sort((a, b) => a.sequence - b.sequence);
+  if (!relevantEvents.some((event) => event.event_type === "message.delta")) {
+    return message;
+  }
+  let rebuilt: ChatMessage = { ...message, content: "", pendingToolTextBoundary: false };
+  for (const event of relevantEvents) {
+    rebuilt = applyAgentEventToAssistantMessage([rebuilt], rebuilt.id, event)[0] ?? rebuilt;
+  }
+  return {
+    ...rebuilt,
+    id: message.id,
+    status: message.status,
+    reasoning: message.reasoning,
+  };
+}
+
+function mapConversationMessagesToChatMessagesWithEvents(
+  messages: AiEngineerConversationMessage[],
+  events: ChatEvent[],
+): ChatMessage[] {
+  const eventsByRequest = new Map<string, ChatEvent[]>();
+  for (const event of events) {
+    const existing = eventsByRequest.get(event.request_id) ?? [];
+    existing.push(event);
+    eventsByRequest.set(event.request_id, existing);
+  }
+  return mapConversationMessagesToChatMessages(messages).map((message, index) => {
+    const source = messages[index];
+    const requestId = typeof source?.metadata_json?.request_id === "string" ? source.metadata_json.request_id : null;
+    return requestId ? rebuildAssistantTextFromEvents(message, eventsByRequest.get(requestId) ?? []) : message;
+  });
+}
+
 function permissionMessageFromEvent(event: ChatEvent): ChatMessage | null {
   if (event.event_type !== "tool.permission_required") return null;
   const payload = event.payload;
@@ -261,7 +298,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       const persistedEvents = conversationEventsForHydration(conversation);
       const persistedMessages = persistedEvents.reduce(
         (current, event) => appendPermissionMessage(current, event),
-        mapConversationMessagesToChatMessages(conversation.messages),
+        mapConversationMessagesToChatMessagesWithEvents(conversation.messages, persistedEvents),
       );
       setMessages(persistedMessages);
       setEvents(persistedEvents);
@@ -485,6 +522,9 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     if (!isEventForConversation(chunk.event, conversationIdRef.current)) return;
     activeStreamingRunIdRef.current = chunk.event.agent_run_id;
     appendBackendEvent(chunk.event);
+    if (chunk.event.event_type.startsWith("tool.")) {
+      flushPendingMessageDeltasNow();
+    }
     if (chunk.event.event_type === "tool.permission_required") {
       setMessages((previous) => appendPermissionMessage(previous, chunk.event));
     }

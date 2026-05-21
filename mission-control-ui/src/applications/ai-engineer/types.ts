@@ -57,6 +57,7 @@ export interface ChatMessage {
   createdAt?: string;
   attachments?: ChatMessageAttachment[];
   reasoning?: ChatMessageReasoning;
+  pendingToolTextBoundary?: boolean;
   part?: ChatMessageToolPermissionPart;
 }
 

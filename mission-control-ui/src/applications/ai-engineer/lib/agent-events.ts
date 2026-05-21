@@ -30,6 +30,13 @@ function parseReasoningRepresentation(value: unknown): ReasoningStreamRepresenta
   return value === "reasoning" || value === "reasoning_summary" || value === "thinking" ? value : undefined;
 }
 
+function contentWithToolBoundary(content: string, textDelta: string, hasPendingToolBoundary: boolean | undefined): string {
+  if (!hasPendingToolBoundary || content.trim().length === 0) {
+    return `${content}${textDelta}`;
+  }
+  return `${content}${content.endsWith("\n\n") ? "" : "\n\n"}${textDelta}`;
+}
+
 export function applyAgentEventToAssistantMessage(messages: ChatMessage[], draftAssistantId: string, event: AgentEvent): ChatMessage[] {
   if (event.event_type === "message.reasoning.started") {
     const payload = ReasoningPayloadSchema.safeParse(event.payload);
@@ -94,7 +101,26 @@ export function applyAgentEventToAssistantMessage(messages: ChatMessage[], draft
   if (event.event_type === "message.delta") {
     const payload = MessageDeltaPayloadSchema.safeParse(event.payload);
     const textDelta = payload.success ? payload.data.text_delta : "";
-    return messages.map((message) => (message.id === draftAssistantId ? { ...message, content: `${message.content}${textDelta}` } : message));
+    return messages.map((message) =>
+      message.id === draftAssistantId
+        ? {
+            ...message,
+            content: contentWithToolBoundary(message.content, textDelta, message.pendingToolTextBoundary),
+            pendingToolTextBoundary: false,
+          }
+        : message,
+    );
+  }
+
+  if (event.event_type.startsWith("tool.")) {
+    return messages.map((message) =>
+      message.id === draftAssistantId && message.content.trim().length > 0
+        ? {
+            ...message,
+            pendingToolTextBoundary: true,
+          }
+        : message,
+    );
   }
 
   if (event.event_type === "message.completed") {

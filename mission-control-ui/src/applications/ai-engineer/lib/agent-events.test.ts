@@ -38,6 +38,62 @@ test("assistant text updates and completes only from backend message events", ()
   assert.equal(afterComplete[0].status, "complete");
 });
 
+test("assistant text resumes after tool activity with one paragraph boundary", () => {
+  const draft: ChatMessage[] = [{ id: "draft", role: "assistant", content: "", status: "streaming" }];
+  const firstDelta = applyAgentEventToAssistantMessage(
+    draft,
+    "draft",
+    event({ event_type: "message.delta", payload: { text_delta: "I will inspect this." }, sequence: 1 }),
+  );
+  const afterToolStart = applyAgentEventToAssistantMessage(
+    firstDelta,
+    "draft",
+    event({ event_type: "tool.started", tool_call_id: "tool-1", payload: { tool_name: "read_source_file" }, sequence: 2 }),
+  );
+  const afterToolComplete = applyAgentEventToAssistantMessage(
+    afterToolStart,
+    "draft",
+    event({ event_type: "tool.completed", tool_call_id: "tool-1", payload: { tool_name: "read_source_file" }, sequence: 3 }),
+  );
+  const resumed = applyAgentEventToAssistantMessage(
+    afterToolComplete,
+    "draft",
+    event({ event_type: "message.delta", payload: { text_delta: "The relevant file is updated." }, sequence: 4 }),
+  );
+
+  assert.equal(resumed[0].content, "I will inspect this.\n\nThe relevant file is updated.");
+  assert.equal(resumed[0].pendingToolTextBoundary, false);
+});
+
+test("multiple tool events between assistant text deltas create only one boundary", () => {
+  let messages: ChatMessage[] = [{ id: "draft", role: "assistant", content: "", status: "streaming" }];
+  messages = applyAgentEventToAssistantMessage(messages, "draft", event({ event_type: "message.delta", payload: { text_delta: "Before tools." }, sequence: 1 }));
+  messages = applyAgentEventToAssistantMessage(messages, "draft", event({ event_type: "tool.started", tool_call_id: "tool-1", sequence: 2 }));
+  messages = applyAgentEventToAssistantMessage(messages, "draft", event({ event_type: "tool.completed", tool_call_id: "tool-1", sequence: 3 }));
+  messages = applyAgentEventToAssistantMessage(messages, "draft", event({ event_type: "tool.started", tool_call_id: "tool-2", sequence: 4 }));
+  messages = applyAgentEventToAssistantMessage(messages, "draft", event({ event_type: "tool.completed", tool_call_id: "tool-2", sequence: 5 }));
+  messages = applyAgentEventToAssistantMessage(messages, "draft", event({ event_type: "message.delta", payload: { text_delta: "After tools." }, sequence: 6 }));
+
+  assert.equal(messages[0].content, "Before tools.\n\nAfter tools.");
+});
+
+test("tool activity before first assistant text does not add leading whitespace", () => {
+  let messages: ChatMessage[] = [{ id: "draft", role: "assistant", content: "", status: "streaming" }];
+  messages = applyAgentEventToAssistantMessage(messages, "draft", event({ event_type: "tool.started", tool_call_id: "tool-1", sequence: 1 }));
+  messages = applyAgentEventToAssistantMessage(messages, "draft", event({ event_type: "tool.completed", tool_call_id: "tool-1", sequence: 2 }));
+  messages = applyAgentEventToAssistantMessage(messages, "draft", event({ event_type: "message.delta", payload: { text_delta: "First text." }, sequence: 3 }));
+
+  assert.equal(messages[0].content, "First text.");
+});
+
+test("consecutive assistant text deltas without tool activity remain continuous", () => {
+  let messages: ChatMessage[] = [{ id: "draft", role: "assistant", content: "", status: "streaming" }];
+  messages = applyAgentEventToAssistantMessage(messages, "draft", event({ event_type: "message.delta", payload: { text_delta: "Hello" }, sequence: 1 }));
+  messages = applyAgentEventToAssistantMessage(messages, "draft", event({ event_type: "message.delta", payload: { text_delta: " world" }, sequence: 2 }));
+
+  assert.equal(messages[0].content, "Hello world");
+});
+
 test("run.failed displays backend error payload", () => {
   const draft: ChatMessage[] = [{ id: "draft", role: "assistant", content: "", status: "streaming" }];
   const failed = applyAgentEventToAssistantMessage(draft, "draft", event({ event_type: "run.failed", payload: { error_code: "failed", message: "backend failed" } }));
