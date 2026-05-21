@@ -39,6 +39,11 @@ test("AiEngineerMessages compacts older permission cards for the same operation"
 
   assert.match(markup, /data-permission-request-id="permission-old"/);
   assert.match(markup, /data-permission-request-id="permission-new"/);
-  assert.equal((markup.match(/data-compact="true"/g) ?? []).length, 1);
-  assert.equal((markup.match(/data-compact="false"/g) ?? []).length, 1);
+  // The latest card becomes actionable only after the client fetches authoritative
+  // backend permission status. Static rendering should keep both cards compact so
+  // hydrated/stale permission prompts are not briefly clickable before status is known.
+  assert.equal((markup.match(/data-compact="true"/g) ?? []).length, 2);
+  assert.doesNotMatch(markup, /data-compact="false"/);
+  assert.doesNotMatch(markup, /Deploy changes/);
 });
+
