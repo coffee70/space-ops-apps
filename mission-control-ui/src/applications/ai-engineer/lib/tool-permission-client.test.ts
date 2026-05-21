@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { approveToolPermission, denyToolPermission } from "./tool-permission-client";
+import { approveToolPermission, denyToolPermission, getToolPermissionStatus } from "./tool-permission-client";
 
 function permissionResponse(status = "approved") {
   return {
@@ -54,4 +54,27 @@ test("denyToolPermission posts only the denial reason", async () => {
   assert.equal(calls.length, 1);
   assert.equal(calls[0]?.method, "POST");
   assert.deepEqual(JSON.parse(String(calls[0]?.body ?? "{}")), { reason: "user_denied" });
+});
+
+test("getToolPermissionStatus fetches authoritative permission status", async () => {
+  const calls: { input: string | URL | Request; init?: RequestInit }[] = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ input, init });
+    return new Response(JSON.stringify(permissionResponse("executed")), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }) as typeof fetch;
+
+  try {
+    const response = await getToolPermissionStatus("permission-1");
+    assert.equal(response.status, "executed");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(calls.length, 1);
+  assert.match(String(calls[0]?.input), /\/intelligence\/tools\/permissions\/permission-1$/);
+  assert.equal(calls[0]?.init?.method, "GET");
 });

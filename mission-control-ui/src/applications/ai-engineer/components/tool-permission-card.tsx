@@ -1,13 +1,18 @@
 "use client";
 
 import { Check, ShieldAlert, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { approveToolPermission, denyToolPermission } from "@/applications/ai-engineer/lib/tool-permission-client";
+import {
+  approveToolPermission,
+  denyToolPermission,
+  getToolPermissionStatus,
+  type ToolPermissionStatusResponse,
+} from "@/applications/ai-engineer/lib/tool-permission-client";
 import type { ChatEvent, ChatMessageToolPermissionPart } from "@/applications/ai-engineer/types";
 import { Button } from "@/components/ui/button";
 
-type PermissionDisplayStatus = "pending" | "approved" | "executing" | "denied" | "completed" | "failed";
+type PermissionDisplayStatus = "checking" | "pending" | "approved" | "executing" | "denied" | "completed" | "failed" | "unknown";
 
 function formatValue(value: unknown): string {
   if (Array.isArray(value)) return value.join(", ");
@@ -35,13 +40,21 @@ function statusFromEvents(part: ChatMessageToolPermissionPart, events: ChatEvent
   return { status: "pending" };
 }
 
+function displayStatusFromResponse(response: ToolPermissionStatusResponse): PermissionDisplayStatus {
+  if (response.status === "executed") return "completed";
+  if (response.status === "expired") return "failed";
+  return response.status;
+}
+
 const statusLabel: Record<PermissionDisplayStatus, string> = {
+  checking: "Checking permission...",
   pending: "Pending approval",
-  approved: "Approved - running...",
-  executing: "Running...",
+  approved: "Approved",
+  executing: "Approved",
   denied: "Denied",
   completed: "Completed",
   failed: "Failed",
+  unknown: "Status unavailable",
 };
 
 export function ToolPermissionCard({ part, events, compact = false }: { part: ChatMessageToolPermissionPart; events: ChatEvent[]; compact?: boolean }) {
@@ -49,12 +62,28 @@ export function ToolPermissionCard({ part, events, compact = false }: { part: Ch
   const [localStatus, setLocalStatus] = useState<"idle" | "approving" | "denying">("idle");
   const [serverStatus, setServerStatus] = useState<PermissionDisplayStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const displayStatus = serverStatus ?? eventState.status;
-  const isResolved = displayStatus !== "pending";
+  const eventDerivedStatus = eventState.status === "pending" ? "checking" : eventState.status;
+  const displayStatus = serverStatus ?? eventDerivedStatus;
   const isBusy = localStatus === "approving" || localStatus === "denying";
-  const isActionable = displayStatus === "pending" && !compact;
+  const isActionable = serverStatus === "pending" && !compact && !isBusy;
   const details = part.prompt.details ?? {};
   const failureReason = error ?? eventState.reason;
+
+  useEffect(() => {
+    let cancelled = false;
+    getToolPermissionStatus(part.permissionRequestId)
+      .then((response) => {
+        if (!cancelled) setServerStatus(displayStatusFromResponse(response));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setServerStatus(eventState.status === "pending" ? "unknown" : eventState.status);
+        setError(err instanceof Error ? err.message : "Failed to load permission status");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [eventState.status, part.permissionRequestId]);
 
   const approve = async () => {
     if (!isActionable || isBusy) return;
@@ -62,11 +91,11 @@ export function ToolPermissionCard({ part, events, compact = false }: { part: Ch
     setLocalStatus("approving");
     try {
       const response = await approveToolPermission(part.permissionRequestId);
-      setServerStatus(response.status === "pending" ? "pending" : response.status === "approved" ? "approved" : response.status === "executing" ? "executing" : response.status === "executed" ? "completed" : response.status === "denied" ? "denied" : "failed");
+      setServerStatus(displayStatusFromResponse(response));
       setLocalStatus("idle");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to approve permission");
-      if (err instanceof Error && /permission request is failed|failed/i.test(err.message)) setServerStatus("failed");
+      setServerStatus("failed");
       setLocalStatus("idle");
     }
   };
@@ -77,11 +106,11 @@ export function ToolPermissionCard({ part, events, compact = false }: { part: Ch
     setLocalStatus("denying");
     try {
       const response = await denyToolPermission(part.permissionRequestId);
-      setServerStatus(response.status === "denied" ? "denied" : response.status === "pending" ? "pending" : "failed");
+      setServerStatus(displayStatusFromResponse(response));
       setLocalStatus("idle");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to deny permission");
-      if (err instanceof Error && /permission request is failed|failed/i.test(err.message)) setServerStatus("failed");
+      setServerStatus("failed");
       setLocalStatus("idle");
     }
   };
@@ -113,13 +142,13 @@ export function ToolPermissionCard({ part, events, compact = false }: { part: Ch
           ) : null}
           {failureReason && displayStatus === "failed" ? <p className="text-destructive mt-2 text-[11px]">{failureReason}</p> : null}
           {isActionable ? <div className="mt-3 flex gap-2">
-            <Button type="button" size="sm" onClick={approve} disabled={isResolved || isBusy}>
+            <Button type="button" size="sm" onClick={approve} disabled={isBusy}>
               <Check className="size-3.5" />
-              {localStatus === "approving" ? "Approving" : part.prompt.primary_action ?? "Approve"}
+              {part.prompt.primary_action ?? "Approve"}
             </Button>
-            <Button type="button" size="sm" variant="outline" onClick={deny} disabled={isResolved || isBusy}>
+            <Button type="button" size="sm" variant="outline" onClick={deny} disabled={isBusy}>
               <X className="size-3.5" />
-              {localStatus === "denying" ? "Cancelling" : part.prompt.secondary_action ?? "Cancel"}
+              {part.prompt.secondary_action ?? "Cancel"}
             </Button>
           </div> : null}
         </div>

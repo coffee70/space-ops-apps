@@ -91,8 +91,30 @@ test("AiEngineerMessage still renders tool permission cards", () => {
   assert.match(markup, /data-testid="tool-permission-card"/);
   assert.match(markup, /Deploy preview changes\?/);
   assert.match(markup, /mission-control-frontend-shell/);
-  assert.match(markup, /Deploy changes/);
-  assert.match(markup, /Cancel/);
+  assert.match(markup, /Checking permission/);
+  assert.doesNotMatch(markup, /Deploy changes/);
+  assert.doesNotMatch(markup, /Cancel/);
+});
+
+test("AiEngineerMessage renders approved permission cards without progress labels or actions", () => {
+  const markup = renderToStaticMarkup(
+    <AiEngineerMessage
+      message={permissionMessage()}
+      events={[
+        event("tool.permission_approved", {
+          permission_request_id: "permission-1",
+          tool_call_id: "44444444-4444-4444-4444-444444444444",
+        }),
+      ]}
+    />,
+  );
+
+  assert.match(markup, /data-permission-state="approved"/);
+  assert.match(markup, /Approved/);
+  assert.doesNotMatch(markup, /Approved - running/);
+  assert.doesNotMatch(markup, /Running\.\.\./);
+  assert.doesNotMatch(markup, /Deploy changes/);
+  assert.doesNotMatch(markup, /Cancel/);
 });
 
 test("AiEngineerMessage renders failed permission cards without actions", () => {

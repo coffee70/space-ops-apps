@@ -78,7 +78,7 @@ export function AiEngineerMessage({
         <div className="flex min-w-0 flex-1 flex-col gap-2 text-[13px] leading-[1.65]">
           {permissionPart ? (
             <div data-testid="ai-engineer-tool-permission-message" data-permission-request-id={permissionPart.permissionRequestId}>
-              <ToolPermissionCard part={permissionPart} events={events} compact={compactPermission} />
+              <ToolPermissionCard key={permissionPart.permissionRequestId} part={permissionPart} events={events} compact={compactPermission} />
             </div>
           ) : (
             <div data-testid="ai-engineer-assistant-message" className="flex flex-col gap-3">

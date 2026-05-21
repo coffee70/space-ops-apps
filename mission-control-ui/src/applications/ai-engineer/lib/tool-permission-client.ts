@@ -29,6 +29,16 @@ async function parsePermissionResponse(response: Response): Promise<ToolPermissi
   return parsed.data;
 }
 
+export async function getToolPermissionStatus(permissionRequestId: string): Promise<ToolPermissionStatusResponse> {
+  const response = await fetch(apiUrl(`/intelligence/tools/permissions/${permissionRequestId}`), {
+    method: "GET",
+  });
+  if (!response.ok) {
+    throw new Error((await response.text()) || "Failed to load tool permission status");
+  }
+  return parsePermissionResponse(response);
+}
+
 export async function approveToolPermission(permissionRequestId: string): Promise<ToolPermissionStatusResponse> {
   const response = await fetch(apiUrl(`/intelligence/tools/permissions/${permissionRequestId}/approve`), {
     method: "POST",
