@@ -22,7 +22,7 @@ function event(event_type: string, payload: Record<string, unknown> = {}): ChatE
 test("operation status shows deploying for deployment start events", () => {
   assert.deepEqual(getAiEngineerOperationStatus([event("deployment.submitted")]), {
     status: "running",
-    label: "Deploying preview...",
+    label: "Deploying",
   });
 });
 

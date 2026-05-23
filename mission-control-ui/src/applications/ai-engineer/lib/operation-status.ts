@@ -31,5 +31,5 @@ export function getAiEngineerOperationStatus(events: ChatEvent[]): AiEngineerOpe
   if (event.event_type === "revert.requested") {
     return { status: "running", label: "Reverting preview..." };
   }
-  return { status: "running", label: "Deploying preview..." };
+  return { status: "running", label: "Deploying" };
 }
