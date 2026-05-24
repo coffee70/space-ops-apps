@@ -51,9 +51,6 @@ export function getAiEngineerOperationStatus(
     }
     return null;
   }
-  if (event.event_type === "deployment.failed" || event.event_type === "deployment.timeout" || event.event_type === "revert.failed") {
-    return { status: "failed", label: event.event_type === "deployment.timeout" ? "Preview deploy timed out" : "Preview deploy failed" };
-  }
   if (event.event_type === "baseline.active") {
     return { status: "success", label: "Baseline active" };
   }
@@ -62,6 +59,9 @@ export function getAiEngineerOperationStatus(
   }
   if (isHealthyPassingPreview(previewRuntime)) {
     return { status: "success", label: "Preview active" };
+  }
+  if (event.event_type === "deployment.failed" || event.event_type === "deployment.timeout" || event.event_type === "revert.failed") {
+    return { status: "failed", label: event.event_type === "deployment.timeout" ? "Preview deploy timed out" : "Preview deploy failed" };
   }
   if (isActivePreview(previewRuntime)) {
     return { status: "running", label: "Deploying" };

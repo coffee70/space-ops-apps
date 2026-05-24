@@ -51,6 +51,13 @@ test("operation status shows failed for deployment failures", () => {
   });
 });
 
+test("operation status shows timed out for deployment timeouts without a healthy preview runtime", () => {
+  assert.deepEqual(getAiEngineerOperationStatus([event("deployment.timeout")]), {
+    status: "failed",
+    label: "Preview deploy timed out",
+  });
+});
+
 test("operation status shows preview active for preview active events", () => {
   assert.deepEqual(getAiEngineerOperationStatus([event("preview.active")]), {
     status: "success",
@@ -93,6 +100,45 @@ test("operation status preserves baseline active even if preview runtime still r
     {
       status: "success",
       label: "Baseline active",
+    },
+  );
+});
+
+test("operation status preserves reverting preview even if preview runtime reports healthy passing", () => {
+  assert.deepEqual(
+    getAiEngineerOperationStatus(
+      [event("revert.requested")],
+      previewRuntime({ is_preview: true, deployment_status: "healthy", health_status: "passing" }),
+    ),
+    {
+      status: "running",
+      label: "Reverting preview...",
+    },
+  );
+});
+
+test("operation status upgrades deployment timeout to preview active when preview runtime is healthy and passing", () => {
+  assert.deepEqual(
+    getAiEngineerOperationStatus(
+      [event("deployment.timeout")],
+      previewRuntime({ is_preview: true, deployment_status: "healthy", health_status: "passing" }),
+    ),
+    {
+      status: "success",
+      label: "Preview active",
+    },
+  );
+});
+
+test("operation status upgrades deployment failure to preview active when preview runtime is healthy and passing", () => {
+  assert.deepEqual(
+    getAiEngineerOperationStatus(
+      [event("deployment.failed")],
+      previewRuntime({ is_preview: true, deployment_status: "healthy", health_status: "passing" }),
+    ),
+    {
+      status: "success",
+      label: "Preview active",
     },
   );
 });
