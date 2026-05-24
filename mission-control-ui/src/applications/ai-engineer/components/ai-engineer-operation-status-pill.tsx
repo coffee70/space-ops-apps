@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { AiEngineerStatusPill } from "@/applications/ai-engineer/components/ai-engineer-status-pill";
 import { getAiEngineerOperationStatus } from "@/applications/ai-engineer/lib/operation-status";
@@ -27,7 +27,6 @@ export function AiEngineerOperationStatusPill({
           ) : undefined
         }
       />
-      {operation.status === "success" ? <Check className="text-success size-3" aria-hidden="true" data-testid="ai-engineer-operation-status-check" /> : null}
     </span>
   );
 }

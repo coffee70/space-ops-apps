@@ -25,6 +25,14 @@ function isHealthyPassingPreview(previewRuntime: ActiveFrontendPreviewRuntimeRes
   );
 }
 
+function isHealthyPassingBaseline(previewRuntime: ActiveFrontendPreviewRuntimeResponse | null | undefined) {
+  return (
+    previewRuntime?.is_preview === false &&
+    previewRuntime.deployment_status === "healthy" &&
+    previewRuntime.health_status === "passing"
+  );
+}
+
 function isActivePreview(previewRuntime: ActiveFrontendPreviewRuntimeResponse | null | undefined) {
   return previewRuntime?.is_preview === true;
 }
@@ -46,12 +54,18 @@ export function getAiEngineerOperationStatus(
     if (isHealthyPassingPreview(previewRuntime)) {
       return { status: "success", label: "Preview active" };
     }
+    if (isHealthyPassingBaseline(previewRuntime)) {
+      return { status: "success", label: "Baseline active" };
+    }
     if (isActivePreview(previewRuntime)) {
       return { status: "running", label: "Deploying" };
     }
     return null;
   }
   if (event.event_type === "baseline.active") {
+    return { status: "success", label: "Baseline active" };
+  }
+  if (isHealthyPassingBaseline(previewRuntime)) {
     return { status: "success", label: "Baseline active" };
   }
   if (event.event_type === "revert.requested") {

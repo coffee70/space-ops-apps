@@ -63,7 +63,7 @@ test("AiEngineerShell renders operation status pill for deployment progress", ()
 });
 
 
-test("AiEngineerShell renders success operation status with a trailing check icon", () => {
+test("AiEngineerShell renders success operation status without a trailing check icon", () => {
   const markup = renderToStaticMarkup(
     <AiEngineerShell
       title="AI Engineer"
@@ -97,7 +97,7 @@ test("AiEngineerShell renders success operation status with a trailing check ico
 
   const headerMarkup = markup.slice(pillStart, messageRegionStart);
   assert.match(headerMarkup, /Preview active/);
-  assert.match(headerMarkup, /data-testid="ai-engineer-operation-status-check"/);
+  assert.doesNotMatch(headerMarkup, /data-testid="ai-engineer-operation-status-check"/);
 });
 
 test("AiEngineerShell upgrades deploying operation status when preview runtime is healthy and passing", () => {
@@ -147,5 +147,5 @@ test("AiEngineerShell upgrades deploying operation status when preview runtime i
 
   const headerMarkup = markup.slice(pillStart, messageRegionStart);
   assert.match(headerMarkup, /Preview active/);
-  assert.match(headerMarkup, /data-testid="ai-engineer-operation-status-check"/);
+  assert.doesNotMatch(headerMarkup, /data-testid="ai-engineer-operation-status-check"/);
 });

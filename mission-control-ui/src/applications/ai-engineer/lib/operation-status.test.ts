@@ -78,6 +78,39 @@ test("operation status upgrades deploying events to preview active when preview 
   );
 });
 
+test("operation status uses healthy baseline runtime over stale deployment submitted events", () => {
+  assert.deepEqual(
+    getAiEngineerOperationStatus(
+      [event("deployment.submitted")],
+      previewRuntime({ is_preview: false, deployment_status: "healthy", health_status: "passing" }),
+    ),
+    {
+      status: "success",
+      label: "Baseline active",
+    },
+  );
+});
+
+test("operation status uses healthy baseline runtime over stale deployment build started events", () => {
+  assert.deepEqual(
+    getAiEngineerOperationStatus(
+      [event("deployment.build_started")],
+      previewRuntime({ is_preview: false, deployment_status: "healthy", health_status: "passing" }),
+    ),
+    {
+      status: "success",
+      label: "Baseline active",
+    },
+  );
+});
+
+test("operation status shows baseline active when healthy baseline runtime has no events", () => {
+  assert.deepEqual(getAiEngineerOperationStatus([], previewRuntime({ is_preview: false, deployment_status: "healthy", health_status: "passing" })), {
+    status: "success",
+    label: "Baseline active",
+  });
+});
+
 test("operation status keeps deploying while preview runtime is active but not yet healthy and passing", () => {
   assert.deepEqual(
     getAiEngineerOperationStatus(
