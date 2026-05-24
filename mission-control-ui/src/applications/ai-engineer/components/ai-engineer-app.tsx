@@ -25,6 +25,7 @@ import {
   useAiEngineerConversationQuery,
   useAiEngineerConversationsQuery,
   useAiEngineerModelsQuery,
+  useActiveFrontendPreviewRuntimeQuery,
   useCreateAiEngineerConversationMutation,
 } from "@/lib/query-hooks";
 import { queryKeys } from "@/lib/query-keys";
@@ -235,6 +236,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const conversationsQuery = useAiEngineerConversationsQuery();
   const activeConversationQuery = useAiEngineerConversationQuery(activeConversationId, Boolean(activeConversationId));
   const modelsQuery = useAiEngineerModelsQuery();
+  const previewRuntimeQuery = useActiveFrontendPreviewRuntimeQuery();
   const createConversationMutation = useCreateAiEngineerConversationMutation();
 
   const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
@@ -680,6 +682,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       conversationListError={conversationListError}
       onNewChat={handleNewChat}
       onSelectConversation={handleSelectConversation}
+      previewRuntime={previewRuntimeQuery.data}
     />
   );
 }

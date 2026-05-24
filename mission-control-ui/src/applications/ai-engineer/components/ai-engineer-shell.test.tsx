@@ -99,3 +99,53 @@ test("AiEngineerShell renders success operation status with a trailing check ico
   assert.match(headerMarkup, /Preview active/);
   assert.match(headerMarkup, /data-testid="ai-engineer-operation-status-check"/);
 });
+
+test("AiEngineerShell upgrades deploying operation status when preview runtime is healthy and passing", () => {
+  const markup = renderToStaticMarkup(
+    <AiEngineerShell
+      title="AI Engineer"
+      messages={[]}
+      events={[
+        {
+          id: "event-1",
+          event_type: "deployment.build_started",
+          conversation_id: "conversation-1",
+          agent_run_id: "run-1",
+          request_id: "request-1",
+          tool_call_id: null,
+          sequence: 1,
+          emitted_by: "tool-execution-service",
+          payload: {},
+          created_at: "2026-05-21T00:00:00.000Z",
+        },
+      ]}
+      attachments={[]}
+      executionMode="execute"
+      onExecutionModeChange={() => {}}
+      onSend={async () => {}}
+      previewRuntime={{
+        is_preview: true,
+        frontend_unit_id: "mission-control-frontend-shell",
+        active_deployment_id: "dep_1",
+        branch: "preview/cyan",
+        commit_sha: "abc1234",
+        deployment_status: "healthy",
+        health_status: "passing",
+        baseline_branch: "main",
+        baseline_commit_sha: "def5678",
+        preview_deployment_id: "dep_1",
+        target_application_id: "ai-engineer",
+      }}
+    />,
+  );
+
+  const pillStart = markup.indexOf('data-testid="ai-engineer-operation-status-pill"');
+  assert.notEqual(pillStart, -1);
+
+  const messageRegionStart = markup.indexOf('data-testid="ai-engineer-messages"', pillStart);
+  assert.notEqual(messageRegionStart, -1);
+
+  const headerMarkup = markup.slice(pillStart, messageRegionStart);
+  assert.match(headerMarkup, /Preview active/);
+  assert.match(headerMarkup, /data-testid="ai-engineer-operation-status-check"/);
+});

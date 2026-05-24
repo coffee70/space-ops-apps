@@ -8,6 +8,7 @@ import { AiEngineerConversationSidebar } from "@/applications/ai-engineer/compon
 import { AiEngineerHeader } from "@/applications/ai-engineer/components/ai-engineer-header";
 import { AiEngineerMessages } from "@/applications/ai-engineer/components/ai-engineer-messages";
 import type { AiEngineerConversationSummary, AiEngineerModelOption, AttachmentStatus, ChatEvent, ChatMessage, ExecutionMode } from "@/applications/ai-engineer/types";
+import type { ActiveFrontendPreviewRuntimeResponse } from "@/lib/ui-boundary-schemas";
 
 export function AiEngineerShell({
   title,
@@ -33,6 +34,7 @@ export function AiEngineerShell({
   conversationListError,
   onNewChat,
   onSelectConversation,
+  previewRuntime,
 }: {
   title: string;
   messages: ChatMessage[];
@@ -57,6 +59,7 @@ export function AiEngineerShell({
   conversationListError?: string | null;
   onNewChat?: () => void;
   onSelectConversation?: (conversationId: string) => void;
+  previewRuntime?: ActiveFrontendPreviewRuntimeResponse | null;
 }) {
   const [composerState, setComposerState] = useState<{ conversationId: string | null; text: string }>({ conversationId: null, text: "" });
   const composerText = composerState.conversationId === (activeConversationId ?? null) ? composerState.text : "";
@@ -78,7 +81,13 @@ export function AiEngineerShell({
         />
       </aside>
       <main className="bg-background md:border-border relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:border-t">
-        <AiEngineerHeader title={title} executionMode={executionMode} selectedModelName={selectedModelName} events={events} />
+        <AiEngineerHeader
+          title={title}
+          executionMode={executionMode}
+          selectedModelName={selectedModelName}
+          events={events}
+          previewRuntime={previewRuntime}
+        />
         <AiEngineerMessages
           messages={messages}
           events={events}

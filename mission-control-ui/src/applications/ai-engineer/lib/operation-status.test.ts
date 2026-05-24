@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { getAiEngineerOperationStatus } from "./operation-status";
 import type { ChatEvent } from "../types";
+import type { ActiveFrontendPreviewRuntimeResponse } from "@/lib/ui-boundary-schemas";
 
 function event(event_type: string, payload: Record<string, unknown> = {}): ChatEvent {
   return {
@@ -16,6 +17,23 @@ function event(event_type: string, payload: Record<string, unknown> = {}): ChatE
     emitted_by: "tool-execution-service",
     payload,
     created_at: "2026-05-21T00:00:00.000Z",
+  };
+}
+
+function previewRuntime(overrides: Partial<ActiveFrontendPreviewRuntimeResponse> = {}): ActiveFrontendPreviewRuntimeResponse {
+  return {
+    is_preview: false,
+    frontend_unit_id: "mission-control-frontend-shell",
+    active_deployment_id: "dep_1",
+    branch: "preview/cyan",
+    commit_sha: "abc1234",
+    deployment_status: "deploying",
+    health_status: "failing",
+    baseline_branch: "main",
+    baseline_commit_sha: "def5678",
+    preview_deployment_id: "dep_1",
+    target_application_id: "ai-engineer",
+    ...overrides,
   };
 }
 
@@ -38,4 +56,43 @@ test("operation status shows preview active for preview active events", () => {
     status: "success",
     label: "Preview active",
   });
+});
+
+test("operation status upgrades deploying events to preview active when preview runtime is healthy and passing", () => {
+  assert.deepEqual(
+    getAiEngineerOperationStatus(
+      [event("deployment.build_started")],
+      previewRuntime({ is_preview: true, deployment_status: "healthy", health_status: "passing" }),
+    ),
+    {
+      status: "success",
+      label: "Preview active",
+    },
+  );
+});
+
+test("operation status keeps deploying while preview runtime is active but not yet healthy and passing", () => {
+  assert.deepEqual(
+    getAiEngineerOperationStatus(
+      [event("deployment.build_started")],
+      previewRuntime({ is_preview: true, deployment_status: "deploying", health_status: "starting" }),
+    ),
+    {
+      status: "running",
+      label: "Deploying",
+    },
+  );
+});
+
+test("operation status preserves baseline active even if preview runtime still reports a preview", () => {
+  assert.deepEqual(
+    getAiEngineerOperationStatus(
+      [event("baseline.active")],
+      previewRuntime({ is_preview: true, deployment_status: "healthy", health_status: "passing" }),
+    ),
+    {
+      status: "success",
+      label: "Baseline active",
+    },
+  );
 });
