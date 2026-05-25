@@ -115,7 +115,7 @@ test("AiEngineerShell upgrades deploying operation status when preview runtime i
           tool_call_id: null,
           sequence: 1,
           emitted_by: "tool-execution-service",
-          payload: {},
+          payload: { deployment_id: "dep_1" },
           created_at: "2026-05-21T00:00:00.000Z",
         },
       ]}

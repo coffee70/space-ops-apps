@@ -94,12 +94,38 @@ test("operation status shows preview active for preview active events", () => {
 test("operation status upgrades deploying events to preview active when preview runtime is healthy and passing", () => {
   assert.deepEqual(
     getAiEngineerOperationStatus(
-      [event("deployment.build_started")],
-      previewRuntime({ is_preview: true, deployment_status: "healthy", health_status: "passing" }),
+      [event("deployment.submitted", { deployment_id: "dep_1" })],
+      previewRuntime({ is_preview: true, active_deployment_id: "dep_1", deployment_status: "healthy", health_status: "passing" }),
     ),
     {
       status: "success",
       label: "Preview active",
+    },
+  );
+});
+
+test("operation status keeps deploying for submitted event when healthy preview runtime points to an older deployment", () => {
+  assert.deepEqual(
+    getAiEngineerOperationStatus(
+      [event("deployment.submitted", { deployment_id: "dep_new" })],
+      previewRuntime({ is_preview: true, active_deployment_id: "dep_old", deployment_status: "healthy", health_status: "passing" }),
+    ),
+    {
+      status: "running",
+      label: "Deploying",
+    },
+  );
+});
+
+test("operation status keeps deploying for build started event when healthy preview runtime points to an older deployment", () => {
+  assert.deepEqual(
+    getAiEngineerOperationStatus(
+      [event("deployment.build_started", { deployment_id: "dep_new" })],
+      previewRuntime({ is_preview: true, active_deployment_id: "dep_old", deployment_status: "healthy", health_status: "passing" }),
+    ),
+    {
+      status: "running",
+      label: "Deploying",
     },
   );
 });

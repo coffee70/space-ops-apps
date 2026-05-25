@@ -91,7 +91,7 @@ export function getAiEngineerOperationStatus(
       return { status: "success", label: "Baseline active" };
     }
     if (PREVIEW_DEPLOY_IN_PROGRESS_TYPES.has(event.event_type)) {
-      if (isHealthyPassingPreview(previewRuntime)) {
+      if (isMatchingHealthyPassingPreview(event, previewRuntime)) {
         return { status: "success", label: "Preview active" };
       }
       return { status: "running", label: "Deploying" };
