@@ -37,6 +37,20 @@ function isActivePreview(previewRuntime: ActiveFrontendPreviewRuntimeResponse | 
   return previewRuntime?.is_preview === true;
 }
 
+function payloadDeploymentId(event: ChatEvent): string | null {
+  const deploymentId = event.payload.deployment_id;
+  return typeof deploymentId === "string" && deploymentId.length > 0 ? deploymentId : null;
+}
+
+function isMatchingHealthyPassingPreview(event: ChatEvent, previewRuntime: ActiveFrontendPreviewRuntimeResponse | null | undefined) {
+  const deploymentId = payloadDeploymentId(event);
+  return (
+    deploymentId !== null &&
+    isHealthyPassingPreview(previewRuntime) &&
+    previewRuntime?.active_deployment_id === deploymentId
+  );
+}
+
 export function getAiEngineerOperationStatus(
   events: ChatEvent[],
   previewRuntime?: ActiveFrontendPreviewRuntimeResponse | null,
@@ -65,17 +79,23 @@ export function getAiEngineerOperationStatus(
   if (event.event_type === "baseline.active") {
     return { status: "success", label: "Baseline active" };
   }
-  if (isHealthyPassingBaseline(previewRuntime)) {
-    return { status: "success", label: "Baseline active" };
-  }
   if (event.event_type === "revert.requested") {
     return { status: "running", label: "Reverting preview..." };
+  }
+  if (event.event_type === "deployment.failed" || event.event_type === "deployment.timeout") {
+    if (isMatchingHealthyPassingPreview(event, previewRuntime)) {
+      return { status: "success", label: "Preview active" };
+    }
+    return { status: "failed", label: event.event_type === "deployment.timeout" ? "Preview deploy timed out" : "Preview deploy failed" };
+  }
+  if (isHealthyPassingBaseline(previewRuntime)) {
+    return { status: "success", label: "Baseline active" };
   }
   if (isHealthyPassingPreview(previewRuntime)) {
     return { status: "success", label: "Preview active" };
   }
-  if (event.event_type === "deployment.failed" || event.event_type === "deployment.timeout" || event.event_type === "revert.failed") {
-    return { status: "failed", label: event.event_type === "deployment.timeout" ? "Preview deploy timed out" : "Preview deploy failed" };
+  if (event.event_type === "revert.failed") {
+    return { status: "failed", label: "Preview deploy failed" };
   }
   if (isActivePreview(previewRuntime)) {
     return { status: "running", label: "Deploying" };

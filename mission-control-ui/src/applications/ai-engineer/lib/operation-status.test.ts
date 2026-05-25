@@ -150,11 +150,50 @@ test("operation status preserves reverting preview even if preview runtime repor
   );
 });
 
-test("operation status upgrades deployment timeout to preview active when preview runtime is healthy and passing", () => {
+test("operation status keeps deployment timeout failed when no deployment id proves runtime identity", () => {
   assert.deepEqual(
     getAiEngineerOperationStatus(
       [event("deployment.timeout")],
       previewRuntime({ is_preview: true, deployment_status: "healthy", health_status: "passing" }),
+    ),
+    {
+      status: "failed",
+      label: "Preview deploy timed out",
+    },
+  );
+});
+
+test("operation status keeps fresh failed deployment failed when baseline runtime is healthy", () => {
+  assert.deepEqual(
+    getAiEngineerOperationStatus(
+      [event("deployment.failed", { deployment_id: "dep_failed" })],
+      previewRuntime({ is_preview: false, active_deployment_id: "baseline_1", deployment_status: "healthy", health_status: "passing" }),
+    ),
+    {
+      status: "failed",
+      label: "Preview deploy failed",
+    },
+  );
+});
+
+test("operation status keeps failed deployment failed when active runtime deployment differs", () => {
+  assert.deepEqual(
+    getAiEngineerOperationStatus(
+      [event("deployment.failed", { deployment_id: "dep_failed" })],
+      previewRuntime({ is_preview: true, active_deployment_id: "dep_other", deployment_status: "healthy", health_status: "passing" }),
+    ),
+    {
+      status: "failed",
+      label: "Preview deploy failed",
+    },
+  );
+});
+
+test("operation status upgrades deployment failure only when active runtime deployment matches", () => {
+  assert.deepEqual(
+    getAiEngineerOperationStatus(
+      [event("deployment.failed", { deployment_id: "dep_1" })],
+      previewRuntime({ is_preview: true, active_deployment_id: "dep_1", deployment_status: "healthy", health_status: "passing" }),
     ),
     {
       status: "success",
@@ -163,11 +202,11 @@ test("operation status upgrades deployment timeout to preview active when previe
   );
 });
 
-test("operation status upgrades deployment failure to preview active when preview runtime is healthy and passing", () => {
+test("operation status upgrades deployment timeout only when active runtime deployment matches", () => {
   assert.deepEqual(
     getAiEngineerOperationStatus(
-      [event("deployment.failed")],
-      previewRuntime({ is_preview: true, deployment_status: "healthy", health_status: "passing" }),
+      [event("deployment.timeout", { deployment_id: "dep_1" })],
+      previewRuntime({ is_preview: true, active_deployment_id: "dep_1", deployment_status: "healthy", health_status: "passing" }),
     ),
     {
       status: "success",
