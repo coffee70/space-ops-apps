@@ -6,6 +6,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiEngineerShell } from "@/applications/ai-engineer/components/ai-engineer-shell";
 import { applyAgentEventToAssistantMessage } from "@/applications/ai-engineer/lib/agent-events";
 import { sendChatMessage } from "@/applications/ai-engineer/lib/ai-engineer-client";
+import type { AiEngineerChangeSummary } from "@/applications/ai-engineer/lib/change-preview-types";
+import { useChangePreviewFlow } from "@/applications/ai-engineer/lib/use-change-preview-flow";
 import type {
   AiEngineerConversationDetail,
   AiEngineerConversationMessage,
@@ -238,6 +240,12 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const modelsQuery = useAiEngineerModelsQuery();
   const previewRuntimeQuery = useActiveFrontendPreviewRuntimeQuery();
   const createConversationMutation = useCreateAiEngineerConversationMutation();
+  const previewFlow = useChangePreviewFlow({
+    onTimelineEvent: (event) => {
+      setEvents((previous) => [...previous, event]);
+    },
+  });
+  const { deployChange, ingestEvent, isBusyForChange, previews, reset, revertChange } = previewFlow;
 
   const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
   const models = useMemo(() => modelsQuery.data?.models ?? [], [modelsQuery.data]);
@@ -302,10 +310,14 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       );
       setMessages(persistedMessages);
       setEvents(persistedEvents);
+      reset();
+      for (const event of persistedEvents) {
+        ingestEvent(event);
+      }
       setAttachments([]);
       lastHydratedConversationIdRef.current = conversation.id;
     },
-    [],
+    [ingestEvent, reset],
   );
 
   const setActiveConversationId = useCallback((id: string) => {
@@ -346,8 +358,9 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
   const resetTransientConversationState = useCallback(() => {
     setEvents([]);
+    reset();
     setAttachments([]);
-  }, []);
+  }, [reset]);
 
   const createConversationFromDraft = useCallback(
     async (initialContent: string) => {
@@ -511,6 +524,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
   const appendBackendEvent = (event: ChatEvent) => {
     if (!isEventForConversation(event, conversationIdRef.current)) return;
+    ingestEvent(event);
     setEvents((previous) => {
       const next = previous.filter((existingEvent) => existingEvent.id !== event.id);
       next.push(event);
@@ -652,6 +666,11 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
   const title = useMemo(() => props.application.title ?? "AI Engineer", [props.application.title]);
 
+  const handleOpenPreviewApp = useCallback((change: AiEngineerChangeSummary) => {
+    if (!change.targetApplicationId) return;
+    window.location.href = buildApplicationRouteWithQuery(change.targetApplicationId);
+  }, []);
+
   const selectedModelName = useMemo(() => {
     if (!selectedModelId) return null;
     return models.find((m) => m.id === selectedModelId)?.name ?? null;
@@ -683,6 +702,15 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       onNewChat={handleNewChat}
       onSelectConversation={handleSelectConversation}
       previewRuntime={previewRuntimeQuery.data}
+      previewStates={previews}
+      isBusyForChange={isBusyForChange}
+      onDeployChange={(change) => {
+        void deployChange(change);
+      }}
+      onRevertChange={(change) => {
+        void revertChange(change);
+      }}
+      onOpenPreviewApp={handleOpenPreviewApp}
     />
   );
 }

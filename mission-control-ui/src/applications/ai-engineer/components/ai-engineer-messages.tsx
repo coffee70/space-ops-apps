@@ -6,6 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AiEngineerGreeting } from "@/applications/ai-engineer/components/ai-engineer-greeting";
 import { AiEngineerMessage } from "@/applications/ai-engineer/components/ai-engineer-message";
 import { AiEngineerThinking } from "@/applications/ai-engineer/components/ai-engineer-thinking";
+import { ChangePreviewCardStack } from "@/applications/ai-engineer/components/change-preview-cards";
+import type { AiEngineerChangeSummary, ChangePreviewState } from "@/applications/ai-engineer/lib/change-preview-types";
 import type { ChatEvent, ChatMessage } from "@/applications/ai-engineer/types";
 import { cn } from "@/lib/utils";
 
@@ -28,12 +30,22 @@ export function AiEngineerMessages({
   isStreaming = false,
   isBootstrapping = false,
   onSuggestionSelect,
+  previewStates = [],
+  isBusyForChange,
+  onDeployChange,
+  onRevertChange,
+  onOpenPreviewApp,
 }: {
   messages: ChatMessage[];
   events: ChatEvent[];
   isStreaming?: boolean;
   isBootstrapping?: boolean;
   onSuggestionSelect?: (suggestion: string) => void;
+  previewStates?: ChangePreviewState[];
+  isBusyForChange?: (change: AiEngineerChangeSummary) => boolean;
+  onDeployChange?: (change: AiEngineerChangeSummary) => void;
+  onRevertChange?: (change: AiEngineerChangeSummary) => void;
+  onOpenPreviewApp?: (change: AiEngineerChangeSummary) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -82,6 +94,24 @@ export function AiEngineerMessages({
             const compactPermission = Boolean(key && permissionRequestId && latestPermissionByOperation.get(key) !== permissionRequestId);
             return <AiEngineerMessage key={message.id} message={message} events={events} compactPermission={compactPermission} />;
           })}
+          {previewStates.map((state) => (
+            <div
+              key={`${state.change.agentRunId}:${state.change.branch}`}
+              className="group/message fade-up w-full"
+              data-role="assistant"
+              data-testid="ai-engineer-change-preview-message"
+            >
+              <div className="ml-10">
+                <ChangePreviewCardStack
+                  state={state}
+                  isBusy={isBusyForChange?.(state.change) ?? false}
+                  onDeploy={(change) => onDeployChange?.(change)}
+                  onRevert={(change) => onRevertChange?.(change)}
+                  onOpenApp={(change) => onOpenPreviewApp?.(change)}
+                />
+              </div>
+            </div>
+          ))}
           {shouldShowThinking ? <AiEngineerThinking /> : null}
           <div ref={endRef} className="min-h-6 min-w-6 shrink-0" />
         </div>

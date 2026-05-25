@@ -7,6 +7,7 @@ import { AiEngineerComposer } from "@/applications/ai-engineer/components/ai-eng
 import { AiEngineerConversationSidebar } from "@/applications/ai-engineer/components/ai-engineer-conversation-sidebar";
 import { AiEngineerHeader } from "@/applications/ai-engineer/components/ai-engineer-header";
 import { AiEngineerMessages } from "@/applications/ai-engineer/components/ai-engineer-messages";
+import type { AiEngineerChangeSummary, ChangePreviewState } from "@/applications/ai-engineer/lib/change-preview-types";
 import type { AiEngineerConversationSummary, AiEngineerModelOption, AttachmentStatus, ChatEvent, ChatMessage, ExecutionMode } from "@/applications/ai-engineer/types";
 import type { ActiveFrontendPreviewRuntimeResponse } from "@/lib/ui-boundary-schemas";
 
@@ -35,6 +36,11 @@ export function AiEngineerShell({
   onNewChat,
   onSelectConversation,
   previewRuntime,
+  previewStates,
+  isBusyForChange,
+  onDeployChange,
+  onRevertChange,
+  onOpenPreviewApp,
 }: {
   title: string;
   messages: ChatMessage[];
@@ -60,6 +66,11 @@ export function AiEngineerShell({
   onNewChat?: () => void;
   onSelectConversation?: (conversationId: string) => void;
   previewRuntime?: ActiveFrontendPreviewRuntimeResponse | null;
+  previewStates?: ChangePreviewState[];
+  isBusyForChange?: (change: AiEngineerChangeSummary) => boolean;
+  onDeployChange?: (change: AiEngineerChangeSummary) => void;
+  onRevertChange?: (change: AiEngineerChangeSummary) => void;
+  onOpenPreviewApp?: (change: AiEngineerChangeSummary) => void;
 }) {
   const [composerState, setComposerState] = useState<{ conversationId: string | null; text: string }>({ conversationId: null, text: "" });
   const composerText = composerState.conversationId === (activeConversationId ?? null) ? composerState.text : "";
@@ -94,6 +105,11 @@ export function AiEngineerShell({
           isStreaming={isStreaming}
           isBootstrapping={isBootstrapping}
           onSuggestionSelect={setComposerText}
+          previewStates={previewStates}
+          isBusyForChange={isBusyForChange}
+          onDeployChange={onDeployChange}
+          onRevertChange={onRevertChange}
+          onOpenPreviewApp={onOpenPreviewApp}
         />
         <div className="bg-background z-10 mx-auto flex w-full max-w-4xl shrink-0 gap-2 px-2 pb-3 md:px-4 md:pb-4">
           <AiEngineerComposer
