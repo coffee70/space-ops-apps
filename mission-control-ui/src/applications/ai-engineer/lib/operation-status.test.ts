@@ -44,6 +44,32 @@ test("operation status shows deploying for deployment start events", () => {
   });
 });
 
+test("operation status shows deploying for submitted event over healthy baseline runtime", () => {
+  assert.deepEqual(
+    getAiEngineerOperationStatus(
+      [event("deployment.submitted")],
+      previewRuntime({ is_preview: false, deployment_status: "healthy", health_status: "passing" }),
+    ),
+    {
+      status: "running",
+      label: "Deploying",
+    },
+  );
+});
+
+test("operation status shows deploying for build started event over healthy baseline runtime", () => {
+  assert.deepEqual(
+    getAiEngineerOperationStatus(
+      [event("deployment.build_started")],
+      previewRuntime({ is_preview: false, deployment_status: "healthy", health_status: "passing" }),
+    ),
+    {
+      status: "running",
+      label: "Deploying",
+    },
+  );
+});
+
 test("operation status shows failed for deployment failures", () => {
   assert.deepEqual(getAiEngineerOperationStatus([event("deployment.failed", { failure_reason: "build failed" })]), {
     status: "failed",
@@ -78,28 +104,28 @@ test("operation status upgrades deploying events to preview active when preview 
   );
 });
 
-test("operation status uses healthy baseline runtime over stale deployment submitted events", () => {
+test("operation status shows reverting for baseline submitted event over healthy preview runtime", () => {
   assert.deepEqual(
     getAiEngineerOperationStatus(
-      [event("deployment.submitted")],
-      previewRuntime({ is_preview: false, deployment_status: "healthy", health_status: "passing" }),
+      [event("baseline.deployment_submitted")],
+      previewRuntime({ is_preview: true, deployment_status: "healthy", health_status: "passing" }),
     ),
     {
-      status: "success",
-      label: "Baseline active",
+      status: "running",
+      label: "Reverting preview...",
     },
   );
 });
 
-test("operation status uses healthy baseline runtime over stale deployment build started events", () => {
+test("operation status shows reverting for baseline build started event over healthy preview runtime", () => {
   assert.deepEqual(
     getAiEngineerOperationStatus(
-      [event("deployment.build_started")],
-      previewRuntime({ is_preview: false, deployment_status: "healthy", health_status: "passing" }),
+      [event("baseline.build_started")],
+      previewRuntime({ is_preview: true, deployment_status: "healthy", health_status: "passing" }),
     ),
     {
-      status: "success",
-      label: "Baseline active",
+      status: "running",
+      label: "Reverting preview...",
     },
   );
 });
@@ -108,6 +134,13 @@ test("operation status shows baseline active when healthy baseline runtime has n
   assert.deepEqual(getAiEngineerOperationStatus([], previewRuntime({ is_preview: false, deployment_status: "healthy", health_status: "passing" })), {
     status: "success",
     label: "Baseline active",
+  });
+});
+
+test("operation status shows preview active when healthy preview runtime has no events", () => {
+  assert.deepEqual(getAiEngineerOperationStatus([], previewRuntime({ is_preview: true, deployment_status: "healthy", health_status: "passing" })), {
+    status: "success",
+    label: "Preview active",
   });
 });
 
