@@ -41,3 +41,35 @@ test("AiEngineerOperationStatusPill renders success as only the rounded status p
   assert.match(markup, /Preview active/);
   assert.doesNotMatch(markup, /ai-engineer-operation-status-check/);
 });
+
+test("AiEngineerOperationStatusPill follows repeated runtime status workflow", () => {
+  const sequence: Array<[FrontendRuntimeStatus["effective_state"], string]> = [
+    ["baseline_active", "Baseline active"],
+    ["preview_deploying", "Deploying"],
+    ["preview_active", "Preview active"],
+    ["baseline_reverting", "Reverting preview..."],
+    ["baseline_active", "Baseline active"],
+    ["preview_deploying", "Deploying"],
+    ["preview_active", "Preview active"],
+    ["baseline_reverting", "Reverting preview..."],
+    ["baseline_active", "Baseline active"],
+  ];
+
+  const labels = sequence.map(([state, expected]) => {
+    const markup = renderToStaticMarkup(<AiEngineerOperationStatusPill runtimeStatus={runtime(state)} />);
+    assert.match(markup, new RegExp(expected.replaceAll(".", "\\.")));
+    return expected;
+  });
+
+  assert.deepEqual(labels, [
+    "Baseline active",
+    "Deploying",
+    "Preview active",
+    "Reverting preview...",
+    "Baseline active",
+    "Deploying",
+    "Preview active",
+    "Reverting preview...",
+    "Baseline active",
+  ]);
+});

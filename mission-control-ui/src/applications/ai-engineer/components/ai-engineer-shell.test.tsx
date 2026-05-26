@@ -153,3 +153,41 @@ test("AiEngineerShell upgrades deploying operation status when preview runtime i
   assert.match(headerMarkup, /Preview active/);
   assert.doesNotMatch(headerMarkup, /data-testid="ai-engineer-operation-status-check"/);
 });
+
+test("AiEngineerShell ignores stale preview events when runtime status is baseline active", () => {
+  const markup = renderToStaticMarkup(
+    <AiEngineerShell
+      title="AI Engineer"
+      messages={[]}
+      events={[
+        {
+          id: "event-stale-preview",
+          event_type: "preview.active",
+          conversation_id: "conversation-1",
+          agent_run_id: "run-1",
+          request_id: "request-1",
+          tool_call_id: null,
+          sequence: 1,
+          emitted_by: "tool-execution-service",
+          payload: { deployment_id: "dep_old", branch: "preview/stale", unit_id: "mission-control-frontend-shell", status: "healthy" },
+          created_at: "2026-05-21T00:00:00.000Z",
+        },
+      ]}
+      attachments={[]}
+      executionMode="execute"
+      onExecutionModeChange={() => {}}
+      onSend={async () => {}}
+      runtimeStatus={runtime("baseline_active")}
+    />,
+  );
+
+  const pillStart = markup.indexOf('data-testid="ai-engineer-operation-status-pill"');
+  assert.notEqual(pillStart, -1);
+
+  const messageRegionStart = markup.indexOf('data-testid="ai-engineer-messages"', pillStart);
+  assert.notEqual(messageRegionStart, -1);
+
+  const headerMarkup = markup.slice(pillStart, messageRegionStart);
+  assert.match(headerMarkup, /Baseline active/);
+  assert.doesNotMatch(headerMarkup, /Preview active/);
+});
