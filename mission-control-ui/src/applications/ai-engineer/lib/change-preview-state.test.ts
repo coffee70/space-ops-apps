@@ -14,6 +14,7 @@ import {
   startDeploying,
   startReverting,
 } from "./change-preview-state";
+import { deploymentLifecycleEventType } from "./use-change-preview-flow";
 import type { AiEngineerChangeSummary, DeploymentRecord } from "./change-preview-types";
 import type { ChatEvent } from "../types";
 
@@ -197,4 +198,23 @@ test("isTerminalChangePreviewStatus marks deployed/restored/failed as terminal",
   assert.equal(isTerminalChangePreviewStatus("failed"), true);
   assert.equal(isTerminalChangePreviewStatus("deploying"), false);
   assert.equal(isTerminalChangePreviewStatus("idle"), false);
+});
+
+test("deploymentLifecycleEventType maps in-progress kernel statuses to invalidating timeline events", () => {
+  for (const status of ["queued", "pending", "materializing"]) {
+    assert.equal(deploymentLifecycleEventType(buildDeployment({ status }), "deploy"), "deployment.submitted");
+    assert.equal(deploymentLifecycleEventType(buildDeployment({ status }), "revert"), "baseline.deployment_submitted");
+  }
+
+  for (const status of ["building", "health_checking"]) {
+    assert.equal(deploymentLifecycleEventType(buildDeployment({ status }), "deploy"), "deployment.build_started");
+    assert.equal(deploymentLifecycleEventType(buildDeployment({ status }), "revert"), "baseline.build_started");
+  }
+
+  assert.equal(deploymentLifecycleEventType(buildDeployment({ status: "healthy" }), "deploy"), "preview.active");
+  assert.equal(deploymentLifecycleEventType(buildDeployment({ status: "healthy" }), "revert"), "baseline.active");
+  assert.equal(deploymentLifecycleEventType(buildDeployment({ status: "failed" }), "deploy"), "deployment.failed");
+  assert.equal(deploymentLifecycleEventType(buildDeployment({ status: "failed" }), "revert"), "revert.failed");
+  assert.equal(deploymentLifecycleEventType(buildDeployment({ status: "replaced" }), "deploy"), "deployment.failed");
+  assert.equal(deploymentLifecycleEventType(buildDeployment({ status: "replaced" }), "revert"), "revert.failed");
 });

@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { cn } from "@/lib/utils";
 import type { ActivityStatus } from "@/applications/ai-engineer/lib/ui-event-formatting";
 
@@ -19,9 +21,27 @@ const defaultLabel: Record<ActivityStatus, string> = {
   info: "Info",
 };
 
-export function AiEngineerStatusPill({ status, label }: { status: ActivityStatus; label?: string }) {
+export function AiEngineerStatusPill({
+  status,
+  label,
+  leftIcon,
+}: {
+  status: ActivityStatus;
+  label?: string;
+  leftIcon?: ReactNode;
+}) {
   return (
-    <span className={cn("inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium", statusClassName[status])}>
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+        statusClassName[status],
+      )}
+    >
+      {leftIcon ? (
+        <span className="inline-flex shrink-0 items-center" data-testid="ai-engineer-status-pill-left-icon">
+          {leftIcon}
+        </span>
+      ) : null}
       {label ?? defaultLabel[status]}
     </span>
   );

@@ -69,17 +69,17 @@ export function previewKeyForChange(change: AiEngineerChangeSummary): string {
   return `${change.agentRunId}::${change.branch}`;
 }
 
-function deploymentLifecycleEventType(deployment: DeploymentRecord, phase: "deploy" | "revert"): string {
+export function deploymentLifecycleEventType(deployment: DeploymentRecord, phase: "deploy" | "revert"): string {
   if (deployment.status === "healthy") {
     return phase === "deploy" ? "preview.active" : "baseline.active";
   }
   if (deployment.status === "failed" || deployment.status === "replaced") {
     return phase === "deploy" ? "deployment.failed" : "revert.failed";
   }
-  if (deployment.status === "building") {
+  if (deployment.status === "building" || deployment.status === "health_checking") {
     return phase === "deploy" ? "deployment.build_started" : "baseline.build_started";
   }
-  if (deployment.status === "pending") {
+  if (deployment.status === "queued" || deployment.status === "pending" || deployment.status === "materializing") {
     return phase === "deploy" ? "deployment.submitted" : "baseline.deployment_submitted";
   }
   return phase === "deploy" ? "deployment.update" : "revert.update";

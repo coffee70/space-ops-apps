@@ -2,7 +2,21 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import type { FrontendRuntimeStatus } from "@/lib/ui-boundary-schemas";
 import { AiEngineerShell } from "./ai-engineer-shell";
+
+function runtime(effective_state: FrontendRuntimeStatus["effective_state"]): FrontendRuntimeStatus {
+  return {
+    frontend_unit_id: "mission-control-frontend-shell",
+    target_application_id: "ai-engineer",
+    baseline_branch: "main",
+    baseline_commit_sha: "def5678",
+    active: null,
+    pending: null,
+    last_terminal: null,
+    effective_state,
+  };
+}
 
 test("AiEngineerShell uses theme-backed sidebar surfaces", () => {
   const markup = renderToStaticMarkup(
@@ -47,6 +61,7 @@ test("AiEngineerShell renders operation status pill for deployment progress", ()
       executionMode="execute"
       onExecutionModeChange={() => {}}
       onSend={async () => {}}
+      runtimeStatus={runtime("preview_deploying")}
     />,
   );
 
@@ -63,7 +78,7 @@ test("AiEngineerShell renders operation status pill for deployment progress", ()
 });
 
 
-test("AiEngineerShell renders success operation status with a trailing check icon", () => {
+test("AiEngineerShell renders success operation status without a trailing check icon", () => {
   const markup = renderToStaticMarkup(
     <AiEngineerShell
       title="AI Engineer"
@@ -86,6 +101,7 @@ test("AiEngineerShell renders success operation status with a trailing check ico
       executionMode="execute"
       onExecutionModeChange={() => {}}
       onSend={async () => {}}
+      runtimeStatus={runtime("preview_active")}
     />,
   );
 
@@ -97,5 +113,81 @@ test("AiEngineerShell renders success operation status with a trailing check ico
 
   const headerMarkup = markup.slice(pillStart, messageRegionStart);
   assert.match(headerMarkup, /Preview active/);
-  assert.match(headerMarkup, /data-testid="ai-engineer-operation-status-check"/);
+  assert.doesNotMatch(headerMarkup, /data-testid="ai-engineer-operation-status-check"/);
+});
+
+test("AiEngineerShell upgrades deploying operation status when preview runtime is healthy and passing", () => {
+  const markup = renderToStaticMarkup(
+    <AiEngineerShell
+      title="AI Engineer"
+      messages={[]}
+      events={[
+        {
+          id: "event-1",
+          event_type: "deployment.build_started",
+          conversation_id: "conversation-1",
+          agent_run_id: "run-1",
+          request_id: "request-1",
+          tool_call_id: null,
+          sequence: 1,
+          emitted_by: "tool-execution-service",
+          payload: { deployment_id: "dep_1" },
+          created_at: "2026-05-21T00:00:00.000Z",
+        },
+      ]}
+      attachments={[]}
+      executionMode="execute"
+      onExecutionModeChange={() => {}}
+      onSend={async () => {}}
+      runtimeStatus={runtime("preview_active")}
+    />,
+  );
+
+  const pillStart = markup.indexOf('data-testid="ai-engineer-operation-status-pill"');
+  assert.notEqual(pillStart, -1);
+
+  const messageRegionStart = markup.indexOf('data-testid="ai-engineer-messages"', pillStart);
+  assert.notEqual(messageRegionStart, -1);
+
+  const headerMarkup = markup.slice(pillStart, messageRegionStart);
+  assert.match(headerMarkup, /Preview active/);
+  assert.doesNotMatch(headerMarkup, /data-testid="ai-engineer-operation-status-check"/);
+});
+
+test("AiEngineerShell ignores stale preview events when runtime status is baseline active", () => {
+  const markup = renderToStaticMarkup(
+    <AiEngineerShell
+      title="AI Engineer"
+      messages={[]}
+      events={[
+        {
+          id: "event-stale-preview",
+          event_type: "preview.active",
+          conversation_id: "conversation-1",
+          agent_run_id: "run-1",
+          request_id: "request-1",
+          tool_call_id: null,
+          sequence: 1,
+          emitted_by: "tool-execution-service",
+          payload: { deployment_id: "dep_old", branch: "preview/stale", unit_id: "mission-control-frontend-shell", status: "healthy" },
+          created_at: "2026-05-21T00:00:00.000Z",
+        },
+      ]}
+      attachments={[]}
+      executionMode="execute"
+      onExecutionModeChange={() => {}}
+      onSend={async () => {}}
+      runtimeStatus={runtime("baseline_active")}
+    />,
+  );
+
+  const pillStart = markup.indexOf('data-testid="ai-engineer-operation-status-pill"');
+  assert.notEqual(pillStart, -1);
+
+  const messageRegionStart = markup.indexOf('data-testid="ai-engineer-messages"', pillStart);
+  assert.notEqual(messageRegionStart, -1);
+
+  const headerMarkup = markup.slice(pillStart, messageRegionStart);
+  assert.match(headerMarkup, /Baseline active/);
+  assert.doesNotMatch(headerMarkup, /Preview active/);
 });

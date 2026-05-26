@@ -6,6 +6,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiEngineerShell } from "@/applications/ai-engineer/components/ai-engineer-shell";
 import { applyAgentEventToAssistantMessage } from "@/applications/ai-engineer/lib/agent-events";
 import { sendChatMessage } from "@/applications/ai-engineer/lib/ai-engineer-client";
+import type { AiEngineerChangeSummary } from "@/applications/ai-engineer/lib/change-preview-types";
+import { useChangePreviewFlow } from "@/applications/ai-engineer/lib/use-change-preview-flow";
 import type {
   AiEngineerConversationDetail,
   AiEngineerConversationMessage,
@@ -25,6 +27,7 @@ import {
   useAiEngineerConversationQuery,
   useAiEngineerConversationsQuery,
   useAiEngineerModelsQuery,
+  useFrontendRuntimeStatusQuery,
   useCreateAiEngineerConversationMutation,
 } from "@/lib/query-hooks";
 import { queryKeys } from "@/lib/query-keys";
@@ -32,6 +35,22 @@ import { queryKeys } from "@/lib/query-keys";
 const PERMISSION_MESSAGE_PREFIX = "permission-message::";
 const SELECTED_MODEL_STORAGE_KEY = "ai-engineer.selectedModelId";
 const DRAFT_INTENT_STORAGE_KEY = "ai-engineer.openDraft";
+const FRONTEND_RUNTIME_INVALIDATING_EVENT_TYPES = new Set([
+  "deployment.requested",
+  "deployment.submitted",
+  "deployment.build_started",
+  "preview.active",
+  "revert.requested",
+  "baseline.deployment_submitted",
+  "baseline.build_started",
+  "baseline.active",
+  "deployment.failed",
+  "revert.failed",
+]);
+
+function shouldInvalidateFrontendRuntimeStatus(event: ChatEvent): boolean {
+  return FRONTEND_RUNTIME_INVALIDATING_EVENT_TYPES.has(event.event_type);
+}
 
 function resolveInitialModelId(models: AiEngineerModelOption[], defaultModelId: string): string | null {
   const available = models.filter((m) => m.enabled && m.isAvailable);
@@ -235,7 +254,17 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const conversationsQuery = useAiEngineerConversationsQuery();
   const activeConversationQuery = useAiEngineerConversationQuery(activeConversationId, Boolean(activeConversationId));
   const modelsQuery = useAiEngineerModelsQuery();
+  const frontendRuntimeStatusQuery = useFrontendRuntimeStatusQuery();
   const createConversationMutation = useCreateAiEngineerConversationMutation();
+  const previewFlow = useChangePreviewFlow({
+    onTimelineEvent: (event) => {
+      setEvents((previous) => [...previous, event]);
+      if (shouldInvalidateFrontendRuntimeStatus(event)) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.frontendRuntimeStatus });
+      }
+    },
+  });
+  const { deployChange, ingestEvent, isBusyForChange, previews, reset, revertChange } = previewFlow;
 
   const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data]);
   const models = useMemo(() => modelsQuery.data?.models ?? [], [modelsQuery.data]);
@@ -300,10 +329,17 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       );
       setMessages(persistedMessages);
       setEvents(persistedEvents);
+      reset();
+      for (const event of persistedEvents) {
+        ingestEvent(event);
+      }
+      if (persistedEvents.some(shouldInvalidateFrontendRuntimeStatus)) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.frontendRuntimeStatus });
+      }
       setAttachments([]);
       lastHydratedConversationIdRef.current = conversation.id;
     },
-    [],
+    [ingestEvent, queryClient, reset],
   );
 
   const setActiveConversationId = useCallback((id: string) => {
@@ -344,8 +380,9 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
   const resetTransientConversationState = useCallback(() => {
     setEvents([]);
+    reset();
     setAttachments([]);
-  }, []);
+  }, [reset]);
 
   const createConversationFromDraft = useCallback(
     async (initialContent: string) => {
@@ -509,6 +546,10 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
   const appendBackendEvent = (event: ChatEvent) => {
     if (!isEventForConversation(event, conversationIdRef.current)) return;
+    ingestEvent(event);
+    if (shouldInvalidateFrontendRuntimeStatus(event)) {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.frontendRuntimeStatus });
+    }
     setEvents((previous) => {
       const next = previous.filter((existingEvent) => existingEvent.id !== event.id);
       next.push(event);
@@ -650,6 +691,11 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
   const title = useMemo(() => props.application.title ?? "AI Engineer", [props.application.title]);
 
+  const handleOpenPreviewApp = useCallback((change: AiEngineerChangeSummary) => {
+    if (!change.targetApplicationId) return;
+    window.location.href = buildApplicationRouteWithQuery(change.targetApplicationId);
+  }, []);
+
   const selectedModelName = useMemo(() => {
     if (!selectedModelId) return null;
     return models.find((m) => m.id === selectedModelId)?.name ?? null;
@@ -680,6 +726,16 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       conversationListError={conversationListError}
       onNewChat={handleNewChat}
       onSelectConversation={handleSelectConversation}
+      runtimeStatus={frontendRuntimeStatusQuery.data}
+      previewStates={previews}
+      isBusyForChange={isBusyForChange}
+      onDeployChange={(change) => {
+        void deployChange(change);
+      }}
+      onRevertChange={(change) => {
+        void revertChange(change);
+      }}
+      onOpenPreviewApp={handleOpenPreviewApp}
     />
   );
 }

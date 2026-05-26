@@ -1,41 +1,61 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getAiEngineerOperationStatus } from "./operation-status";
-import type { ChatEvent } from "../types";
+import { getAiEngineerOperationStatusFromRuntime } from "./operation-status";
+import type { FrontendRuntimeStatus } from "@/lib/ui-boundary-schemas";
 
-function event(event_type: string, payload: Record<string, unknown> = {}): ChatEvent {
+function runtime(effective_state: FrontendRuntimeStatus["effective_state"]): FrontendRuntimeStatus {
   return {
-    id: event_type,
-    event_type,
-    conversation_id: "conversation-1",
-    agent_run_id: "run-1",
-    request_id: "request-1",
-    tool_call_id: null,
-    sequence: 1,
-    emitted_by: "tool-execution-service",
-    payload,
-    created_at: "2026-05-21T00:00:00.000Z",
+    frontend_unit_id: "mission-control-frontend-shell",
+    target_application_id: "ai-engineer",
+    baseline_branch: "main",
+    baseline_commit_sha: "base123",
+    active: null,
+    pending: null,
+    last_terminal: null,
+    effective_state,
   };
 }
 
-test("operation status shows deploying for deployment start events", () => {
-  assert.deepEqual(getAiEngineerOperationStatus([event("deployment.submitted")]), {
+test("operation status maps preview deploy progress from runtime status", () => {
+  assert.deepEqual(getAiEngineerOperationStatusFromRuntime(runtime("preview_deploying")), {
     status: "running",
     label: "Deploying",
   });
 });
 
-test("operation status shows failed for deployment failures", () => {
-  assert.deepEqual(getAiEngineerOperationStatus([event("deployment.failed", { failure_reason: "build failed" })]), {
-    status: "failed",
-    label: "Preview deploy failed",
-  });
-});
-
-test("operation status shows preview active for preview active events", () => {
-  assert.deepEqual(getAiEngineerOperationStatus([event("preview.active")]), {
+test("operation status maps preview active from runtime status", () => {
+  assert.deepEqual(getAiEngineerOperationStatusFromRuntime(runtime("preview_active")), {
     status: "success",
     label: "Preview active",
   });
+});
+
+test("operation status maps baseline reverting from runtime status", () => {
+  assert.deepEqual(getAiEngineerOperationStatusFromRuntime(runtime("baseline_reverting")), {
+    status: "running",
+    label: "Reverting preview...",
+  });
+});
+
+test("operation status maps baseline active from runtime status", () => {
+  assert.deepEqual(getAiEngineerOperationStatusFromRuntime(runtime("baseline_active")), {
+    status: "success",
+    label: "Baseline active",
+  });
+});
+
+test("operation status maps failures from runtime status", () => {
+  assert.deepEqual(getAiEngineerOperationStatusFromRuntime(runtime("preview_deploy_failed")), {
+    status: "failed",
+    label: "Preview deploy failed",
+  });
+  assert.deepEqual(getAiEngineerOperationStatusFromRuntime(runtime("baseline_revert_failed")), {
+    status: "failed",
+    label: "Revert failed",
+  });
+});
+
+test("operation status hides unknown runtime status", () => {
+  assert.equal(getAiEngineerOperationStatusFromRuntime(runtime("unknown")), null);
 });

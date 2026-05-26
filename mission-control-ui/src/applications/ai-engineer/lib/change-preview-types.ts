@@ -39,6 +39,7 @@ export interface DeploymentRecord {
   unit_id: string;
   branch: string;
   commit_sha: string;
+  deployment_intent?: string;
   status: string;
   health_status: string;
   logs_url?: string;

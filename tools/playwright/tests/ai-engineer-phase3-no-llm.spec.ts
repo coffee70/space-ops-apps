@@ -48,6 +48,14 @@ async function uploadKnowledgeDocument(page: Page) {
   await expect(documentCard).toContainText("Ready", { timeout: 120_000 });
 }
 
+async function approveToolPermission(page: Page, toolName: string, actionName: RegExp) {
+  const permissionCard = page.locator(`[data-testid="tool-permission-card"][data-tool-name="${toolName}"]`).last();
+  await expect(permissionCard).toBeVisible({ timeout: 30_000 });
+  await expect(permissionCard).toContainText("Pending approval", { timeout: 30_000 });
+  await permissionCard.getByRole("button", { name: actionName }).click();
+  await expect(permissionCard).toContainText(/Approved|Completed/, { timeout: 30_000 });
+}
+
 test("AI Engineer deterministic Phase 3 no-LLM flow covers Knowledge upload, read tools, deploy, and cleanup", async ({ page }) => {
   const browserErrors: string[] = [];
   page.on("console", (message) => {
@@ -66,7 +74,7 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers Knowledge upload, rea
   await expect(page.getByTestId("ai-engineer-shell").getByText("AI Engineer", { exact: true })).toBeVisible();
   await page.getByTestId("ai-engineer-new-chat-button").click();
   await waitForComposerReady(page);
-  await page.getByTestId("ai-engineer-composer").getByRole("button", { name: "Execute" }).click();
+  await page.getByTestId("ai-engineer-composer").getByRole("button", { name: "Execute", exact: true }).click();
 
   await waitForComposerReady(page);
   const composer = page.getByTestId("ai-engineer-chat-input");
@@ -92,6 +100,7 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers Knowledge upload, rea
   await expect(composer).toHaveValue(deployMsg);
   await expect(page.getByRole("button", { name: "Send message" })).toBeEnabled();
   await page.getByRole("button", { name: "Send message" }).click();
+  await approveToolPermission(page, "deploy_service_or_application", /Approve deploy|Approve/);
 
   await expect
     .poll(async () => {
@@ -125,6 +134,7 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers Knowledge upload, rea
   await expect(composer).toHaveValue(cleanupMsg);
   await expect(page.getByRole("button", { name: "Send message" })).toBeEnabled();
   await page.getByRole("button", { name: "Send message" }).click();
+  await approveToolPermission(page, "delete_managed_resources", /Approve delete|Approve/);
 
   await expect(
     page

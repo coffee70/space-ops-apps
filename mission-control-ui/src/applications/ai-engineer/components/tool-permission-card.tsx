@@ -116,7 +116,7 @@ export function ToolPermissionCard({ part, events, compact = false }: { part: Ch
   };
 
   return (
-    <div className="border-border/50 bg-card/80 w-[min(100%,560px)] rounded-lg border p-3 shadow-[var(--shadow-card)]" data-testid="tool-permission-card" data-permission-state={displayStatus} data-compact={compact || !isActionable}>
+    <div className="border-border/50 bg-card/80 w-[min(100%,560px)] rounded-lg border p-3 shadow-[var(--shadow-card)]" data-testid="tool-permission-card" data-tool-name={part.toolName} data-permission-state={displayStatus} data-compact={compact || !isActionable}>
       <div className="flex items-start gap-3">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300">
           <ShieldAlert className="size-4" />

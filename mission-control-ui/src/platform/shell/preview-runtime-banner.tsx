@@ -5,31 +5,45 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, LoaderCircle, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
-  pollDeploymentUntilTerminal,
   revertPreviewChange,
   type RevertPreviewChangeInput,
 } from "@/applications/ai-engineer/lib/change-preview-client";
-import { useActiveFrontendPreviewRuntimeQuery } from "@/lib/query-hooks";
+import { fetchFrontendRuntimeStatus, useFrontendRuntimeStatusQuery } from "@/lib/query-hooks";
 import { queryKeys } from "@/lib/query-keys";
-import type { ActiveFrontendPreviewRuntimeResponse } from "@/lib/ui-boundary-schemas";
+import type { FrontendRuntimeStatus } from "@/lib/ui-boundary-schemas";
 
 type RevertState = "idle" | "reverting" | "failed";
 
 export function buildPreviewRuntimeRevertInput(
-  preview: ActiveFrontendPreviewRuntimeResponse,
+  preview: FrontendRuntimeStatus,
 ): RevertPreviewChangeInput | null {
   if (!preview.frontend_unit_id) {
     return null;
   }
+  const active = preview.active;
   return {
     targetUnitId: preview.frontend_unit_id,
     targetApplicationId: preview.target_application_id ?? null,
     baselineBranch: preview.baseline_branch ?? "main",
     baselineCommitSha: preview.baseline_commit_sha ?? null,
-    previewDeploymentId: preview.preview_deployment_id ?? preview.active_deployment_id ?? null,
+    previewDeploymentId: active?.is_preview ? active.deployment_id ?? null : null,
     conversationId: null,
     agentRunId: null,
   };
+}
+
+async function waitForRuntimeRevertResult(): Promise<FrontendRuntimeStatus> {
+  const startedAt = Date.now();
+  while (true) {
+    const status = await fetchFrontendRuntimeStatus();
+    if (status.effective_state === "baseline_active" || status.effective_state === "baseline_revert_failed") {
+      return status;
+    }
+    if (Date.now() - startedAt > 120_000) {
+      throw new Error("Revert did not complete. The preview runtime may still be active.");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
 }
 
 function shortCommit(commitSha?: string | null) {
@@ -42,18 +56,24 @@ export function PreviewRuntimeBannerView({
   errorMessage,
   onRevert,
 }: {
-  preview: ActiveFrontendPreviewRuntimeResponse;
+  preview: FrontendRuntimeStatus;
   revertState: RevertState;
   errorMessage?: string | null;
   onRevert: () => void;
 }) {
-  if (!preview.is_preview) {
+  const active = preview.active;
+  const shouldShow =
+    preview.effective_state === "preview_active" ||
+    preview.effective_state === "baseline_reverting" ||
+    (preview.effective_state === "baseline_revert_failed" && active?.is_preview);
+  if (!shouldShow || !active?.is_preview) {
     return null;
   }
 
-  const commit = shortCommit(preview.commit_sha);
-  const branch = preview.branch ?? "unknown preview branch";
-  const isReverting = revertState === "reverting";
+  const commit = shortCommit(active.commit_sha);
+  const branch = active.branch ?? "unknown preview branch";
+  const isReverting = revertState === "reverting" || preview.effective_state === "baseline_reverting";
+  const isFailed = revertState === "failed" || preview.effective_state === "baseline_revert_failed";
 
   return (
     <section
@@ -78,7 +98,7 @@ export function PreviewRuntimeBannerView({
               Intended inspection target: <span className="font-medium">{preview.target_application_id}</span>
             </p>
           ) : null}
-          {revertState === "failed" ? (
+          {isFailed ? (
             <p className="flex items-center gap-1.5 text-xs font-medium text-red-700 dark:text-red-300">
               <AlertTriangle aria-hidden="true" className="size-3.5" />
               {errorMessage || "Revert did not complete. The preview runtime may still be active."}
@@ -107,12 +127,12 @@ export function PreviewRuntimeBannerView({
 export function PreviewRuntimeBanner() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const previewQuery = useActiveFrontendPreviewRuntimeQuery();
+  const previewQuery = useFrontendRuntimeStatusQuery();
   const [revertState, setRevertState] = useState<RevertState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const preview = previewQuery.data;
-  if (!preview?.is_preview) {
+  if (!preview) {
     return null;
   }
 
@@ -127,12 +147,13 @@ export function PreviewRuntimeBanner() {
     setRevertState("reverting");
     setErrorMessage(null);
     try {
-      const revertDeployment = await revertPreviewChange(input);
-      const terminalDeployment = await pollDeploymentUntilTerminal(revertDeployment.deployment_id);
-      if (terminalDeployment.status !== "healthy" || terminalDeployment.health_status !== "passing") {
+      await revertPreviewChange(input);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.frontendRuntimeStatus });
+      const runtime = await waitForRuntimeRevertResult();
+      queryClient.setQueryData(queryKeys.frontendRuntimeStatus, runtime);
+      if (runtime.effective_state !== "baseline_active") {
         throw new Error("Revert did not complete. The preview runtime may still be active.");
       }
-      await queryClient.invalidateQueries({ queryKey: queryKeys.activeFrontendPreviewRuntime });
       router.refresh();
       window.location.reload();
     } catch (error) {

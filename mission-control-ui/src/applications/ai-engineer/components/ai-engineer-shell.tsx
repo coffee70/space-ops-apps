@@ -7,7 +7,9 @@ import { AiEngineerComposer } from "@/applications/ai-engineer/components/ai-eng
 import { AiEngineerConversationSidebar } from "@/applications/ai-engineer/components/ai-engineer-conversation-sidebar";
 import { AiEngineerHeader } from "@/applications/ai-engineer/components/ai-engineer-header";
 import { AiEngineerMessages } from "@/applications/ai-engineer/components/ai-engineer-messages";
+import type { AiEngineerChangeSummary, ChangePreviewState } from "@/applications/ai-engineer/lib/change-preview-types";
 import type { AiEngineerConversationSummary, AiEngineerModelOption, AttachmentStatus, ChatEvent, ChatMessage, ExecutionMode } from "@/applications/ai-engineer/types";
+import type { FrontendRuntimeStatus } from "@/lib/ui-boundary-schemas";
 
 export function AiEngineerShell({
   title,
@@ -33,6 +35,12 @@ export function AiEngineerShell({
   conversationListError,
   onNewChat,
   onSelectConversation,
+  runtimeStatus,
+  previewStates,
+  isBusyForChange,
+  onDeployChange,
+  onRevertChange,
+  onOpenPreviewApp,
 }: {
   title: string;
   messages: ChatMessage[];
@@ -57,6 +65,12 @@ export function AiEngineerShell({
   conversationListError?: string | null;
   onNewChat?: () => void;
   onSelectConversation?: (conversationId: string) => void;
+  runtimeStatus?: FrontendRuntimeStatus | null;
+  previewStates?: ChangePreviewState[];
+  isBusyForChange?: (change: AiEngineerChangeSummary) => boolean;
+  onDeployChange?: (change: AiEngineerChangeSummary) => void;
+  onRevertChange?: (change: AiEngineerChangeSummary) => void;
+  onOpenPreviewApp?: (change: AiEngineerChangeSummary) => void;
 }) {
   const [composerState, setComposerState] = useState<{ conversationId: string | null; text: string }>({ conversationId: null, text: "" });
   const composerText = composerState.conversationId === (activeConversationId ?? null) ? composerState.text : "";
@@ -78,13 +92,23 @@ export function AiEngineerShell({
         />
       </aside>
       <main className="bg-background md:border-border relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:border-t">
-        <AiEngineerHeader title={title} executionMode={executionMode} selectedModelName={selectedModelName} events={events} />
+        <AiEngineerHeader
+          title={title}
+          executionMode={executionMode}
+          selectedModelName={selectedModelName}
+          runtimeStatus={runtimeStatus}
+        />
         <AiEngineerMessages
           messages={messages}
           events={events}
           isStreaming={isStreaming}
           isBootstrapping={isBootstrapping}
           onSuggestionSelect={setComposerText}
+          previewStates={previewStates}
+          isBusyForChange={isBusyForChange}
+          onDeployChange={onDeployChange}
+          onRevertChange={onRevertChange}
+          onOpenPreviewApp={onOpenPreviewApp}
         />
         <div className="bg-background z-10 mx-auto flex w-full max-w-4xl shrink-0 gap-2 px-2 pb-3 md:px-4 md:pb-4">
           <AiEngineerComposer
