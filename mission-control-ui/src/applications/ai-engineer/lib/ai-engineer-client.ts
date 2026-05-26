@@ -65,6 +65,7 @@ export async function createConversation(payload: {
   mission_id?: string;
   vehicle_id?: string;
   execution_mode?: string;
+  selected_model_id?: string | null;
   initial_message: { role: "user"; content: string; metadata?: Record<string, unknown> };
 }): Promise<AiEngineerConversationDetail> {
   const response = await fetch(apiUrl(ROUTES.createConversation), {
@@ -74,6 +75,19 @@ export async function createConversation(payload: {
   });
   if (!response.ok) throw new Error("Failed to create conversation");
   return parseJsonResponse(response, ConversationDetailSchema, "created conversation");
+}
+
+export async function updateConversation(
+  conversationId: string,
+  payload: { title?: string; execution_mode?: string; selected_model_id?: string | null },
+): Promise<AiEngineerConversationDetail> {
+  const response = await fetch(apiUrl(ROUTES.getConversation(conversationId)), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error("Failed to update conversation");
+  return parseJsonResponse(response, ConversationDetailSchema, "updated conversation");
 }
 
 export async function listConversations(): Promise<AiEngineerConversationSummary[]> {

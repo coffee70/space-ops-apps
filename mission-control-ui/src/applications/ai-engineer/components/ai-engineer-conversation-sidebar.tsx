@@ -1,6 +1,7 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { MoreHorizontal, Plus } from "lucide-react";
+import { useState } from "react";
 
 import type { AiEngineerConversationSummary } from "@/applications/ai-engineer/types";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ export function AiEngineerConversationSidebar({
   disabled = false,
   onNewChat,
   onSelectConversation,
+  onRenameConversation = () => {},
 }: {
   conversations: AiEngineerConversationSummary[];
   activeConversationId: string | null;
@@ -37,7 +39,9 @@ export function AiEngineerConversationSidebar({
   disabled?: boolean;
   onNewChat: () => void;
   onSelectConversation: (conversationId: string) => void;
+  onRenameConversation?: (conversationId: string, title: string) => void;
 }) {
+  const [editing, setEditing] = useState<{ id: string; title: string } | null>(null);
   const showLoading = isLoading && conversations.length === 0;
   const showError = Boolean(error) && conversations.length === 0;
   const showEmpty = !showLoading && !showError && conversations.length === 0;
@@ -82,27 +86,82 @@ export function AiEngineerConversationSidebar({
             {conversations.map((conversation) => {
               const isActive = conversation.id === activeConversationId;
               const formattedTime = formatConversationTime(conversation.updated_at || conversation.created_at);
+              const isEditing = editing?.id === conversation.id;
+              const saveEdit = () => {
+                const nextTitle = editing?.title.trim();
+                if (nextTitle) onRenameConversation(conversation.id, nextTitle);
+                setEditing(null);
+              };
               return (
-                <button
+                <div
                   key={conversation.id}
-                  type="button"
                   className={cn(
-                    "group flex w-full items-start gap-2 rounded-md border border-transparent px-2.5 py-2 text-left shadow-xs transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                    "group flex w-full items-start gap-2 rounded-md border border-transparent px-2.5 py-2 text-left shadow-xs transition-colors",
+                    disabled && "cursor-not-allowed opacity-60",
                     isActive
                       ? "border-border bg-accent text-accent-foreground"
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
-                  onClick={() => onSelectConversation(conversation.id)}
-                  disabled={disabled}
+                  role="button"
+                  tabIndex={disabled ? -1 : 0}
+                  onClick={() => {
+                    if (!disabled && !isEditing) onSelectConversation(conversation.id);
+                  }}
+                  onKeyDown={(event) => {
+                    if (!disabled && !isEditing && (event.key === "Enter" || event.key === " ")) {
+                      event.preventDefault();
+                      onSelectConversation(conversation.id);
+                    }
+                  }}
                   aria-current={isActive ? "page" : undefined}
+                  aria-disabled={disabled}
                   data-testid="ai-engineer-conversation-row"
                   data-active={isActive ? "true" : "false"}
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{getConversationTitle(conversation)}</span>
+                    {isEditing ? (
+                      <input
+                        className="bg-background text-foreground ring-ring block w-full rounded-sm px-1 text-sm font-medium ring-1"
+                        value={editing.title}
+                        autoFocus
+                        onChange={(event) => setEditing({ id: conversation.id, title: event.target.value })}
+                        onClick={(event) => event.stopPropagation()}
+                        onBlur={saveEdit}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") saveEdit();
+                          if (event.key === "Escape") {
+                            event.stopPropagation();
+                            setEditing(null);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <span className="block truncate text-sm font-medium">{getConversationTitle(conversation)}</span>
+                    )}
                     {formattedTime ? <span className="text-muted-foreground block text-xs">{formattedTime}</span> : null}
                   </span>
-                </button>
+                  {!isEditing ? (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      title="Change name"
+                      className="text-muted-foreground hover:text-foreground flex size-7 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setEditing({ id: conversation.id, title: getConversationTitle(conversation) });
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setEditing({ id: conversation.id, title: getConversationTitle(conversation) });
+                        }
+                      }}
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </span>
+                  ) : null}
+                </div>
               );
             })}
           </div>

@@ -12,6 +12,9 @@ function buildConversation(input: Partial<AiEngineerConversationSummary> & { id:
     mission_id: input.mission_id ?? null,
     vehicle_id: input.vehicle_id ?? null,
     execution_mode: input.execution_mode ?? "read_only",
+    selected_model_id: input.selected_model_id ?? null,
+    title_source: input.title_source ?? "initial",
+    title_model_id: input.title_model_id ?? null,
     created_at: input.created_at ?? "2026-05-12T12:00:00.000Z",
     updated_at: input.updated_at ?? "2026-05-12T12:00:00.000Z",
   };

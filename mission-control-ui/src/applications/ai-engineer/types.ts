@@ -58,6 +58,7 @@ export interface ChatMessage {
   reasoning?: ChatMessageReasoning;
   pendingToolTextBoundary?: boolean;
   part?: ChatMessageToolPermissionPart;
+  parts?: ChatMessageToolPermissionPart[];
 }
 
 export interface ChatEventChunk {
@@ -87,6 +88,9 @@ export interface AiEngineerConversationSummary {
   mission_id: string | null;
   vehicle_id: string | null;
   execution_mode: ExecutionMode;
+  selected_model_id: string | null;
+  title_source: "manual" | "generated" | "initial" | null;
+  title_model_id: string | null;
   created_at: string;
   updated_at: string;
 }

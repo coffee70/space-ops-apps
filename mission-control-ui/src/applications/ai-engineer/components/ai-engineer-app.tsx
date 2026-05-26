@@ -29,11 +29,10 @@ import {
   useAiEngineerModelsQuery,
   useFrontendRuntimeStatusQuery,
   useCreateAiEngineerConversationMutation,
+  useUpdateAiEngineerConversationMutation,
 } from "@/lib/query-hooks";
 import { queryKeys } from "@/lib/query-keys";
 
-const PERMISSION_MESSAGE_PREFIX = "permission-message::";
-const SELECTED_MODEL_STORAGE_KEY = "ai-engineer.selectedModelId";
 const DRAFT_INTENT_STORAGE_KEY = "ai-engineer.openDraft";
 const FRONTEND_RUNTIME_INVALIDATING_EVENT_TYPES = new Set([
   "deployment.requested",
@@ -55,9 +54,6 @@ function shouldInvalidateFrontendRuntimeStatus(event: ChatEvent): boolean {
 function resolveInitialModelId(models: AiEngineerModelOption[], defaultModelId: string): string | null {
   const available = models.filter((m) => m.enabled && m.isAvailable);
   if (available.length === 0) return null;
-  if (typeof window === "undefined") return available[0]?.id ?? null;
-  const stored = localStorage.getItem(SELECTED_MODEL_STORAGE_KEY);
-  if (stored && available.some((m) => m.id === stored)) return stored;
   const def = models.find((m) => m.id === defaultModelId);
   if (def?.enabled && def.isAvailable) return defaultModelId;
   const demo = available.find((m) => m.recommendedFor.includes("demo-safe"));
@@ -111,7 +107,7 @@ function mapConversationMessagesToChatMessages(messages: AiEngineerConversationM
 }
 
 function rebuildAssistantTextFromEvents(message: ChatMessage, events: ChatEvent[]): ChatMessage {
-  if (message.role !== "assistant" || message.part) return message;
+  if (message.role !== "assistant") return message;
   const relevantEvents = events
     .filter((event) => event.event_type === "message.delta" || event.event_type.startsWith("tool."))
     .sort((a, b) => a.sequence - b.sequence);
@@ -147,7 +143,7 @@ function mapConversationMessagesToChatMessagesWithEvents(
   });
 }
 
-function permissionMessageFromEvent(event: ChatEvent): ChatMessage | null {
+function permissionPartFromEvent(event: ChatEvent) {
   if (event.event_type !== "tool.permission_required") return null;
   const payload = event.payload;
   const permissionRequestId = typeof payload.permission_request_id === "string" ? payload.permission_request_id : null;
@@ -160,25 +156,61 @@ function permissionMessageFromEvent(event: ChatEvent): ChatMessage | null {
       : {};
   if (!permissionRequestId || !toolCallId) return null;
   return {
-    id: `${PERMISSION_MESSAGE_PREFIX}${permissionRequestId}`,
-    role: "assistant",
-    content: "",
-    status: "complete",
-    part: {
-      kind: "tool-permission",
-      permissionRequestId,
-      toolCallId,
-      toolName,
-      prompt,
-    },
+    kind: "tool-permission" as const,
+    permissionRequestId,
+    toolCallId,
+    toolName,
+    prompt,
   };
 }
 
-function appendPermissionMessage(messages: ChatMessage[], event: ChatEvent): ChatMessage[] {
-  const permissionMessage = permissionMessageFromEvent(event);
-  if (!permissionMessage) return messages;
-  if (messages.some((message) => message.id === permissionMessage.id)) return messages;
-  return [...messages, permissionMessage];
+function attachPermissionPart(messages: ChatMessage[], event: ChatEvent): ChatMessage[] {
+  const part = permissionPartFromEvent(event);
+  if (!part) return messages;
+  const targetIndex = [...messages].reverse().findIndex(
+    (message) =>
+      message.role === "assistant" &&
+      (message.status === "streaming" ||
+        message.parts?.some((existing) => existing.permissionRequestId === part.permissionRequestId) ||
+        message.part?.permissionRequestId === part.permissionRequestId),
+  );
+  const resolvedIndex = targetIndex >= 0 ? messages.length - 1 - targetIndex : -1;
+  if (resolvedIndex < 0) {
+    return [...messages, { id: createClientId(), role: "assistant", content: "", status: "streaming", parts: [part] }];
+  }
+  return messages.map((message, index) => {
+    if (index !== resolvedIndex) return message;
+    const parts = message.parts ?? (message.part ? [message.part] : []);
+    if (parts.some((existing) => existing.permissionRequestId === part.permissionRequestId)) return message;
+    return { ...message, part: undefined, parts: [...parts, part] };
+  });
+}
+
+function attachPersistedPermissionParts(messages: ChatMessage[], events: ChatEvent[]): ChatMessage[] {
+  return events
+    .filter((event) => event.event_type === "tool.permission_required")
+    .sort((a, b) => a.sequence - b.sequence)
+    .reduce((current, event) => {
+      const part = permissionPartFromEvent(event);
+      if (!part) return current;
+      const targetIndex = current.findIndex((message) => {
+        const source = messages.find((candidate) => candidate.id === message.id);
+        return (
+          message.role === "assistant" &&
+          source &&
+          events.some((completed) => completed.event_type === "message.completed" && completed.request_id === event.request_id && completed.payload.message_id === source.id)
+        );
+      });
+      if (targetIndex >= 0) {
+        return current.map((message, index) => {
+          if (index !== targetIndex) return message;
+          const parts = message.parts ?? (message.part ? [message.part] : []);
+          if (parts.some((existing) => existing.permissionRequestId === part.permissionRequestId)) return message;
+          return { ...message, part: undefined, parts: [...parts, part] };
+        });
+      }
+      return attachPermissionPart(current, event);
+    }, messages);
 }
 
 type DraftCreationResult = {
@@ -256,6 +288,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const modelsQuery = useAiEngineerModelsQuery();
   const frontendRuntimeStatusQuery = useFrontendRuntimeStatusQuery();
   const createConversationMutation = useCreateAiEngineerConversationMutation();
+  const updateConversationMutation = useUpdateAiEngineerConversationMutation();
   const previewFlow = useChangePreviewFlow({
     onTimelineEvent: (event) => {
       setEvents((previous) => [...previous, event]);
@@ -323,12 +356,14 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const hydratePersistedConversation = useCallback(
     (conversation: AiEngineerConversationDetail) => {
       const persistedEvents = conversationEventsForHydration(conversation);
-      const persistedMessages = persistedEvents.reduce(
-        (current, event) => appendPermissionMessage(current, event),
+      const persistedMessages = attachPersistedPermissionParts(
         mapConversationMessagesToChatMessagesWithEvents(conversation.messages, persistedEvents),
+        persistedEvents,
       );
       setMessages(persistedMessages);
       setEvents(persistedEvents);
+      setExecutionMode(conversation.execution_mode);
+      setSelectedModelId(conversation.selected_model_id);
       reset();
       for (const event of persistedEvents) {
         ingestEvent(event);
@@ -395,6 +430,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
         .mutateAsync({
           title: "AI Engineer Session",
           execution_mode: executionModeRef.current,
+          selected_model_id: selectedModelId,
           initial_message: { role: "user", content: initialContent },
         })
         .then((created) => {
@@ -410,7 +446,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       conversationPromiseRef.current = creationPromise;
       return creationPromise;
     },
-    [createConversationMutation, hydratePersistedConversation, replaceConversationRoute, setActiveConversationId],
+    [createConversationMutation, hydratePersistedConversation, replaceConversationRoute, selectedModelId, setActiveConversationId],
   );
 
   useEffect(() => {
@@ -486,12 +522,17 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
   const handleModelSelect = useCallback((modelId: string) => {
     setSelectedModelId(modelId);
-    try {
-      localStorage.setItem(SELECTED_MODEL_STORAGE_KEY, modelId);
-    } catch {
-      /* ignore quota / privacy mode */
+    if (conversationIdRef.current) {
+      updateConversationMutation.mutate({ conversationId: conversationIdRef.current, patch: { selected_model_id: modelId } });
     }
-  }, []);
+  }, [updateConversationMutation]);
+
+  const handleExecutionModeChange = useCallback((mode: ExecutionMode) => {
+    setExecutionMode(mode);
+    if (conversationIdRef.current) {
+      updateConversationMutation.mutate({ conversationId: conversationIdRef.current, patch: { execution_mode: mode } });
+    }
+  }, [updateConversationMutation]);
 
   const handleNewChat = useCallback(async () => {
     if (isStreaming) return;
@@ -565,7 +606,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       flushPendingMessageDeltasNow();
     }
     if (chunk.event.event_type === "tool.permission_required") {
-      setMessages((previous) => appendPermissionMessage(previous, chunk.event));
+      setMessages((previous) => attachPermissionPart(previous, chunk.event));
     }
     if (chunk.event.event_type === "message.delta" || chunk.event.event_type === "message.reasoning.delta") {
       scheduleMessageDeltaFlush(draftAssistantId, chunk.event);
@@ -708,7 +749,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       events={events}
       attachments={attachments}
       executionMode={executionMode}
-      onExecutionModeChange={setExecutionMode}
+      onExecutionModeChange={handleExecutionModeChange}
       onSend={onSend}
       disabled={isBootstrapping || isSwitchingConversation}
       isBootstrapping={isBootstrapping}
@@ -726,6 +767,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       conversationListError={conversationListError}
       onNewChat={handleNewChat}
       onSelectConversation={handleSelectConversation}
+      onRenameConversation={(conversationId, title) => updateConversationMutation.mutate({ conversationId, patch: { title } })}
       runtimeStatus={frontendRuntimeStatusQuery.data}
       previewStates={previews}
       isBusyForChange={isBusyForChange}

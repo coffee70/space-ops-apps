@@ -53,6 +53,9 @@ export const ConversationSummarySchema = z
     mission_id: z.string().nullable(),
     vehicle_id: z.string().nullable(),
     execution_mode: ExecutionModeSchema,
+    selected_model_id: z.string().nullable().default(null),
+    title_source: z.enum(["manual", "generated", "initial"]).nullable().default(null),
+    title_model_id: z.string().nullable().default(null),
     created_at: z.string(),
     updated_at: z.string(),
   })

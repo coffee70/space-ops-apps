@@ -13,6 +13,7 @@ import {
   getConversation,
   listConversations,
   listModels,
+  updateConversation,
 } from "@/applications/ai-engineer/lib/ai-engineer-client";
 import type {
   AiEngineerConversationDetail,
@@ -222,6 +223,7 @@ export function useCreateAiEngineerConversationMutation() {
       mission_id?: string;
       vehicle_id?: string;
       execution_mode?: ExecutionMode;
+      selected_model_id?: string | null;
       initial_message: { role: "user"; content: string; metadata?: Record<string, unknown> };
     }) => createConversation(payload),
     onSuccess: async (conversation) => {
@@ -234,11 +236,49 @@ export function useCreateAiEngineerConversationMutation() {
           mission_id: conversation.mission_id,
           vehicle_id: conversation.vehicle_id,
           execution_mode: conversation.execution_mode,
+          selected_model_id: conversation.selected_model_id,
+          title_source: conversation.title_source,
+          title_model_id: conversation.title_model_id,
           created_at: conversation.created_at,
           updated_at: conversation.updated_at,
         };
         return [summary, ...withoutCreated];
       });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversations });
+    },
+  });
+}
+
+export function useUpdateAiEngineerConversationMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      conversationId,
+      patch,
+    }: {
+      conversationId: string;
+      patch: { title?: string; execution_mode?: ExecutionMode; selected_model_id?: string | null };
+    }) => updateConversation(conversationId, patch),
+    onSuccess: async (conversation) => {
+      queryClient.setQueryData(queryKeys.aiEngineerConversation(conversation.id), conversation);
+      queryClient.setQueryData<AiEngineerConversationSummary[]>(queryKeys.aiEngineerConversations, (previous) =>
+        (previous ?? []).map((item) =>
+          item.id === conversation.id
+            ? {
+                id: conversation.id,
+                title: conversation.title,
+                mission_id: conversation.mission_id,
+                vehicle_id: conversation.vehicle_id,
+                execution_mode: conversation.execution_mode,
+                selected_model_id: conversation.selected_model_id,
+                title_source: conversation.title_source,
+                title_model_id: conversation.title_model_id,
+                created_at: conversation.created_at,
+                updated_at: conversation.updated_at,
+              }
+            : item,
+        ),
+      );
       await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversations });
     },
   });
@@ -386,6 +426,16 @@ export interface CodeRepositoryStatusLookupResult {
   branch: string;
   status: CodeRepositoryStatus | null;
   notFound: boolean;
+}
+
+export function shouldPollCodeRepositoryStatus(status: CodeRepositoryStatus | null | undefined): boolean {
+  if (!status) return true;
+  if (status.index_status === "queued" || status.index_status === "indexing" || status.index_status === "not_indexed") return true;
+  if (status.index_status === "ready") {
+    if (status.chunk_count === 0) return true;
+    if (status.indexed_commit_sha && status.current_commit_sha && status.indexed_commit_sha !== status.current_commit_sha) return true;
+  }
+  return false;
 }
 
 export interface SearchResult {
@@ -897,6 +947,9 @@ export function useCodeRepositoryStatusQueries(repositories: readonly { root: st
     queries: repositories.map((repository) => ({
       queryKey: queryKeys.codeRepositoryStatus(repository.root, repository.branch),
       staleTime: 15 * 1000,
+      refetchInterval: (query: { state: { data?: CodeRepositoryStatusLookupResult; error: unknown } }) =>
+        query.state.error ? false : shouldPollCodeRepositoryStatus(query.state.data?.status) ? 2500 : false,
+      refetchIntervalInBackground: false,
       queryFn: async ({ signal }): Promise<CodeRepositoryStatusLookupResult> => {
         try {
           const status = await fetchJson(

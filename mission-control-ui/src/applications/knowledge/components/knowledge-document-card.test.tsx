@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { KnowledgeDocumentCard } from "./knowledge-document-card";
+import { formatDocumentType, KnowledgeDocumentCard } from "./knowledge-document-card";
 import { KnowledgeEmptyState } from "./knowledge-empty-state";
 import { KnowledgeHeader } from "./knowledge-header";
 
@@ -41,7 +41,7 @@ test("Knowledge document card renders title, type, status, metadata, tags, and e
   );
 
   assert.match(markup, /Telemetry Dictionary/);
-  assert.match(markup, /csv/);
+  assert.match(markup, /Csv/);
   assert.match(markup, /Failed/);
   assert.match(markup, /Vehicle demo-vehicle/);
   assert.match(markup, /Mission demo-mission/);
@@ -66,4 +66,12 @@ test("Knowledge document card renders pending documents as processing", () => {
 
   assert.match(markup, /Processing/);
   assert.match(markup, /Preparing document for AI retrieval/);
+});
+
+test("formatDocumentType uses operator-friendly file type labels", () => {
+  assert.equal(formatDocumentType("md"), "Markdown");
+  assert.equal(formatDocumentType("yaml"), "YAML");
+  assert.equal(formatDocumentType("JSON"), "JSON");
+  assert.equal(formatDocumentType("txt"), "Text");
+  assert.equal(formatDocumentType(null), "Document");
 });
