@@ -43,10 +43,7 @@ export function AiEngineerHeader({
       <div className="flex items-center gap-2">
         <AiEngineerOperationStatusPill events={events} previewRuntime={previewRuntime} />
         <ShieldCheck className="text-muted-foreground hidden size-3.5 sm:block" aria-hidden="true" />
-        <AiEngineerStatusPill
-          status={executionMode === "execute" || executionMode === "governed_execute" ? "running" : "info"}
-          label={modeLabel[executionMode]}
-        />
+        <AiEngineerStatusPill status={executionMode === "execute" ? "running" : "info"} label={modeLabel[executionMode]} />
       </div>
     </div>
   );

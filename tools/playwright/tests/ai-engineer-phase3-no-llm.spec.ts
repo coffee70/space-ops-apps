@@ -48,6 +48,14 @@ async function uploadKnowledgeDocument(page: Page) {
   await expect(documentCard).toContainText("Ready", { timeout: 120_000 });
 }
 
+async function approveToolPermission(page: Page, toolName: string, actionName: RegExp) {
+  const permissionCard = page.locator(`[data-testid="tool-permission-card"][data-tool-name="${toolName}"]`).last();
+  await expect(permissionCard).toBeVisible({ timeout: 30_000 });
+  await expect(permissionCard).toContainText("Pending approval", { timeout: 30_000 });
+  await permissionCard.getByRole("button", { name: actionName }).click();
+  await expect(permissionCard).toContainText(/Approved|Completed/, { timeout: 30_000 });
+}
+
 test("AI Engineer deterministic Phase 3 no-LLM flow covers Knowledge upload, read tools, deploy, and cleanup", async ({ page }) => {
   const browserErrors: string[] = [];
   page.on("console", (message) => {
@@ -87,12 +95,12 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers Knowledge upload, rea
   await expect(activityPanel.getByText("Run completed").first()).toBeVisible({ timeout: 30_000 });
 
   await waitForComposerReady(page);
-  await page.getByTestId("ai-engineer-composer").getByRole("button", { name: "Governed execute" }).click();
   const deployMsg = "[scripted:scripted_write_deploy] Deploy the deterministic fixture.";
   await composer.fill(deployMsg);
   await expect(composer).toHaveValue(deployMsg);
   await expect(page.getByRole("button", { name: "Send message" })).toBeEnabled();
   await page.getByRole("button", { name: "Send message" }).click();
+  await approveToolPermission(page, "deploy_service_or_application", /Approve deploy|Approve/);
 
   await expect
     .poll(async () => {
@@ -121,12 +129,12 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers Knowledge upload, rea
     .toBe(200);
 
   await waitForComposerReady(page);
-  await page.getByTestId("ai-engineer-composer").getByRole("button", { name: "Governed execute" }).click();
   const cleanupMsg = "[scripted:scripted_delete_cleanup] Delete the deterministic fixture.";
   await composer.fill(cleanupMsg);
   await expect(composer).toHaveValue(cleanupMsg);
   await expect(page.getByRole("button", { name: "Send message" })).toBeEnabled();
   await page.getByRole("button", { name: "Send message" }).click();
+  await approveToolPermission(page, "delete_managed_resources", /Approve delete|Approve/);
 
   await expect(
     page

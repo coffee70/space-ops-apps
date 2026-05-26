@@ -50,6 +50,6 @@ test("ChatPanel renders greeting and Vercel-style composer controls", () => {
   assert.match(markup, /Read/);
   assert.match(markup, /Suggest/);
   assert.match(markup, /Execute/);
-  assert.match(markup, /Governed execute/);
+  assert.doesNotMatch(markup, /Governed execute/);
   assert.doesNotMatch(markup, /<select/);
 });
