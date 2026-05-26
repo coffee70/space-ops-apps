@@ -66,7 +66,7 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers Knowledge upload, rea
   await expect(page.getByTestId("ai-engineer-shell").getByText("AI Engineer", { exact: true })).toBeVisible();
   await page.getByTestId("ai-engineer-new-chat-button").click();
   await waitForComposerReady(page);
-  await page.getByTestId("ai-engineer-composer").getByRole("button", { name: "Execute" }).click();
+  await page.getByTestId("ai-engineer-composer").getByRole("button", { name: "Execute", exact: true }).click();
 
   await waitForComposerReady(page);
   const composer = page.getByTestId("ai-engineer-chat-input");
@@ -87,6 +87,7 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers Knowledge upload, rea
   await expect(activityPanel.getByText("Run completed").first()).toBeVisible({ timeout: 30_000 });
 
   await waitForComposerReady(page);
+  await page.getByTestId("ai-engineer-composer").getByRole("button", { name: "Governed execute" }).click();
   const deployMsg = "[scripted:scripted_write_deploy] Deploy the deterministic fixture.";
   await composer.fill(deployMsg);
   await expect(composer).toHaveValue(deployMsg);
@@ -120,6 +121,7 @@ test("AI Engineer deterministic Phase 3 no-LLM flow covers Knowledge upload, rea
     .toBe(200);
 
   await waitForComposerReady(page);
+  await page.getByTestId("ai-engineer-composer").getByRole("button", { name: "Governed execute" }).click();
   const cleanupMsg = "[scripted:scripted_delete_cleanup] Delete the deterministic fixture.";
   await composer.fill(cleanupMsg);
   await expect(composer).toHaveValue(cleanupMsg);

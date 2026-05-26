@@ -11,6 +11,7 @@ const modes: Array<{ value: ExecutionMode; label: string; title: string }> = [
   { value: "read_only", label: "Read", title: "Inspect only" },
   { value: "suggest", label: "Suggest", title: "Propose changes" },
   { value: "execute", label: "Execute", title: "Run enabled actions" },
+  { value: "governed_execute", label: "Governed execute", title: "Run deployment or deletion actions with governance checks" },
 ];
 
 export function AiEngineerComposer({

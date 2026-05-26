@@ -252,7 +252,7 @@ test("AI Engineer chat-native deploy and revert flow @smoke", async ({ page }) =
 
   await expect(page.getByTestId("ai-engineer-shell")).toBeVisible();
   await page.getByTestId("ai-engineer-new-chat-button").click();
-  await page.getByTestId("ai-engineer-composer").getByRole("button", { name: "Execute" }).click();
+  await page.getByTestId("ai-engineer-composer").getByRole("button", { name: "Execute", exact: true }).click();
 
   await fillAndSend(page, "[scripted:scripted_change_preview] Prepare a scoped change preview.");
 
