@@ -6,6 +6,7 @@ export const DeploymentRecordSchema = z
     unit_id: z.string(),
     branch: z.string(),
     commit_sha: z.string(),
+    deployment_intent: z.string().optional(),
     status: z.string(),
     health_status: z.string(),
     logs_url: z.string().optional(),

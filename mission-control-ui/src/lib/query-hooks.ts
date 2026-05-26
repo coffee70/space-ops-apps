@@ -61,7 +61,9 @@ import {
   VehicleConfigValidationResponseSchema,
   WatchlistResponseSchema,
   ActiveFrontendPreviewRuntimeResponseSchema,
+  FrontendRuntimeStatusSchema,
   type ActiveFrontendPreviewRuntimeResponse,
+  type FrontendRuntimeStatus,
 } from "@/lib/ui-boundary-schemas";
 import { z } from "zod";
 
@@ -861,6 +863,28 @@ export function useActiveFrontendPreviewRuntimeQuery() {
         { signal, cache: "no-store", useFallback: true },
         ActiveFrontendPreviewRuntimeResponseSchema,
       ),
+  });
+}
+
+export async function fetchFrontendRuntimeStatus(signal?: AbortSignal): Promise<FrontendRuntimeStatus> {
+  return fetchJson(
+    "/registry/frontend-runtime/status",
+    { signal, cache: "no-store", useFallback: true },
+    FrontendRuntimeStatusSchema,
+  );
+}
+
+function isFrontendRuntimeTransitioning(data?: FrontendRuntimeStatus) {
+  return data?.effective_state === "preview_deploying" || data?.effective_state === "baseline_reverting";
+}
+
+export function useFrontendRuntimeStatusQuery() {
+  return useQuery<FrontendRuntimeStatus>({
+    queryKey: queryKeys.frontendRuntimeStatus,
+    staleTime: 0,
+    refetchInterval: (query) => (isFrontendRuntimeTransitioning(query.state.data) ? 1500 : 5000),
+    refetchIntervalInBackground: false,
+    queryFn: async ({ signal }) => fetchFrontendRuntimeStatus(signal),
   });
 }
 

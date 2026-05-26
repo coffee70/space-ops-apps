@@ -13,6 +13,7 @@ export const queryKeys = {
   knowledgeDocuments: ["knowledge-documents"] as const,
   deploymentOverview: ["deployment-overview"] as const,
   activeFrontendPreviewRuntime: ["active-frontend-preview-runtime"] as const,
+  frontendRuntimeStatus: ["frontend-runtime-status"] as const,
   codeRepositoryStatus: (root: string, branch: string) => ["code-repository-status", root, branch] as const,
   telemetrySourceRuns: (sourceId: string) => ["telemetry-source-runs", sourceId] as const,
   telemetryChannelRuns: (channelName: string, sourceId: string) =>

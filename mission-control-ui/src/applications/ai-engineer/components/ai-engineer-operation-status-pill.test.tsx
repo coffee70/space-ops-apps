@@ -2,26 +2,25 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import type { FrontendRuntimeStatus } from "@/lib/ui-boundary-schemas";
 import { AiEngineerOperationStatusPill } from "./ai-engineer-operation-status-pill";
+
+function runtime(effective_state: FrontendRuntimeStatus["effective_state"]): FrontendRuntimeStatus {
+  return {
+    frontend_unit_id: "mission-control-frontend-shell",
+    target_application_id: null,
+    baseline_branch: "main",
+    baseline_commit_sha: null,
+    active: null,
+    pending: null,
+    last_terminal: null,
+    effective_state,
+  };
+}
 
 test("AiEngineerOperationStatusPill renders the running spinner inside the status pill", () => {
   const markup = renderToStaticMarkup(
-    <AiEngineerOperationStatusPill
-      events={[
-        {
-          id: "event-1",
-          event_type: "deployment.submitted",
-          conversation_id: "conversation-1",
-          agent_run_id: "run-1",
-          request_id: "request-1",
-          tool_call_id: null,
-          sequence: 1,
-          emitted_by: "tool-execution-service",
-          payload: {},
-          created_at: "2026-05-21T00:00:00.000Z",
-        },
-      ]}
-    />,
+    <AiEngineerOperationStatusPill runtimeStatus={runtime("preview_deploying")} />,
   );
 
   assert.match(markup, /data-testid="ai-engineer-operation-status-pill"/);
@@ -35,22 +34,7 @@ test("AiEngineerOperationStatusPill renders the running spinner inside the statu
 
 test("AiEngineerOperationStatusPill renders success as only the rounded status pill", () => {
   const markup = renderToStaticMarkup(
-    <AiEngineerOperationStatusPill
-      events={[
-        {
-          id: "event-1",
-          event_type: "preview.active",
-          conversation_id: "conversation-1",
-          agent_run_id: "run-1",
-          request_id: "request-1",
-          tool_call_id: null,
-          sequence: 1,
-          emitted_by: "tool-execution-service",
-          payload: {},
-          created_at: "2026-05-21T00:00:00.000Z",
-        },
-      ]}
-    />,
+    <AiEngineerOperationStatusPill runtimeStatus={runtime("preview_active")} />,
   );
 
   assert.match(markup, /data-testid="ai-engineer-operation-status-pill"/);

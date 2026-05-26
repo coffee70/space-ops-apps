@@ -2,24 +2,32 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import type { ActiveFrontendPreviewRuntimeResponse } from "@/lib/ui-boundary-schemas";
+import type { FrontendRuntimeStatus } from "@/lib/ui-boundary-schemas";
 import { buildPreviewRuntimeRevertInput, PreviewRuntimeBannerView } from "./preview-runtime-banner";
 
 function previewRuntime(
-  overrides: Partial<ActiveFrontendPreviewRuntimeResponse> = {},
-): ActiveFrontendPreviewRuntimeResponse {
+  overrides: Partial<FrontendRuntimeStatus> = {},
+): FrontendRuntimeStatus {
   return {
-    is_preview: true,
     frontend_unit_id: "mission-control-frontend-shell",
-    active_deployment_id: "dep_preview",
-    branch: "preview/shell-banner",
-    commit_sha: "abcdef123456",
-    deployment_status: "healthy",
-    health_status: "passing",
+    target_application_id: null,
     baseline_branch: "main",
     baseline_commit_sha: "base123",
-    preview_deployment_id: "dep_preview",
-    target_application_id: null,
+    active: {
+      deployment_id: "dep_preview",
+      runtime_service_name: "mission-control-frontend-shell-dep-preview",
+      branch: "preview/shell-banner",
+      commit_sha: "abcdef123456",
+      deployment_status: "healthy",
+      health_status: "passing",
+      deployment_intent: "deploy_preview",
+      mode: "preview",
+      is_preview: true,
+      failure_reason: null,
+    },
+    pending: null,
+    last_terminal: null,
+    effective_state: "preview_active",
     ...overrides,
   };
 }
@@ -27,7 +35,21 @@ function previewRuntime(
 test("PreviewRuntimeBannerView returns nothing when runtime is baseline", () => {
   const markup = renderToStaticMarkup(
     <PreviewRuntimeBannerView
-      preview={previewRuntime({ is_preview: false, branch: "main" })}
+      preview={previewRuntime({
+        active: {
+          deployment_id: "dep_baseline",
+          runtime_service_name: "mission-control-frontend-shell-dep-baseline",
+          branch: "main",
+          commit_sha: "base123",
+          deployment_status: "healthy",
+          health_status: "passing",
+          deployment_intent: "revert_to_baseline",
+          mode: "baseline",
+          is_preview: false,
+          failure_reason: null,
+        },
+        effective_state: "baseline_active",
+      })}
       revertState="idle"
       onRevert={() => {}}
     />,
@@ -98,7 +120,7 @@ test("buildPreviewRuntimeRevertInput maps shell preview context to existing reve
 
 test("buildPreviewRuntimeRevertInput falls back to active deployment id", () => {
   assert.deepEqual(
-    buildPreviewRuntimeRevertInput(previewRuntime({ preview_deployment_id: null, target_application_id: "telemetry" })),
+    buildPreviewRuntimeRevertInput(previewRuntime({ target_application_id: "telemetry" })),
     {
       targetUnitId: "mission-control-frontend-shell",
       targetApplicationId: "telemetry",

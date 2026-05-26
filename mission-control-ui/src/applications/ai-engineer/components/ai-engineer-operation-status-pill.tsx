@@ -3,18 +3,15 @@
 import { Loader2 } from "lucide-react";
 
 import { AiEngineerStatusPill } from "@/applications/ai-engineer/components/ai-engineer-status-pill";
-import { getAiEngineerOperationStatus } from "@/applications/ai-engineer/lib/operation-status";
-import type { ChatEvent } from "@/applications/ai-engineer/types";
-import type { ActiveFrontendPreviewRuntimeResponse } from "@/lib/ui-boundary-schemas";
+import { getAiEngineerOperationStatusFromRuntime } from "@/applications/ai-engineer/lib/operation-status";
+import type { FrontendRuntimeStatus } from "@/lib/ui-boundary-schemas";
 
 export function AiEngineerOperationStatusPill({
-  events,
-  previewRuntime,
+  runtimeStatus,
 }: {
-  events: ChatEvent[];
-  previewRuntime?: ActiveFrontendPreviewRuntimeResponse | null;
+  runtimeStatus?: FrontendRuntimeStatus | null;
 }) {
-  const operation = getAiEngineerOperationStatus(events, previewRuntime);
+  const operation = getAiEngineerOperationStatusFromRuntime(runtimeStatus);
   if (!operation) return null;
   return (
     <span className="inline-flex items-center gap-1" data-testid="ai-engineer-operation-status-pill">

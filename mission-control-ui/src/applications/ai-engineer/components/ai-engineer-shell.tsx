@@ -9,7 +9,7 @@ import { AiEngineerHeader } from "@/applications/ai-engineer/components/ai-engin
 import { AiEngineerMessages } from "@/applications/ai-engineer/components/ai-engineer-messages";
 import type { AiEngineerChangeSummary, ChangePreviewState } from "@/applications/ai-engineer/lib/change-preview-types";
 import type { AiEngineerConversationSummary, AiEngineerModelOption, AttachmentStatus, ChatEvent, ChatMessage, ExecutionMode } from "@/applications/ai-engineer/types";
-import type { ActiveFrontendPreviewRuntimeResponse } from "@/lib/ui-boundary-schemas";
+import type { FrontendRuntimeStatus } from "@/lib/ui-boundary-schemas";
 
 export function AiEngineerShell({
   title,
@@ -35,7 +35,7 @@ export function AiEngineerShell({
   conversationListError,
   onNewChat,
   onSelectConversation,
-  previewRuntime,
+  runtimeStatus,
   previewStates,
   isBusyForChange,
   onDeployChange,
@@ -65,7 +65,7 @@ export function AiEngineerShell({
   conversationListError?: string | null;
   onNewChat?: () => void;
   onSelectConversation?: (conversationId: string) => void;
-  previewRuntime?: ActiveFrontendPreviewRuntimeResponse | null;
+  runtimeStatus?: FrontendRuntimeStatus | null;
   previewStates?: ChangePreviewState[];
   isBusyForChange?: (change: AiEngineerChangeSummary) => boolean;
   onDeployChange?: (change: AiEngineerChangeSummary) => void;
@@ -96,8 +96,7 @@ export function AiEngineerShell({
           title={title}
           executionMode={executionMode}
           selectedModelName={selectedModelName}
-          events={events}
-          previewRuntime={previewRuntime}
+          runtimeStatus={runtimeStatus}
         />
         <AiEngineerMessages
           messages={messages}

@@ -278,6 +278,48 @@ export const ActiveFrontendPreviewRuntimeResponseSchema = z
 
 export type ActiveFrontendPreviewRuntimeResponse = z.infer<typeof ActiveFrontendPreviewRuntimeResponseSchema>;
 
+export const FrontendRuntimeEffectiveStateSchema = z.enum([
+  "baseline_active",
+  "preview_deploying",
+  "preview_active",
+  "baseline_reverting",
+  "preview_deploy_failed",
+  "baseline_revert_failed",
+  "unknown",
+]);
+
+export const FrontendRuntimeDeploymentSchema = z
+  .object({
+    deployment_id: z.string().nullable().optional(),
+    runtime_service_name: z.string().nullable().optional(),
+    branch: z.string().nullable().optional(),
+    commit_sha: z.string().nullable().optional(),
+    deployment_status: z.string().nullable().optional(),
+    health_status: z.string().nullable().optional(),
+    deployment_intent: z.string(),
+    mode: z.enum(["baseline", "preview", "unknown"]),
+    is_preview: z.boolean(),
+    failure_reason: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+export const FrontendRuntimeStatusSchema = z
+  .object({
+    frontend_unit_id: z.string().nullable().optional(),
+    target_application_id: z.string().nullable().optional(),
+    baseline_branch: z.string(),
+    baseline_commit_sha: z.string().nullable().optional(),
+    active: FrontendRuntimeDeploymentSchema.nullable(),
+    pending: FrontendRuntimeDeploymentSchema.nullable(),
+    last_terminal: FrontendRuntimeDeploymentSchema.nullable(),
+    effective_state: FrontendRuntimeEffectiveStateSchema,
+  })
+  .passthrough();
+
+export type FrontendRuntimeEffectiveState = z.infer<typeof FrontendRuntimeEffectiveStateSchema>;
+export type FrontendRuntimeDeployment = z.infer<typeof FrontendRuntimeDeploymentSchema>;
+export type FrontendRuntimeStatus = z.infer<typeof FrontendRuntimeStatusSchema>;
+
 export const CodeRepositoryStatusSchema = z
   .object({
     id: z.string(),

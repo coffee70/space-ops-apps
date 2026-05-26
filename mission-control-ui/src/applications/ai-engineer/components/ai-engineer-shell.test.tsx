@@ -2,7 +2,21 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import type { FrontendRuntimeStatus } from "@/lib/ui-boundary-schemas";
 import { AiEngineerShell } from "./ai-engineer-shell";
+
+function runtime(effective_state: FrontendRuntimeStatus["effective_state"]): FrontendRuntimeStatus {
+  return {
+    frontend_unit_id: "mission-control-frontend-shell",
+    target_application_id: "ai-engineer",
+    baseline_branch: "main",
+    baseline_commit_sha: "def5678",
+    active: null,
+    pending: null,
+    last_terminal: null,
+    effective_state,
+  };
+}
 
 test("AiEngineerShell uses theme-backed sidebar surfaces", () => {
   const markup = renderToStaticMarkup(
@@ -47,6 +61,7 @@ test("AiEngineerShell renders operation status pill for deployment progress", ()
       executionMode="execute"
       onExecutionModeChange={() => {}}
       onSend={async () => {}}
+      runtimeStatus={runtime("preview_deploying")}
     />,
   );
 
@@ -86,6 +101,7 @@ test("AiEngineerShell renders success operation status without a trailing check 
       executionMode="execute"
       onExecutionModeChange={() => {}}
       onSend={async () => {}}
+      runtimeStatus={runtime("preview_active")}
     />,
   );
 
@@ -123,19 +139,7 @@ test("AiEngineerShell upgrades deploying operation status when preview runtime i
       executionMode="execute"
       onExecutionModeChange={() => {}}
       onSend={async () => {}}
-      previewRuntime={{
-        is_preview: true,
-        frontend_unit_id: "mission-control-frontend-shell",
-        active_deployment_id: "dep_1",
-        branch: "preview/cyan",
-        commit_sha: "abc1234",
-        deployment_status: "healthy",
-        health_status: "passing",
-        baseline_branch: "main",
-        baseline_commit_sha: "def5678",
-        preview_deployment_id: "dep_1",
-        target_application_id: "ai-engineer",
-      }}
+      runtimeStatus={runtime("preview_active")}
     />,
   );
 

@@ -27,7 +27,7 @@ import {
   useAiEngineerConversationQuery,
   useAiEngineerConversationsQuery,
   useAiEngineerModelsQuery,
-  useActiveFrontendPreviewRuntimeQuery,
+  useFrontendRuntimeStatusQuery,
   useCreateAiEngineerConversationMutation,
 } from "@/lib/query-hooks";
 import { queryKeys } from "@/lib/query-keys";
@@ -35,6 +35,22 @@ import { queryKeys } from "@/lib/query-keys";
 const PERMISSION_MESSAGE_PREFIX = "permission-message::";
 const SELECTED_MODEL_STORAGE_KEY = "ai-engineer.selectedModelId";
 const DRAFT_INTENT_STORAGE_KEY = "ai-engineer.openDraft";
+const FRONTEND_RUNTIME_INVALIDATING_EVENT_TYPES = new Set([
+  "deployment.requested",
+  "deployment.submitted",
+  "deployment.build_started",
+  "preview.active",
+  "revert.requested",
+  "baseline.deployment_submitted",
+  "baseline.build_started",
+  "baseline.active",
+  "deployment.failed",
+  "revert.failed",
+]);
+
+function shouldInvalidateFrontendRuntimeStatus(event: ChatEvent): boolean {
+  return FRONTEND_RUNTIME_INVALIDATING_EVENT_TYPES.has(event.event_type);
+}
 
 function resolveInitialModelId(models: AiEngineerModelOption[], defaultModelId: string): string | null {
   const available = models.filter((m) => m.enabled && m.isAvailable);
@@ -238,11 +254,14 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const conversationsQuery = useAiEngineerConversationsQuery();
   const activeConversationQuery = useAiEngineerConversationQuery(activeConversationId, Boolean(activeConversationId));
   const modelsQuery = useAiEngineerModelsQuery();
-  const previewRuntimeQuery = useActiveFrontendPreviewRuntimeQuery();
+  const frontendRuntimeStatusQuery = useFrontendRuntimeStatusQuery();
   const createConversationMutation = useCreateAiEngineerConversationMutation();
   const previewFlow = useChangePreviewFlow({
     onTimelineEvent: (event) => {
       setEvents((previous) => [...previous, event]);
+      if (shouldInvalidateFrontendRuntimeStatus(event)) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.frontendRuntimeStatus });
+      }
     },
   });
   const { deployChange, ingestEvent, isBusyForChange, previews, reset, revertChange } = previewFlow;
@@ -314,10 +333,13 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       for (const event of persistedEvents) {
         ingestEvent(event);
       }
+      if (persistedEvents.some(shouldInvalidateFrontendRuntimeStatus)) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.frontendRuntimeStatus });
+      }
       setAttachments([]);
       lastHydratedConversationIdRef.current = conversation.id;
     },
-    [ingestEvent, reset],
+    [ingestEvent, queryClient, reset],
   );
 
   const setActiveConversationId = useCallback((id: string) => {
@@ -525,6 +547,9 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const appendBackendEvent = (event: ChatEvent) => {
     if (!isEventForConversation(event, conversationIdRef.current)) return;
     ingestEvent(event);
+    if (shouldInvalidateFrontendRuntimeStatus(event)) {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.frontendRuntimeStatus });
+    }
     setEvents((previous) => {
       const next = previous.filter((existingEvent) => existingEvent.id !== event.id);
       next.push(event);
@@ -701,7 +726,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       conversationListError={conversationListError}
       onNewChat={handleNewChat}
       onSelectConversation={handleSelectConversation}
-      previewRuntime={previewRuntimeQuery.data}
+      runtimeStatus={frontendRuntimeStatusQuery.data}
       previewStates={previews}
       isBusyForChange={isBusyForChange}
       onDeployChange={(change) => {
