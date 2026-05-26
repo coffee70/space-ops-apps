@@ -5,6 +5,12 @@ import { useState } from "react";
 
 import type { AiEngineerConversationSummary } from "@/applications/ai-engineer/types";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 function getConversationTitle(conversation: AiEngineerConversationSummary) {
@@ -88,9 +94,17 @@ export function AiEngineerConversationSidebar({
               const formattedTime = formatConversationTime(conversation.updated_at || conversation.created_at);
               const isEditing = editing?.id === conversation.id;
               const saveEdit = () => {
+                if (disabled) {
+                  setEditing(null);
+                  return;
+                }
                 const nextTitle = editing?.title.trim();
                 if (nextTitle) onRenameConversation(conversation.id, nextTitle);
                 setEditing(null);
+              };
+              const startRename = () => {
+                if (disabled) return;
+                setEditing({ id: conversation.id, title: getConversationTitle(conversation) });
               };
               return (
                 <div
@@ -124,7 +138,10 @@ export function AiEngineerConversationSidebar({
                         className="bg-background text-foreground ring-ring block w-full rounded-sm px-1 text-sm font-medium ring-1"
                         value={editing.title}
                         autoFocus
-                        onChange={(event) => setEditing({ id: conversation.id, title: event.target.value })}
+                        disabled={disabled}
+                        onChange={(event) => {
+                          if (!disabled) setEditing({ id: conversation.id, title: event.target.value });
+                        }}
                         onClick={(event) => event.stopPropagation()}
                         onBlur={saveEdit}
                         onKeyDown={(event) => {
@@ -140,26 +157,36 @@ export function AiEngineerConversationSidebar({
                     )}
                     {formattedTime ? <span className="text-muted-foreground block text-xs">{formattedTime}</span> : null}
                   </span>
-                  {!isEditing ? (
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      title="Change name"
-                      className="text-muted-foreground hover:text-foreground flex size-7 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setEditing({ id: conversation.id, title: getConversationTitle(conversation) });
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          setEditing({ id: conversation.id, title: getConversationTitle(conversation) });
-                        }
-                      }}
-                    >
-                      <MoreHorizontal className="size-4" />
-                    </span>
+                  {!isEditing && !disabled ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          title="Conversation actions"
+                          aria-label={`Actions for ${getConversationTitle(conversation)}`}
+                          className="text-muted-foreground hover:text-foreground flex size-7 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="min-w-32"
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
+                        <DropdownMenuItem
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            startRename();
+                          }}
+                        >
+                          Change name
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   ) : null}
                 </div>
               );

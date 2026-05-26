@@ -45,7 +45,9 @@ export interface ChatMessageToolPermissionPart {
   permissionRequestId: string;
   toolCallId: string;
   toolName: string;
+  status?: string;
   prompt: ToolPermissionPrompt;
+  response?: Record<string, unknown> | null;
 }
 
 export interface ChatMessage {
@@ -98,10 +100,23 @@ export interface AiEngineerConversationSummary {
 export interface AiEngineerConversationMessage {
   id: string;
   conversation_id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "tool";
   content: string;
+  request_id?: string | null;
+  agent_run_id?: string | null;
+  sequence?: number | null;
   metadata_json?: Record<string, unknown>;
+  tool_permission_requests?: AiEngineerConversationMessageToolPermissionRequest[];
   created_at?: string;
+}
+
+export interface AiEngineerConversationMessageToolPermissionRequest {
+  permission_request_id: string;
+  tool_call_id: string;
+  tool_name: string;
+  status: string;
+  prompt: ToolPermissionPrompt;
+  response?: Record<string, unknown> | null;
 }
 
 export interface AiEngineerConversationDetail extends AiEngineerConversationSummary {

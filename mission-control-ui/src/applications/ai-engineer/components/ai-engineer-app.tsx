@@ -56,8 +56,6 @@ function resolveInitialModelId(models: AiEngineerModelOption[], defaultModelId: 
   if (available.length === 0) return null;
   const def = models.find((m) => m.id === defaultModelId);
   if (def?.enabled && def.isAvailable) return defaultModelId;
-  const demo = available.find((m) => m.recommendedFor.includes("demo-safe"));
-  if (demo) return demo.id;
   return available[0]?.id ?? null;
 }
 
@@ -103,6 +101,15 @@ function mapConversationMessagesToChatMessages(messages: AiEngineerConversationM
     status: "complete",
     createdAt: message.created_at,
     reasoning: message.role === "assistant" ? mapPersistedReasoning(message.metadata_json) : undefined,
+    parts: (message.tool_permission_requests ?? []).map((permission) => ({
+      kind: "tool-permission" as const,
+      permissionRequestId: permission.permission_request_id,
+      toolCallId: permission.tool_call_id,
+      toolName: permission.tool_name,
+      status: permission.status,
+      prompt: permission.prompt,
+      response: permission.response ?? null,
+    })),
   }));
 }
 
@@ -126,7 +133,7 @@ function rebuildAssistantTextFromEvents(message: ChatMessage, events: ChatEvent[
   };
 }
 
-function mapConversationMessagesToChatMessagesWithEvents(
+export function mapConversationMessagesToChatMessagesWithEvents(
   messages: AiEngineerConversationMessage[],
   events: ChatEvent[],
 ): ChatMessage[] {
@@ -138,7 +145,12 @@ function mapConversationMessagesToChatMessagesWithEvents(
   }
   return mapConversationMessagesToChatMessages(messages).map((message, index) => {
     const source = messages[index];
-    const requestId = typeof source?.metadata_json?.request_id === "string" ? source.metadata_json.request_id : null;
+    const requestId =
+      typeof source?.request_id === "string"
+        ? source.request_id
+        : typeof source?.metadata_json?.request_id === "string"
+          ? source.metadata_json.request_id
+          : null;
     return requestId ? rebuildAssistantTextFromEvents(message, eventsByRequest.get(requestId) ?? []) : message;
   });
 }
@@ -160,23 +172,19 @@ function permissionPartFromEvent(event: ChatEvent) {
     permissionRequestId,
     toolCallId,
     toolName,
+    status: typeof payload.status === "string" ? payload.status : "pending",
     prompt,
   };
 }
 
-function attachPermissionPart(messages: ChatMessage[], event: ChatEvent): ChatMessage[] {
+export function attachLivePermissionPart(messages: ChatMessage[], event: ChatEvent, draftAssistantId: string | null): ChatMessage[] {
   const part = permissionPartFromEvent(event);
-  if (!part) return messages;
-  const targetIndex = [...messages].reverse().findIndex(
-    (message) =>
-      message.role === "assistant" &&
-      (message.status === "streaming" ||
-        message.parts?.some((existing) => existing.permissionRequestId === part.permissionRequestId) ||
-        message.part?.permissionRequestId === part.permissionRequestId),
+  if (!part || !draftAssistantId) return messages;
+  const resolvedIndex = messages.findIndex(
+    (message) => message.id === draftAssistantId && message.role === "assistant" && message.status === "streaming",
   );
-  const resolvedIndex = targetIndex >= 0 ? messages.length - 1 - targetIndex : -1;
   if (resolvedIndex < 0) {
-    return [...messages, { id: createClientId(), role: "assistant", content: "", status: "streaming", parts: [part] }];
+    return messages;
   }
   return messages.map((message, index) => {
     if (index !== resolvedIndex) return message;
@@ -184,33 +192,6 @@ function attachPermissionPart(messages: ChatMessage[], event: ChatEvent): ChatMe
     if (parts.some((existing) => existing.permissionRequestId === part.permissionRequestId)) return message;
     return { ...message, part: undefined, parts: [...parts, part] };
   });
-}
-
-function attachPersistedPermissionParts(messages: ChatMessage[], events: ChatEvent[]): ChatMessage[] {
-  return events
-    .filter((event) => event.event_type === "tool.permission_required")
-    .sort((a, b) => a.sequence - b.sequence)
-    .reduce((current, event) => {
-      const part = permissionPartFromEvent(event);
-      if (!part) return current;
-      const targetIndex = current.findIndex((message) => {
-        const source = messages.find((candidate) => candidate.id === message.id);
-        return (
-          message.role === "assistant" &&
-          source &&
-          events.some((completed) => completed.event_type === "message.completed" && completed.request_id === event.request_id && completed.payload.message_id === source.id)
-        );
-      });
-      if (targetIndex >= 0) {
-        return current.map((message, index) => {
-          if (index !== targetIndex) return message;
-          const parts = message.parts ?? (message.part ? [message.part] : []);
-          if (parts.some((existing) => existing.permissionRequestId === part.permissionRequestId)) return message;
-          return { ...message, part: undefined, parts: [...parts, part] };
-        });
-      }
-      return attachPermissionPart(current, event);
-    }, messages);
 }
 
 type DraftCreationResult = {
@@ -356,10 +337,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const hydratePersistedConversation = useCallback(
     (conversation: AiEngineerConversationDetail) => {
       const persistedEvents = conversationEventsForHydration(conversation);
-      const persistedMessages = attachPersistedPermissionParts(
-        mapConversationMessagesToChatMessagesWithEvents(conversation.messages, persistedEvents),
-        persistedEvents,
-      );
+      const persistedMessages = mapConversationMessagesToChatMessagesWithEvents(conversation.messages, persistedEvents);
       setMessages(persistedMessages);
       setEvents(persistedEvents);
       setExecutionMode(conversation.execution_mode);
@@ -606,7 +584,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       flushPendingMessageDeltasNow();
     }
     if (chunk.event.event_type === "tool.permission_required") {
-      setMessages((previous) => attachPermissionPart(previous, chunk.event));
+      setMessages((previous) => attachLivePermissionPart(previous, chunk.event, draftAssistantId));
     }
     if (chunk.event.event_type === "message.delta" || chunk.event.event_type === "message.reasoning.delta") {
       scheduleMessageDeltaFlush(draftAssistantId, chunk.event);

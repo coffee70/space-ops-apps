@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -46,6 +47,7 @@ test("AiEngineerConversationSidebar renders recent conversations and highlights 
   assert.match(markup, /bg-accent/);
   assert.match(markup, /text-accent-foreground/);
   assert.match(markup, /hover:bg-accent/);
+  assert.match(markup, /Conversation actions/);
 });
 
 test("AiEngineerConversationSidebar renders empty, loading, error, and disabled states", () => {
@@ -97,6 +99,7 @@ test("AiEngineerConversationSidebar renders empty, loading, error, and disabled 
     />,
   );
   assert.match(disabledMarkup, /disabled=""/);
+  assert.doesNotMatch(disabledMarkup, /Conversation actions/);
 });
 
 test("AiEngineerConversationSidebar keeps cached rows visible during background loading", () => {
@@ -114,4 +117,11 @@ test("AiEngineerConversationSidebar keeps cached rows visible during background 
   assert.match(markup, /Cached chat/);
   assert.match(markup, /data-testid="ai-engineer-conversation-list"/);
   assert.doesNotMatch(markup, /Loading chats/);
+});
+
+test("AiEngineerConversationSidebar exposes rename through a dropdown menu item", () => {
+  const source = readFileSync(new URL("./ai-engineer-conversation-sidebar.tsx", import.meta.url), "utf8");
+  assert.match(source, /DropdownMenuTrigger/);
+  assert.match(source, /DropdownMenuItem/);
+  assert.match(source, /Change name/);
 });

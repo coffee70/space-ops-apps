@@ -44,7 +44,7 @@ function passesSingleModelFilter(m: AiEngineerModelOption, key: AiEngineerModelF
     case "disabled":
       return !m.enabled;
     case "recommended":
-      return m.recommendedFor.includes("demo-safe") || m.isDefault;
+      return m.recommendedFor.length > 0 || m.isDefault;
     case "fast":
       return m.speedTier === "fast";
     case "reasoning":
@@ -72,7 +72,7 @@ export function filterAiEngineerModels(
   const q = query.trim().toLowerCase();
   return models.filter((m) => {
     if (providerRail === "__recommended") {
-      if (!(m.recommendedFor.includes("demo-safe") || m.recommendedFor.includes("coding") || m.isDefault)) return false;
+      if (!(m.recommendedFor.length > 0 || m.isDefault)) return false;
     } else if (providerRail) {
       if (m.providerRef !== providerRail) return false;
     }

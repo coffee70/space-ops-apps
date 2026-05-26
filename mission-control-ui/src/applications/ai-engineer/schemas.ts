@@ -32,9 +32,26 @@ export const ConversationMessageSchema = z
   .object({
     id: z.string(),
     conversation_id: z.string(),
-    role: z.enum(["user", "assistant"]),
+    role: z.enum(["user", "assistant", "tool"]),
     content: z.string(),
+    request_id: z.string().nullable().optional(),
+    agent_run_id: z.string().nullable().optional(),
+    sequence: z.number().nullable().optional(),
     metadata_json: z.record(z.unknown()).optional(),
+    tool_permission_requests: z
+      .array(
+        z
+          .object({
+            permission_request_id: z.string(),
+            tool_call_id: z.string(),
+            tool_name: z.string(),
+            status: z.string(),
+            prompt: z.record(z.unknown()),
+            response: z.record(z.unknown()).nullable().optional(),
+          })
+          .passthrough(),
+      )
+      .optional(),
     created_at: z.string().optional(),
   })
   .passthrough();
