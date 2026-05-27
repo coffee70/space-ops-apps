@@ -233,7 +233,7 @@ export function AiEngineerModelPicker({
           <Sparkles className="size-3 shrink-0 opacity-70" />
           <span className="truncate text-[11px]">{chipLabel}</span>
           {selected ? <CostDots tier={selected.costTier} /> : null}
-          {selected?.recommendedFor.includes("demo-safe") || selected?.isDefault ? (
+          {selected && (selected.recommendedFor.length > 0 || selected.isDefault) ? (
             <span className="text-amber-400" aria-hidden>
               ★
             </span>
@@ -429,7 +429,7 @@ export function AiEngineerModelPicker({
                               <span className="text-[13px] font-medium">{m.name}</span>
                               <span className="text-muted-foreground text-[11px]">{m.provider}</span>
                               <CostDots tier={m.costTier} />
-                              {(m.recommendedFor.includes("demo-safe") || m.recommendedFor.includes("coding") || m.isDefault) && (
+                              {(m.recommendedFor.length > 0 || m.isDefault) && (
                                 <span className="text-[11px] text-amber-400" aria-hidden>
                                   ★
                                 </span>

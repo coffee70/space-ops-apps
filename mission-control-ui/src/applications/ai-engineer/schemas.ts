@@ -32,9 +32,26 @@ export const ConversationMessageSchema = z
   .object({
     id: z.string(),
     conversation_id: z.string(),
-    role: z.enum(["user", "assistant"]),
+    role: z.enum(["user", "assistant", "tool"]),
     content: z.string(),
+    request_id: z.string().nullable().optional(),
+    agent_run_id: z.string().nullable().optional(),
+    sequence: z.number().nullable().optional(),
     metadata_json: z.record(z.unknown()).optional(),
+    tool_permission_requests: z
+      .array(
+        z
+          .object({
+            permission_request_id: z.string(),
+            tool_call_id: z.string(),
+            tool_name: z.string(),
+            status: z.string(),
+            prompt: z.record(z.unknown()),
+            response: z.record(z.unknown()).nullable().optional(),
+          })
+          .passthrough(),
+      )
+      .optional(),
     created_at: z.string().optional(),
   })
   .passthrough();
@@ -53,6 +70,9 @@ export const ConversationSummarySchema = z
     mission_id: z.string().nullable(),
     vehicle_id: z.string().nullable(),
     execution_mode: ExecutionModeSchema,
+    selected_model_id: z.string().nullable().default(null),
+    title_source: z.enum(["manual", "generated", "initial"]).nullable().default(null),
+    title_model_id: z.string().nullable().default(null),
     created_at: z.string(),
     updated_at: z.string(),
   })
@@ -123,6 +143,11 @@ const ModelOptionSchema = z
 export const ListAiEngineerModelsResponseSchema = z
   .object({
     default_model_id: z.string(),
+    chat_title_generation: z
+      .object({
+        model_id: z.string().nullable(),
+      })
+      .optional(),
     models: z.array(ModelOptionSchema),
     metadata: z
       .object({

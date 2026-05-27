@@ -35,6 +35,7 @@ export function AiEngineerShell({
   conversationListError,
   onNewChat,
   onSelectConversation,
+  onRenameConversation,
   runtimeStatus,
   previewStates,
   isBusyForChange,
@@ -65,6 +66,7 @@ export function AiEngineerShell({
   conversationListError?: string | null;
   onNewChat?: () => void;
   onSelectConversation?: (conversationId: string) => void;
+  onRenameConversation?: (conversationId: string, title: string) => void;
   runtimeStatus?: FrontendRuntimeStatus | null;
   previewStates?: ChangePreviewState[];
   isBusyForChange?: (change: AiEngineerChangeSummary) => boolean;
@@ -89,14 +91,16 @@ export function AiEngineerShell({
           disabled={disabled || isStreaming}
           onNewChat={onNewChat ?? (() => {})}
           onSelectConversation={onSelectConversation ?? (() => {})}
+          onRenameConversation={onRenameConversation ?? (() => {})}
         />
       </aside>
       <main className="bg-background md:border-border relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:border-t">
         <AiEngineerHeader
           title={title}
-          executionMode={executionMode}
           selectedModelName={selectedModelName}
           runtimeStatus={runtimeStatus}
+          messages={messages}
+          events={events}
         />
         <AiEngineerMessages
           messages={messages}

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { getCodeRepositoryReadiness } from "./code-repository-control-panel-section";
-import type { CodeRepositoryStatus } from "@/lib/query-hooks";
+import { shouldPollCodeRepositoryStatus, type CodeRepositoryStatus } from "@/lib/query-hooks";
 
 function buildStatus(overrides: Partial<CodeRepositoryStatus> = {}): CodeRepositoryStatus {
   return {
@@ -40,4 +40,13 @@ test("getCodeRepositoryReadiness maps active and terminal backend states", () =>
   assert.equal(getCodeRepositoryReadiness(buildStatus({ index_status: "indexing", indexed_commit_sha: null })), "indexing");
   assert.equal(getCodeRepositoryReadiness(buildStatus({ index_status: "failed", last_error: "boom" })), "failed");
   assert.equal(getCodeRepositoryReadiness(null), "not-indexed");
+});
+
+test("shouldPollCodeRepositoryStatus follows non-ready repository states", () => {
+  assert.equal(shouldPollCodeRepositoryStatus(buildStatus({ index_status: "queued" })), true);
+  assert.equal(shouldPollCodeRepositoryStatus(buildStatus({ index_status: "indexing" })), true);
+  assert.equal(shouldPollCodeRepositoryStatus(buildStatus({ chunk_count: 0 })), true);
+  assert.equal(shouldPollCodeRepositoryStatus(buildStatus({ indexed_commit_sha: "old" })), true);
+  assert.equal(shouldPollCodeRepositoryStatus(buildStatus()), false);
+  assert.equal(shouldPollCodeRepositoryStatus(buildStatus({ index_status: "failed" })), false);
 });

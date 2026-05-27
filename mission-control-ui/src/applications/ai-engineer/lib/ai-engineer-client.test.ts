@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createConversation, getConversation, listConversations, sendChatMessage, uploadDocument } from "./ai-engineer-client";
+import { createConversation, getConversation, listConversations, sendChatMessage, updateConversation, uploadDocument } from "./ai-engineer-client";
 
 function pathnameOfFetchUrl(url: string): string {
   try {
@@ -167,4 +167,38 @@ test("sendChatMessage forwards an abort signal into fetch", async () => {
   }
 
   assert.equal(capturedSignal, controller.signal);
+});
+
+test("updateConversation sends manual rename as a title patch", async () => {
+  let captured: string | null = null;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
+    captured = typeof init?.body === "string" ? init.body : null;
+    return new Response(
+      JSON.stringify({
+        id: "conversation-1",
+        title: "Manual Mission Name",
+        mission_id: null,
+        vehicle_id: null,
+        execution_mode: "read_only",
+        selected_model_id: null,
+        title_source: "manual",
+        title_model_id: null,
+        created_at: "2026-05-16T00:00:00Z",
+        updated_at: "2026-05-16T00:00:00Z",
+        messages: [],
+        events: [],
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  }) as typeof fetch;
+
+  try {
+    await updateConversation("conversation-1", { title: "Manual Mission Name" });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.ok(captured);
+  assert.deepEqual(JSON.parse(captured!), { title: "Manual Mission Name" });
 });

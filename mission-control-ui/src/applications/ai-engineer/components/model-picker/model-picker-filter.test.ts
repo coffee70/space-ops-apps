@@ -36,7 +36,7 @@ const enabledOpenAi: AiEngineerModelOption = {
   costTier: "$$$",
   speedTier: "balanced",
   reasoningTier: "strong",
-  recommendedFor: ["demo-safe"],
+  recommendedFor: ["fast-chat"],
   metadataSources: ["fallback-pattern"],
 };
 

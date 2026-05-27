@@ -1,13 +1,68 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { MoreHorizontal, Plus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import type { AiEngineerConversationSummary } from "@/applications/ai-engineer/types";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-function getConversationTitle(conversation: AiEngineerConversationSummary) {
-  return conversation.title?.trim() || "Untitled chat";
+export const AI_ENGINEER_FALLBACK_TITLE = "AI Engineer Session";
+
+export function getConversationTitle(conversation: Pick<AiEngineerConversationSummary, "title">) {
+  return conversation.title?.trim() || AI_ENGINEER_FALLBACK_TITLE;
+}
+
+export function shouldAnimateGeneratedTitle(
+  previous: Pick<AiEngineerConversationSummary, "title" | "title_source"> | null,
+  next: Pick<AiEngineerConversationSummary, "title" | "title_source">,
+) {
+  return Boolean(
+    previous &&
+      !previous.title?.trim() &&
+      next.title?.trim() &&
+      previous.title_source !== "generated" &&
+      next.title_source === "generated",
+  );
+}
+
+function AnimatedConversationTitle({ conversation }: { conversation: AiEngineerConversationSummary }) {
+  const title = getConversationTitle(conversation);
+  const previousRef = useRef<Pick<AiEngineerConversationSummary, "title" | "title_source"> | null>(null);
+  const [displayTitle, setDisplayTitle] = useState(title);
+
+  useEffect(() => {
+    const previous = previousRef.current;
+    previousRef.current = { title: conversation.title, title_source: conversation.title_source };
+    if (!shouldAnimateGeneratedTitle(previous, conversation)) {
+      const timeout = window.setTimeout(() => setDisplayTitle(title), 0);
+      return () => window.clearTimeout(timeout);
+    }
+
+    const target = conversation.title?.trim() ?? "";
+    const resetTimeout = window.setTimeout(() => setDisplayTitle(""), 0);
+    let index = 0;
+    const interval = window.setInterval(() => {
+      index += 1;
+      setDisplayTitle(target.slice(0, index));
+      if (index >= target.length) {
+        window.clearInterval(interval);
+      }
+    }, 28);
+
+    return () => {
+      window.clearTimeout(resetTimeout);
+      window.clearInterval(interval);
+    };
+  }, [conversation, title]);
+
+  return <span className="block truncate text-sm font-medium">{displayTitle}</span>;
 }
 
 function formatConversationTime(value: string) {
@@ -29,6 +84,7 @@ export function AiEngineerConversationSidebar({
   disabled = false,
   onNewChat,
   onSelectConversation,
+  onRenameConversation = () => {},
 }: {
   conversations: AiEngineerConversationSummary[];
   activeConversationId: string | null;
@@ -37,7 +93,9 @@ export function AiEngineerConversationSidebar({
   disabled?: boolean;
   onNewChat: () => void;
   onSelectConversation: (conversationId: string) => void;
+  onRenameConversation?: (conversationId: string, title: string) => void;
 }) {
+  const [editing, setEditing] = useState<{ id: string; title: string } | null>(null);
   const showLoading = isLoading && conversations.length === 0;
   const showError = Boolean(error) && conversations.length === 0;
   const showEmpty = !showLoading && !showError && conversations.length === 0;
@@ -82,27 +140,103 @@ export function AiEngineerConversationSidebar({
             {conversations.map((conversation) => {
               const isActive = conversation.id === activeConversationId;
               const formattedTime = formatConversationTime(conversation.updated_at || conversation.created_at);
+              const isEditing = editing?.id === conversation.id;
+              const saveEdit = () => {
+                if (disabled) {
+                  setEditing(null);
+                  return;
+                }
+                const nextTitle = editing?.title.trim();
+                if (nextTitle) onRenameConversation(conversation.id, nextTitle);
+                setEditing(null);
+              };
+              const startRename = () => {
+                if (disabled) return;
+                setEditing({ id: conversation.id, title: getConversationTitle(conversation) });
+              };
               return (
-                <button
+                <div
                   key={conversation.id}
-                  type="button"
                   className={cn(
-                    "group flex w-full items-start gap-2 rounded-md border border-transparent px-2.5 py-2 text-left shadow-xs transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                    "group flex w-full items-start gap-2 rounded-md border border-transparent px-2.5 py-2 text-left shadow-xs transition-colors",
+                    disabled && "cursor-not-allowed opacity-60",
                     isActive
                       ? "border-border bg-accent text-accent-foreground"
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
-                  onClick={() => onSelectConversation(conversation.id)}
-                  disabled={disabled}
+                  role="button"
+                  tabIndex={disabled ? -1 : 0}
+                  onClick={() => {
+                    if (!disabled && !isEditing) onSelectConversation(conversation.id);
+                  }}
+                  onKeyDown={(event) => {
+                    if (!disabled && !isEditing && (event.key === "Enter" || event.key === " ")) {
+                      event.preventDefault();
+                      onSelectConversation(conversation.id);
+                    }
+                  }}
                   aria-current={isActive ? "page" : undefined}
+                  aria-disabled={disabled}
                   data-testid="ai-engineer-conversation-row"
                   data-active={isActive ? "true" : "false"}
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{getConversationTitle(conversation)}</span>
+                    {isEditing ? (
+                      <input
+                        className="bg-background text-foreground ring-ring block w-full rounded-sm px-1 text-sm font-medium ring-1"
+                        value={editing.title}
+                        autoFocus
+                        disabled={disabled}
+                        onChange={(event) => {
+                          if (!disabled) setEditing({ id: conversation.id, title: event.target.value });
+                        }}
+                        onClick={(event) => event.stopPropagation()}
+                        onBlur={saveEdit}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") saveEdit();
+                          if (event.key === "Escape") {
+                            event.stopPropagation();
+                            setEditing(null);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <AnimatedConversationTitle conversation={conversation} />
+                    )}
                     {formattedTime ? <span className="text-muted-foreground block text-xs">{formattedTime}</span> : null}
                   </span>
-                </button>
+                  {!isEditing && !disabled ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          title="Conversation actions"
+                          aria-label={`Actions for ${getConversationTitle(conversation)}`}
+                          className="text-muted-foreground hover:text-foreground flex size-7 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="min-w-32"
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
+                        <DropdownMenuItem
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            startRename();
+                          }}
+                        >
+                          Change name
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : null}
+                </div>
               );
             })}
           </div>

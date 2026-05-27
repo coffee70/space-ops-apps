@@ -45,7 +45,9 @@ export interface ChatMessageToolPermissionPart {
   permissionRequestId: string;
   toolCallId: string;
   toolName: string;
+  status?: string;
   prompt: ToolPermissionPrompt;
+  response?: Record<string, unknown> | null;
 }
 
 export interface ChatMessage {
@@ -54,10 +56,14 @@ export interface ChatMessage {
   content: string;
   status?: "streaming" | "complete";
   createdAt?: string;
+  requestId?: string | null;
+  agentRunId?: string | null;
+  sequence?: number | null;
   attachments?: ChatMessageAttachment[];
   reasoning?: ChatMessageReasoning;
   pendingToolTextBoundary?: boolean;
   part?: ChatMessageToolPermissionPart;
+  parts?: ChatMessageToolPermissionPart[];
 }
 
 export interface ChatEventChunk {
@@ -87,6 +93,9 @@ export interface AiEngineerConversationSummary {
   mission_id: string | null;
   vehicle_id: string | null;
   execution_mode: ExecutionMode;
+  selected_model_id: string | null;
+  title_source: "manual" | "generated" | "initial" | null;
+  title_model_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -94,10 +103,23 @@ export interface AiEngineerConversationSummary {
 export interface AiEngineerConversationMessage {
   id: string;
   conversation_id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "tool";
   content: string;
+  request_id?: string | null;
+  agent_run_id?: string | null;
+  sequence?: number | null;
   metadata_json?: Record<string, unknown>;
+  tool_permission_requests?: AiEngineerConversationMessageToolPermissionRequest[];
   created_at?: string;
+}
+
+export interface AiEngineerConversationMessageToolPermissionRequest {
+  permission_request_id: string;
+  tool_call_id: string;
+  tool_name: string;
+  status: string;
+  prompt: ToolPermissionPrompt;
+  response?: Record<string, unknown> | null;
 }
 
 export interface AiEngineerConversationDetail extends AiEngineerConversationSummary {
@@ -165,6 +187,9 @@ export interface AiEngineerModelOption {
 
 export interface ListAiEngineerModelsResponse {
   default_model_id: string;
+  chat_title_generation?: {
+    model_id: string | null;
+  };
   models: AiEngineerModelOption[];
   metadata: {
     registrySource: "config";

@@ -29,11 +29,11 @@ import {
   useAiEngineerModelsQuery,
   useFrontendRuntimeStatusQuery,
   useCreateAiEngineerConversationMutation,
+  useUpdateAiEngineerConversationMutation,
+  applyAiEngineerGeneratedConversationTitle,
 } from "@/lib/query-hooks";
 import { queryKeys } from "@/lib/query-keys";
 
-const PERMISSION_MESSAGE_PREFIX = "permission-message::";
-const SELECTED_MODEL_STORAGE_KEY = "ai-engineer.selectedModelId";
 const DRAFT_INTENT_STORAGE_KEY = "ai-engineer.openDraft";
 const FRONTEND_RUNTIME_INVALIDATING_EVENT_TYPES = new Set([
   "deployment.requested",
@@ -55,13 +55,8 @@ function shouldInvalidateFrontendRuntimeStatus(event: ChatEvent): boolean {
 function resolveInitialModelId(models: AiEngineerModelOption[], defaultModelId: string): string | null {
   const available = models.filter((m) => m.enabled && m.isAvailable);
   if (available.length === 0) return null;
-  if (typeof window === "undefined") return available[0]?.id ?? null;
-  const stored = localStorage.getItem(SELECTED_MODEL_STORAGE_KEY);
-  if (stored && available.some((m) => m.id === stored)) return stored;
   const def = models.find((m) => m.id === defaultModelId);
   if (def?.enabled && def.isAvailable) return defaultModelId;
-  const demo = available.find((m) => m.recommendedFor.includes("demo-safe"));
-  if (demo) return demo.id;
   return available[0]?.id ?? null;
 }
 
@@ -99,55 +94,30 @@ function mapPersistedReasoning(metadata: Record<string, unknown> | undefined): C
   };
 }
 
-function mapConversationMessagesToChatMessages(messages: AiEngineerConversationMessage[]): ChatMessage[] {
+export function mapConversationMessagesToChatMessages(messages: AiEngineerConversationMessage[]): ChatMessage[] {
   return messages.map((message) => ({
     id: message.id,
     role: message.role,
     content: message.content,
     status: "complete",
     createdAt: message.created_at,
+    requestId: message.request_id ?? null,
+    agentRunId: message.agent_run_id ?? null,
+    sequence: message.sequence ?? null,
     reasoning: message.role === "assistant" ? mapPersistedReasoning(message.metadata_json) : undefined,
+    parts: (message.tool_permission_requests ?? []).map((permission) => ({
+      kind: "tool-permission" as const,
+      permissionRequestId: permission.permission_request_id,
+      toolCallId: permission.tool_call_id,
+      toolName: permission.tool_name,
+      status: permission.status,
+      prompt: permission.prompt,
+      response: permission.response ?? null,
+    })),
   }));
 }
 
-function rebuildAssistantTextFromEvents(message: ChatMessage, events: ChatEvent[]): ChatMessage {
-  if (message.role !== "assistant" || message.part) return message;
-  const relevantEvents = events
-    .filter((event) => event.event_type === "message.delta" || event.event_type.startsWith("tool."))
-    .sort((a, b) => a.sequence - b.sequence);
-  if (!relevantEvents.some((event) => event.event_type === "message.delta")) {
-    return message;
-  }
-  let rebuilt: ChatMessage = { ...message, content: "", pendingToolTextBoundary: false };
-  for (const event of relevantEvents) {
-    rebuilt = applyAgentEventToAssistantMessage([rebuilt], rebuilt.id, event)[0] ?? rebuilt;
-  }
-  return {
-    ...rebuilt,
-    id: message.id,
-    status: message.status,
-    reasoning: message.reasoning,
-  };
-}
-
-function mapConversationMessagesToChatMessagesWithEvents(
-  messages: AiEngineerConversationMessage[],
-  events: ChatEvent[],
-): ChatMessage[] {
-  const eventsByRequest = new Map<string, ChatEvent[]>();
-  for (const event of events) {
-    const existing = eventsByRequest.get(event.request_id) ?? [];
-    existing.push(event);
-    eventsByRequest.set(event.request_id, existing);
-  }
-  return mapConversationMessagesToChatMessages(messages).map((message, index) => {
-    const source = messages[index];
-    const requestId = typeof source?.metadata_json?.request_id === "string" ? source.metadata_json.request_id : null;
-    return requestId ? rebuildAssistantTextFromEvents(message, eventsByRequest.get(requestId) ?? []) : message;
-  });
-}
-
-function permissionMessageFromEvent(event: ChatEvent): ChatMessage | null {
+function permissionPartFromEvent(event: ChatEvent) {
   if (event.event_type !== "tool.permission_required") return null;
   const payload = event.payload;
   const permissionRequestId = typeof payload.permission_request_id === "string" ? payload.permission_request_id : null;
@@ -160,25 +130,30 @@ function permissionMessageFromEvent(event: ChatEvent): ChatMessage | null {
       : {};
   if (!permissionRequestId || !toolCallId) return null;
   return {
-    id: `${PERMISSION_MESSAGE_PREFIX}${permissionRequestId}`,
-    role: "assistant",
-    content: "",
-    status: "complete",
-    part: {
-      kind: "tool-permission",
-      permissionRequestId,
-      toolCallId,
-      toolName,
-      prompt,
-    },
+    kind: "tool-permission" as const,
+    permissionRequestId,
+    toolCallId,
+    toolName,
+    status: typeof payload.status === "string" ? payload.status : "pending",
+    prompt,
   };
 }
 
-function appendPermissionMessage(messages: ChatMessage[], event: ChatEvent): ChatMessage[] {
-  const permissionMessage = permissionMessageFromEvent(event);
-  if (!permissionMessage) return messages;
-  if (messages.some((message) => message.id === permissionMessage.id)) return messages;
-  return [...messages, permissionMessage];
+export function attachLivePermissionPart(messages: ChatMessage[], event: ChatEvent, draftAssistantId: string | null): ChatMessage[] {
+  const part = permissionPartFromEvent(event);
+  if (!part || !draftAssistantId) return messages;
+  const resolvedIndex = messages.findIndex(
+    (message) => message.id === draftAssistantId && message.role === "assistant" && message.status === "streaming",
+  );
+  if (resolvedIndex < 0) {
+    return messages;
+  }
+  return messages.map((message, index) => {
+    if (index !== resolvedIndex) return message;
+    const parts = message.parts ?? (message.part ? [message.part] : []);
+    if (parts.some((existing) => existing.permissionRequestId === part.permissionRequestId)) return message;
+    return { ...message, part: undefined, parts: [...parts, part] };
+  });
 }
 
 type DraftCreationResult = {
@@ -256,6 +231,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const modelsQuery = useAiEngineerModelsQuery();
   const frontendRuntimeStatusQuery = useFrontendRuntimeStatusQuery();
   const createConversationMutation = useCreateAiEngineerConversationMutation();
+  const updateConversationMutation = useUpdateAiEngineerConversationMutation();
   const previewFlow = useChangePreviewFlow({
     onTimelineEvent: (event) => {
       setEvents((previous) => [...previous, event]);
@@ -323,12 +299,11 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const hydratePersistedConversation = useCallback(
     (conversation: AiEngineerConversationDetail) => {
       const persistedEvents = conversationEventsForHydration(conversation);
-      const persistedMessages = persistedEvents.reduce(
-        (current, event) => appendPermissionMessage(current, event),
-        mapConversationMessagesToChatMessagesWithEvents(conversation.messages, persistedEvents),
-      );
+      const persistedMessages = mapConversationMessagesToChatMessages(conversation.messages);
       setMessages(persistedMessages);
       setEvents(persistedEvents);
+      setExecutionMode(conversation.execution_mode);
+      setSelectedModelId(conversation.selected_model_id);
       reset();
       for (const event of persistedEvents) {
         ingestEvent(event);
@@ -393,8 +368,8 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
       const creationPromise = createConversationMutation
         .mutateAsync({
-          title: "AI Engineer Session",
           execution_mode: executionModeRef.current,
+          selected_model_id: selectedModelId,
           initial_message: { role: "user", content: initialContent },
         })
         .then((created) => {
@@ -410,7 +385,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       conversationPromiseRef.current = creationPromise;
       return creationPromise;
     },
-    [createConversationMutation, hydratePersistedConversation, replaceConversationRoute, setActiveConversationId],
+    [createConversationMutation, hydratePersistedConversation, replaceConversationRoute, selectedModelId, setActiveConversationId],
   );
 
   useEffect(() => {
@@ -486,12 +461,17 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
   const handleModelSelect = useCallback((modelId: string) => {
     setSelectedModelId(modelId);
-    try {
-      localStorage.setItem(SELECTED_MODEL_STORAGE_KEY, modelId);
-    } catch {
-      /* ignore quota / privacy mode */
+    if (conversationIdRef.current) {
+      updateConversationMutation.mutate({ conversationId: conversationIdRef.current, patch: { selected_model_id: modelId } });
     }
-  }, []);
+  }, [updateConversationMutation]);
+
+  const handleExecutionModeChange = useCallback((mode: ExecutionMode) => {
+    setExecutionMode(mode);
+    if (conversationIdRef.current) {
+      updateConversationMutation.mutate({ conversationId: conversationIdRef.current, patch: { execution_mode: mode } });
+    }
+  }, [updateConversationMutation]);
 
   const handleNewChat = useCallback(async () => {
     if (isStreaming) return;
@@ -561,11 +541,25 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     if (!isEventForConversation(chunk.event, conversationIdRef.current)) return;
     activeStreamingRunIdRef.current = chunk.event.agent_run_id;
     appendBackendEvent(chunk.event);
+    if (chunk.event.event_type === "conversation.title.generated") {
+      const conversationId = typeof chunk.event.payload.conversation_id === "string" ? chunk.event.payload.conversation_id : null;
+      const title = typeof chunk.event.payload.title === "string" ? chunk.event.payload.title : null;
+      const titleModelId = typeof chunk.event.payload.title_model_id === "string" ? chunk.event.payload.title_model_id : null;
+      if (conversationId && title) {
+        applyAiEngineerGeneratedConversationTitle(queryClient, {
+          conversationId,
+          title,
+          titleModelId,
+          updatedAt: chunk.event.created_at,
+        });
+      }
+      return;
+    }
     if (chunk.event.event_type.startsWith("tool.")) {
       flushPendingMessageDeltasNow();
     }
     if (chunk.event.event_type === "tool.permission_required") {
-      setMessages((previous) => appendPermissionMessage(previous, chunk.event));
+      setMessages((previous) => attachLivePermissionPart(previous, chunk.event, draftAssistantId));
     }
     if (chunk.event.event_type === "message.delta" || chunk.event.event_type === "message.reasoning.delta") {
       scheduleMessageDeltaFlush(draftAssistantId, chunk.event);
@@ -708,7 +702,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       events={events}
       attachments={attachments}
       executionMode={executionMode}
-      onExecutionModeChange={setExecutionMode}
+      onExecutionModeChange={handleExecutionModeChange}
       onSend={onSend}
       disabled={isBootstrapping || isSwitchingConversation}
       isBootstrapping={isBootstrapping}
@@ -726,6 +720,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       conversationListError={conversationListError}
       onNewChat={handleNewChat}
       onSelectConversation={handleSelectConversation}
+      onRenameConversation={(conversationId, title) => updateConversationMutation.mutate({ conversationId, patch: { title } })}
       runtimeStatus={frontendRuntimeStatusQuery.data}
       previewStates={previews}
       isBusyForChange={isBusyForChange}

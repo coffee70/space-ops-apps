@@ -1,12 +1,16 @@
 "use client";
 
-import { FileText, Sparkles } from "lucide-react";
+import { Check, Copy, FileText, Sparkles } from "lucide-react";
+import { useState } from "react";
 
 import { AiEngineerMarkdown } from "@/applications/ai-engineer/components/ai-engineer-markdown";
 import { AiEngineerReasoningPanel } from "@/applications/ai-engineer/components/ai-engineer-reasoning-panel";
 import { ToolPermissionCard } from "@/applications/ai-engineer/components/tool-permission-card";
 import { formatFileSize } from "@/applications/ai-engineer/lib/file-formatting";
+import { copyTextToClipboard } from "@/applications/ai-engineer/lib/transcript";
 import type { ChatEvent, ChatMessage } from "@/applications/ai-engineer/types";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function AssistantAvatar() {
   return (
@@ -33,6 +37,40 @@ function MessageAttachments({ message }: { message: ChatMessage }) {
   );
 }
 
+function AssistantMessageToolbar({
+  copied,
+  onCopy,
+}: {
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  return (
+    <div
+      className="mt-1 flex min-h-7 items-center gap-1"
+      data-testid="ai-engineer-assistant-message-toolbar"
+    >
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-foreground size-7"
+              title="Copy assistant message"
+              onClick={onCopy}
+            >
+              {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+              <span className="sr-only">{copied ? "Copied" : "Copy assistant message"}</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">{copied ? "Copied" : "Copy assistant message"}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </div>
+  );
+}
+
 export interface AiEngineerMessageProps {
   message: ChatMessage;
   events?: ChatEvent[];
@@ -44,6 +82,7 @@ export function AiEngineerMessage({
   events = [],
   compactPermission = false,
 }: AiEngineerMessageProps) {
+  const [copied, setCopied] = useState(false);
   const hasReasoning = Boolean(message.reasoning && message.reasoning.content.trim().length > 0);
   const isEmptyStreamingAssistant =
     message.role === "assistant" &&
@@ -69,19 +108,22 @@ export function AiEngineerMessage({
   }
 
   const permissionPart = message.part?.kind === "tool-permission" ? message.part : undefined;
+  const permissionParts = message.parts ?? (permissionPart ? [permissionPart] : []);
   const isStreamingAssistantWithContent = message.role === "assistant" && message.status === "streaming" && message.content.trim().length > 0;
+
+  const copyMessage = async () => {
+    await copyTextToClipboard(message.content.trim());
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1400);
+  };
 
   return (
     <div className="group/message fade-up w-full" data-role="assistant" data-testid="ai-engineer-message-assistant">
       <div className="flex items-start gap-3">
         <AssistantAvatar />
         <div className="flex min-w-0 flex-1 flex-col gap-2 text-[13px] leading-[1.65]">
-          {permissionPart ? (
-            <div data-testid="ai-engineer-tool-permission-message" data-permission-request-id={permissionPart.permissionRequestId}>
-              <ToolPermissionCard key={permissionPart.permissionRequestId} part={permissionPart} events={events} compact={compactPermission} />
-            </div>
-          ) : (
-            <div data-testid="ai-engineer-assistant-message" className="flex flex-col gap-3">
+          <div data-testid="ai-engineer-assistant-message" className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3" data-testid="ai-engineer-assistant-message-body">
               {message.reasoning ? <AiEngineerReasoningPanel reasoning={message.reasoning} /> : null}
 
               {isEmptyStreamingAssistant ? (
@@ -98,7 +140,13 @@ export function AiEngineerMessage({
                 )
               ) : null}
             </div>
-          )}
+            {message.content.trim().length > 0 ? <AssistantMessageToolbar copied={copied} onCopy={() => void copyMessage()} /> : null}
+            {permissionParts.map((part) => (
+              <div key={part.permissionRequestId} data-testid="ai-engineer-tool-permission-message" data-permission-request-id={part.permissionRequestId}>
+                <ToolPermissionCard part={part} events={events} compact={compactPermission} />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

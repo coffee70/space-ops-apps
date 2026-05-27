@@ -6,6 +6,7 @@ import {
   useQueries,
   useQuery,
   useQueryClient,
+  type QueryClient,
   type UseQueryOptions,
 } from "@tanstack/react-query";
 import {
@@ -13,6 +14,7 @@ import {
   getConversation,
   listConversations,
   listModels,
+  updateConversation,
 } from "@/applications/ai-engineer/lib/ai-engineer-client";
 import type {
   AiEngineerConversationDetail,
@@ -184,6 +186,42 @@ export interface AiEngineerModelConfigDocument {
   validation_errors: AiEngineerModelConfigValidationError[];
 }
 
+export function applyAiEngineerGeneratedConversationTitle(
+  queryClient: QueryClient,
+  input: { conversationId: string; title: string; titleModelId?: string | null; updatedAt?: string },
+) {
+  const updatedAt = input.updatedAt ?? new Date().toISOString();
+  queryClient.setQueryData<AiEngineerConversationDetail>(
+    queryKeys.aiEngineerConversation(input.conversationId),
+    (previous) => {
+      if (!previous) return previous;
+      if (previous.title_source === "manual") return previous;
+
+      return {
+        ...previous,
+        title: input.title,
+        title_source: "generated",
+        title_model_id: input.titleModelId ?? null,
+        updated_at: updatedAt,
+      };
+    },
+  );
+  queryClient.setQueryData<AiEngineerConversationSummary[]>(queryKeys.aiEngineerConversations, (previous) =>
+    (previous ?? []).map((conversation) => {
+      if (conversation.id !== input.conversationId) return conversation;
+      if (conversation.title_source === "manual") return conversation;
+
+      return {
+        ...conversation,
+        title: input.title,
+        title_source: "generated",
+        title_model_id: input.titleModelId ?? null,
+        updated_at: updatedAt,
+      };
+    }),
+  );
+}
+
 export function useAiEngineerConversationsQuery() {
   return useQuery<AiEngineerConversationSummary[]>({
     queryKey: queryKeys.aiEngineerConversations,
@@ -218,10 +256,11 @@ export function useCreateAiEngineerConversationMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: {
-      title?: string;
+      title?: string | null;
       mission_id?: string;
       vehicle_id?: string;
       execution_mode?: ExecutionMode;
+      selected_model_id?: string | null;
       initial_message: { role: "user"; content: string; metadata?: Record<string, unknown> };
     }) => createConversation(payload),
     onSuccess: async (conversation) => {
@@ -234,11 +273,49 @@ export function useCreateAiEngineerConversationMutation() {
           mission_id: conversation.mission_id,
           vehicle_id: conversation.vehicle_id,
           execution_mode: conversation.execution_mode,
+          selected_model_id: conversation.selected_model_id,
+          title_source: conversation.title_source,
+          title_model_id: conversation.title_model_id,
           created_at: conversation.created_at,
           updated_at: conversation.updated_at,
         };
         return [summary, ...withoutCreated];
       });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversations });
+    },
+  });
+}
+
+export function useUpdateAiEngineerConversationMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      conversationId,
+      patch,
+    }: {
+      conversationId: string;
+      patch: { title?: string; execution_mode?: ExecutionMode; selected_model_id?: string | null };
+    }) => updateConversation(conversationId, patch),
+    onSuccess: async (conversation) => {
+      queryClient.setQueryData(queryKeys.aiEngineerConversation(conversation.id), conversation);
+      queryClient.setQueryData<AiEngineerConversationSummary[]>(queryKeys.aiEngineerConversations, (previous) =>
+        (previous ?? []).map((item) =>
+          item.id === conversation.id
+            ? {
+                id: conversation.id,
+                title: conversation.title,
+                mission_id: conversation.mission_id,
+                vehicle_id: conversation.vehicle_id,
+                execution_mode: conversation.execution_mode,
+                selected_model_id: conversation.selected_model_id,
+                title_source: conversation.title_source,
+                title_model_id: conversation.title_model_id,
+                created_at: conversation.created_at,
+                updated_at: conversation.updated_at,
+              }
+            : item,
+        ),
+      );
       await queryClient.invalidateQueries({ queryKey: queryKeys.aiEngineerConversations });
     },
   });
@@ -386,6 +463,16 @@ export interface CodeRepositoryStatusLookupResult {
   branch: string;
   status: CodeRepositoryStatus | null;
   notFound: boolean;
+}
+
+export function shouldPollCodeRepositoryStatus(status: CodeRepositoryStatus | null | undefined): boolean {
+  if (!status) return true;
+  if (status.index_status === "queued" || status.index_status === "indexing" || status.index_status === "not_indexed") return true;
+  if (status.index_status === "ready") {
+    if (status.chunk_count === 0) return true;
+    if (status.indexed_commit_sha && status.current_commit_sha && status.indexed_commit_sha !== status.current_commit_sha) return true;
+  }
+  return false;
 }
 
 export interface SearchResult {
@@ -897,6 +984,9 @@ export function useCodeRepositoryStatusQueries(repositories: readonly { root: st
     queries: repositories.map((repository) => ({
       queryKey: queryKeys.codeRepositoryStatus(repository.root, repository.branch),
       staleTime: 15 * 1000,
+      refetchInterval: (query: { state: { data?: CodeRepositoryStatusLookupResult; error: unknown } }) =>
+        query.state.error ? false : shouldPollCodeRepositoryStatus(query.state.data?.status) ? 2500 : false,
+      refetchIntervalInBackground: false,
       queryFn: async ({ signal }): Promise<CodeRepositoryStatusLookupResult> => {
         try {
           const status = await fetchJson(

@@ -38,6 +38,22 @@ function statusLabel(status: string) {
   return status;
 }
 
+const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  md: "Markdown",
+  markdown: "Markdown",
+  yaml: "YAML",
+  yml: "YAML",
+  json: "JSON",
+  pdf: "PDF",
+  txt: "Text",
+};
+
+export function formatDocumentType(value: string | null | undefined): string {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return "Document";
+  return DOCUMENT_TYPE_LABELS[normalized] ?? normalized.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function StatusIcon({ status }: { status: string }) {
   if (status === "ready") return <CheckCircle2 className="size-3" />;
   if (status === "failed") return <AlertTriangle className="size-3" />;
@@ -110,8 +126,8 @@ export function KnowledgeDocumentCard({
         <div className="min-w-0">
           <CardTitle className="line-clamp-2 text-base leading-6">{document.title}</CardTitle>
           <div className="mt-2 flex flex-wrap gap-2">
-            <Badge variant="secondary" className="capitalize">
-              {document.document_type}
+            <Badge variant="secondary">
+              {formatDocumentType(document.document_type)}
             </Badge>
             {metadata.map((item) => (
               <Badge key={item} variant="outline">

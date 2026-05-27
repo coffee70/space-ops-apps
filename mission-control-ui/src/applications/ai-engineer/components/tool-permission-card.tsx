@@ -46,11 +46,11 @@ function displayStatusFromResponse(response: ToolPermissionStatusResponse): Perm
   return response.status;
 }
 
-const statusLabel: Record<PermissionDisplayStatus, string> = {
+export const statusLabel: Record<PermissionDisplayStatus, string> = {
   checking: "Checking permission...",
   pending: "Pending approval",
   approved: "Approved",
-  executing: "Approved",
+  executing: "Running",
   denied: "Denied",
   completed: "Completed",
   failed: "Failed",
