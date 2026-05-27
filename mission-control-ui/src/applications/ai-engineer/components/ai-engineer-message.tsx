@@ -10,6 +10,7 @@ import { formatFileSize } from "@/applications/ai-engineer/lib/file-formatting";
 import { copyTextToClipboard } from "@/applications/ai-engineer/lib/transcript";
 import type { ChatEvent, ChatMessage } from "@/applications/ai-engineer/types";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function AssistantAvatar() {
   return (
@@ -45,20 +46,27 @@ function AssistantMessageToolbar({
 }) {
   return (
     <div
-      className="mt-1 flex min-h-7 items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100"
+      className="mt-1 flex min-h-7 items-center gap-1"
       data-testid="ai-engineer-assistant-message-toolbar"
     >
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="text-muted-foreground hover:text-foreground h-7 gap-1.5 px-2 text-[11px]"
-        title="Copy assistant message"
-        onClick={onCopy}
-      >
-        {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-        <span>{copied ? "Copied" : "Copy"}</span>
-      </Button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-foreground size-7"
+              title="Copy assistant message"
+              onClick={onCopy}
+            >
+              {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+              <span className="sr-only">{copied ? "Copied" : "Copy assistant message"}</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">{copied ? "Copied" : "Copy assistant message"}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 }

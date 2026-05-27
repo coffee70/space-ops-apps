@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -66,9 +67,53 @@ test("AiEngineerMessage renders streaming assistant content instead of thinking 
   assert.match(markup, /Runtime response/);
   assert.match(markup, /ai-engineer-streaming-assistant/);
   assert.match(markup, /data-testid="ai-engineer-assistant-message-toolbar"/);
-  assert.match(markup, />Copy</);
+  assert.match(markup, /sr-only/);
+  assert.match(markup, /Copy assistant message/);
+  assert.doesNotMatch(markup, />Copy</);
   assert.doesNotMatch(markup, /Thinking\.\.\./);
   assert.doesNotMatch(markup, /absolute -top-1 -right-8/);
+});
+
+test("AiEngineerMessage renders a persistent transparent assistant toolbar for assistant content", () => {
+  const markup = renderToStaticMarkup(
+    <AiEngineerMessage message={{ id: "m1", role: "assistant", content: "Final response", status: "complete" }} />,
+  );
+  const source = readFileSync(new URL("./ai-engineer-message.tsx", import.meta.url), "utf8");
+
+  const toolbarMatch = markup.match(/<div[^>]*data-testid="ai-engineer-assistant-message-toolbar"[^>]*>/);
+  assert.ok(toolbarMatch);
+
+  const toolbarClasses = source.match(/className="([^"]+)"\s+data-testid="ai-engineer-assistant-message-toolbar"/)?.[1];
+  assert.ok(toolbarClasses);
+  assert.doesNotMatch(toolbarClasses, /opacity-0/);
+  assert.doesNotMatch(toolbarClasses, /group-hover\/message:opacity-100/);
+  assert.doesNotMatch(toolbarClasses, /\bbg-[^ ]*/);
+  assert.doesNotMatch(toolbarClasses, /\bborder[^ ]*/);
+  assert.doesNotMatch(toolbarClasses, /\bshadow[^ ]*/);
+  assert.doesNotMatch(toolbarClasses, /\brounded[^ ]*/);
+});
+
+test("AiEngineerMessage does not render the assistant toolbar for user or tool messages", () => {
+  const userMarkup = renderToStaticMarkup(
+    <AiEngineerMessage message={{ id: "m1", role: "user", content: "User text", status: "complete" }} />,
+  );
+  const toolMarkup = renderToStaticMarkup(
+    <AiEngineerMessage message={{ id: "m1", role: "tool", content: "Tool output", status: "complete" }} />,
+  );
+
+  assert.doesNotMatch(userMarkup, /data-testid="ai-engineer-assistant-message-toolbar"/);
+  assert.doesNotMatch(toolMarkup, /data-testid="ai-engineer-assistant-message-toolbar"/);
+});
+
+test("AiEngineerMessage uses the repo tooltip primitive for the icon-only copy action", () => {
+  const source = readFileSync(new URL("./ai-engineer-message.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /from "@\/components\/ui\/tooltip"/);
+  assert.match(source, /<TooltipProvider>/);
+  assert.match(source, /<Tooltip>/);
+  assert.match(source, /<TooltipTrigger asChild>/);
+  assert.match(source, /<TooltipContent side="top">/);
+  assert.match(source, /className="sr-only"/);
 });
 
 test("AiEngineerMessage separates reasoning and response with a vertical gap container", () => {

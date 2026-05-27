@@ -29,3 +29,22 @@ test("AiEngineerHeader exposes both copy options through the dropdown menu imple
   assert.match(source, /Copy chat/);
   assert.match(source, /Copy chat with tool summaries/);
 });
+
+test("AiEngineerHeader places chat actions last in the right-side toolbar order", () => {
+  const source = readFileSync(new URL("./ai-engineer-header.tsx", import.meta.url), "utf8");
+
+  const toolbarStart = source.indexOf('<div className="flex items-center gap-2">');
+  const operationIndex = source.indexOf("<AiEngineerOperationStatusPill", toolbarStart);
+  const shieldIndex = source.indexOf("<ShieldCheck", toolbarStart);
+  const statusIndex = source.indexOf("<AiEngineerStatusPill", toolbarStart);
+  const dropdownIndex = source.indexOf("<DropdownMenu>", toolbarStart);
+
+  assert.notEqual(toolbarStart, -1);
+  assert.notEqual(operationIndex, -1);
+  assert.notEqual(shieldIndex, -1);
+  assert.notEqual(statusIndex, -1);
+  assert.notEqual(dropdownIndex, -1);
+  assert.ok(operationIndex < shieldIndex);
+  assert.ok(shieldIndex < statusIndex);
+  assert.ok(statusIndex < dropdownIndex);
+});

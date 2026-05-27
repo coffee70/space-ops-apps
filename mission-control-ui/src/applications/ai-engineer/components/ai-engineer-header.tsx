@@ -59,6 +59,9 @@ export function AiEngineerHeader({
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <AiEngineerOperationStatusPill runtimeStatus={runtimeStatus} />
+        <ShieldCheck className="text-muted-foreground hidden size-3.5 sm:block" aria-hidden="true" />
+        <AiEngineerStatusPill status={executionMode === "execute" ? "running" : "info"} label={modeLabel[executionMode]} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -81,9 +84,6 @@ export function AiEngineerHeader({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <AiEngineerOperationStatusPill runtimeStatus={runtimeStatus} />
-        <ShieldCheck className="text-muted-foreground hidden size-3.5 sm:block" aria-hidden="true" />
-        <AiEngineerStatusPill status={executionMode === "execute" ? "running" : "info"} label={modeLabel[executionMode]} />
       </div>
     </div>
   );
