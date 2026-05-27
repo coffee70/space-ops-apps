@@ -93,7 +93,7 @@ function mapPersistedReasoning(metadata: Record<string, unknown> | undefined): C
   };
 }
 
-function mapConversationMessagesToChatMessages(messages: AiEngineerConversationMessage[]): ChatMessage[] {
+export function mapConversationMessagesToChatMessages(messages: AiEngineerConversationMessage[]): ChatMessage[] {
   return messages.map((message) => ({
     id: message.id,
     role: message.role,
@@ -111,48 +111,6 @@ function mapConversationMessagesToChatMessages(messages: AiEngineerConversationM
       response: permission.response ?? null,
     })),
   }));
-}
-
-function rebuildAssistantTextFromEvents(message: ChatMessage, events: ChatEvent[]): ChatMessage {
-  if (message.role !== "assistant") return message;
-  const relevantEvents = events
-    .filter((event) => event.event_type === "message.delta" || event.event_type.startsWith("tool."))
-    .sort((a, b) => a.sequence - b.sequence);
-  if (!relevantEvents.some((event) => event.event_type === "message.delta")) {
-    return message;
-  }
-  let rebuilt: ChatMessage = { ...message, content: "", pendingToolTextBoundary: false };
-  for (const event of relevantEvents) {
-    rebuilt = applyAgentEventToAssistantMessage([rebuilt], rebuilt.id, event)[0] ?? rebuilt;
-  }
-  return {
-    ...rebuilt,
-    id: message.id,
-    status: message.status,
-    reasoning: message.reasoning,
-  };
-}
-
-export function mapConversationMessagesToChatMessagesWithEvents(
-  messages: AiEngineerConversationMessage[],
-  events: ChatEvent[],
-): ChatMessage[] {
-  const eventsByRequest = new Map<string, ChatEvent[]>();
-  for (const event of events) {
-    const existing = eventsByRequest.get(event.request_id) ?? [];
-    existing.push(event);
-    eventsByRequest.set(event.request_id, existing);
-  }
-  return mapConversationMessagesToChatMessages(messages).map((message, index) => {
-    const source = messages[index];
-    const requestId =
-      typeof source?.request_id === "string"
-        ? source.request_id
-        : typeof source?.metadata_json?.request_id === "string"
-          ? source.metadata_json.request_id
-          : null;
-    return requestId ? rebuildAssistantTextFromEvents(message, eventsByRequest.get(requestId) ?? []) : message;
-  });
 }
 
 function permissionPartFromEvent(event: ChatEvent) {
@@ -337,7 +295,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
   const hydratePersistedConversation = useCallback(
     (conversation: AiEngineerConversationDetail) => {
       const persistedEvents = conversationEventsForHydration(conversation);
-      const persistedMessages = mapConversationMessagesToChatMessagesWithEvents(conversation.messages, persistedEvents);
+      const persistedMessages = mapConversationMessagesToChatMessages(conversation.messages);
       setMessages(persistedMessages);
       setEvents(persistedEvents);
       setExecutionMode(conversation.execution_mode);
