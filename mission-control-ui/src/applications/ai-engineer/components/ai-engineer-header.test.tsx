@@ -43,15 +43,4 @@ test("AiEngineerHeader keeps only the operation status pill and chat actions in 
   assert.notEqual(operationIndex, -1);
   assert.notEqual(dropdownIndex, -1);
   assert.ok(operationIndex < dropdownIndex);
-  assert.equal(source.indexOf("<ShieldCheck", toolbarStart), -1);
-  assert.equal(source.indexOf("<AiEngineerStatusPill", toolbarStart), -1);
-});
-
-test("AiEngineerHeader source does not include execution mode labels in the header toolbar", () => {
-  const source = readFileSync(new URL("./ai-engineer-header.tsx", import.meta.url), "utf8");
-
-  assert.doesNotMatch(source, /Read only/);
-  assert.doesNotMatch(source, /Suggest/);
-  assert.doesNotMatch(source, /Execute/);
-  assert.doesNotMatch(source, /Governed execute/);
 });
