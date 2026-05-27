@@ -6,6 +6,7 @@ import { useState } from "react";
 import { AiEngineerOperationStatusPill } from "@/applications/ai-engineer/components/ai-engineer-operation-status-pill";
 import { AiEngineerStatusPill } from "@/applications/ai-engineer/components/ai-engineer-status-pill";
 import { copyTextToClipboard, serializeAiEngineerTranscript } from "@/applications/ai-engineer/lib/transcript";
+import type { TranscriptMode } from "@/applications/ai-engineer/lib/transcript";
 import type { ChatEvent, ChatMessage, ExecutionMode } from "@/applications/ai-engineer/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,10 +39,10 @@ export function AiEngineerHeader({
   messages?: ChatMessage[];
   events?: ChatEvent[];
 }) {
-  const [copied, setCopied] = useState<"messages" | "tools" | null>(null);
-  const copyTranscript = async (mode: "messages-only" | "include-tools") => {
+  const [copied, setCopied] = useState<"messages" | "tools" | "debug" | null>(null);
+  const copyTranscript = async (mode: TranscriptMode) => {
     await copyTextToClipboard(serializeAiEngineerTranscript(messages ?? [], events ?? [], mode));
-    setCopied(mode === "include-tools" ? "tools" : "messages");
+    setCopied(mode === "debug-trace" ? "debug" : mode === "include-tools" ? "tools" : "messages");
     window.setTimeout(() => setCopied(null), 1400);
   };
 
@@ -81,6 +82,9 @@ export function AiEngineerHeader({
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => void copyTranscript("include-tools")}>
               {copied === "tools" ? "Copied chat with tool summaries" : "Copy chat with tool summaries"}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => void copyTranscript("debug-trace")}>
+              {copied === "debug" ? "Copied debug trace" : "Copy debug trace"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

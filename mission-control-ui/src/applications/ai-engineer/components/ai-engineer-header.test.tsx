@@ -20,7 +20,7 @@ test("AiEngineerHeader renders a single chat actions trigger instead of two copy
   assert.doesNotMatch(markup, /aria-label="Copy chat with tool summaries"/);
 });
 
-test("AiEngineerHeader exposes both copy options through the dropdown menu implementation", () => {
+test("AiEngineerHeader exposes all three copy options through the dropdown menu implementation", () => {
   const source = readFileSync(new URL("./ai-engineer-header.tsx", import.meta.url), "utf8");
 
   assert.match(source, /DropdownMenuTrigger/);
@@ -28,6 +28,9 @@ test("AiEngineerHeader exposes both copy options through the dropdown menu imple
   assert.match(source, /title="Chat actions"/);
   assert.match(source, /Copy chat/);
   assert.match(source, /Copy chat with tool summaries/);
+  assert.match(source, /Copy debug trace/);
+  assert.match(source, /Copied debug trace/);
+  assert.match(source, /useState<"messages" \| "tools" \| "debug" \| null>/);
 });
 
 test("AiEngineerHeader places chat actions last in the right-side toolbar order", () => {

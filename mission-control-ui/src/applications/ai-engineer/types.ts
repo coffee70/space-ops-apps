@@ -56,6 +56,9 @@ export interface ChatMessage {
   content: string;
   status?: "streaming" | "complete";
   createdAt?: string;
+  requestId?: string | null;
+  agentRunId?: string | null;
+  sequence?: number | null;
   attachments?: ChatMessageAttachment[];
   reasoning?: ChatMessageReasoning;
   pendingToolTextBoundary?: boolean;

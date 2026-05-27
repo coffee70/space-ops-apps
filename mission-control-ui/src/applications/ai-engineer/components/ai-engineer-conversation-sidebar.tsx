@@ -41,12 +41,12 @@ function AnimatedConversationTitle({ conversation }: { conversation: AiEngineerC
     const previous = previousRef.current;
     previousRef.current = { title: conversation.title, title_source: conversation.title_source };
     if (!shouldAnimateGeneratedTitle(previous, conversation)) {
-      setDisplayTitle(title);
-      return;
+      const timeout = window.setTimeout(() => setDisplayTitle(title), 0);
+      return () => window.clearTimeout(timeout);
     }
 
     const target = conversation.title?.trim() ?? "";
-    setDisplayTitle("");
+    const resetTimeout = window.setTimeout(() => setDisplayTitle(""), 0);
     let index = 0;
     const interval = window.setInterval(() => {
       index += 1;
@@ -56,7 +56,10 @@ function AnimatedConversationTitle({ conversation }: { conversation: AiEngineerC
       }
     }, 28);
 
-    return () => window.clearInterval(interval);
+    return () => {
+      window.clearTimeout(resetTimeout);
+      window.clearInterval(interval);
+    };
   }, [conversation, title]);
 
   return <span className="block truncate text-sm font-medium">{displayTitle}</span>;

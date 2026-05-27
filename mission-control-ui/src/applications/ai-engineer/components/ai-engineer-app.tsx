@@ -101,6 +101,9 @@ export function mapConversationMessagesToChatMessages(messages: AiEngineerConver
     content: message.content,
     status: "complete",
     createdAt: message.created_at,
+    requestId: message.request_id ?? null,
+    agentRunId: message.agent_run_id ?? null,
+    sequence: message.sequence ?? null,
     reasoning: message.role === "assistant" ? mapPersistedReasoning(message.metadata_json) : undefined,
     parts: (message.tool_permission_requests ?? []).map((permission) => ({
       kind: "tool-permission" as const,
