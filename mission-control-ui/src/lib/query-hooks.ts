@@ -191,29 +191,34 @@ export function applyAiEngineerGeneratedConversationTitle(
   input: { conversationId: string; title: string; titleModelId?: string | null; updatedAt?: string },
 ) {
   const updatedAt = input.updatedAt ?? new Date().toISOString();
-  queryClient.setQueryData<AiEngineerConversationDetail>(queryKeys.aiEngineerConversation(input.conversationId), (previous) =>
-    previous
-      ? {
-          ...previous,
-          title: input.title,
-          title_source: "generated",
-          title_model_id: input.titleModelId ?? null,
-          updated_at: updatedAt,
-        }
-      : previous,
+  queryClient.setQueryData<AiEngineerConversationDetail>(
+    queryKeys.aiEngineerConversation(input.conversationId),
+    (previous) => {
+      if (!previous) return previous;
+      if (previous.title_source === "manual") return previous;
+
+      return {
+        ...previous,
+        title: input.title,
+        title_source: "generated",
+        title_model_id: input.titleModelId ?? null,
+        updated_at: updatedAt,
+      };
+    },
   );
   queryClient.setQueryData<AiEngineerConversationSummary[]>(queryKeys.aiEngineerConversations, (previous) =>
-    (previous ?? []).map((conversation) =>
-      conversation.id === input.conversationId
-        ? {
-            ...conversation,
-            title: input.title,
-            title_source: "generated",
-            title_model_id: input.titleModelId ?? null,
-            updated_at: updatedAt,
-          }
-        : conversation,
-    ),
+    (previous ?? []).map((conversation) => {
+      if (conversation.id !== input.conversationId) return conversation;
+      if (conversation.title_source === "manual") return conversation;
+
+      return {
+        ...conversation,
+        title: input.title,
+        title_source: "generated",
+        title_model_id: input.titleModelId ?? null,
+        updated_at: updatedAt,
+      };
+    }),
   );
 }
 
