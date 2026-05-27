@@ -3,13 +3,18 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { AiEngineerConversationSidebar } from "./ai-engineer-conversation-sidebar";
+import {
+  AI_ENGINEER_FALLBACK_TITLE,
+  AiEngineerConversationSidebar,
+  getConversationTitle,
+  shouldAnimateGeneratedTitle,
+} from "./ai-engineer-conversation-sidebar";
 import type { AiEngineerConversationSummary } from "@/applications/ai-engineer/types";
 
 function buildConversation(input: Partial<AiEngineerConversationSummary> & { id: string }): AiEngineerConversationSummary {
   return {
     id: input.id,
-    title: input.title ?? "AI Engineer Session",
+    title: "title" in input ? (input.title ?? null) : "AI Engineer Session",
     mission_id: input.mission_id ?? null,
     vehicle_id: input.vehicle_id ?? null,
     execution_mode: input.execution_mode ?? "read_only",
@@ -48,6 +53,47 @@ test("AiEngineerConversationSidebar renders recent conversations and highlights 
   assert.match(markup, /text-accent-foreground/);
   assert.match(markup, /hover:bg-accent/);
   assert.match(markup, /Conversation actions/);
+});
+
+test("AiEngineerConversationSidebar displays the AI Engineer fallback for null and empty titles", () => {
+  const markup = renderToStaticMarkup(
+    <AiEngineerConversationSidebar
+      conversations={[
+        buildConversation({ id: "conversation-1", title: null }),
+        buildConversation({ id: "conversation-2", title: "   " }),
+      ]}
+      activeConversationId="conversation-1"
+      isLoading={false}
+      error={null}
+      onNewChat={() => {}}
+      onSelectConversation={() => {}}
+    />,
+  );
+
+  assert.equal(getConversationTitle({ title: null }), AI_ENGINEER_FALLBACK_TITLE);
+  assert.match(markup, /AI Engineer Session/);
+  assert.doesNotMatch(markup, /Untitled chat/);
+});
+
+test("generated title animation is limited to fallback-to-generated transitions", () => {
+  assert.equal(
+    shouldAnimateGeneratedTitle(
+      { title: null, title_source: "initial" },
+      { title: "Thermal Drift Review", title_source: "generated" },
+    ),
+    true,
+  );
+  assert.equal(
+    shouldAnimateGeneratedTitle(
+      { title: "Manual Name", title_source: "manual" },
+      { title: "Manual Rename", title_source: "manual" },
+    ),
+    false,
+  );
+  assert.equal(
+    shouldAnimateGeneratedTitle(null, { title: "Thermal Drift Review", title_source: "generated" }),
+    false,
+  );
 });
 
 test("AiEngineerConversationSidebar renders empty, loading, error, and disabled states", () => {

@@ -30,6 +30,7 @@ import {
   useFrontendRuntimeStatusQuery,
   useCreateAiEngineerConversationMutation,
   useUpdateAiEngineerConversationMutation,
+  applyAiEngineerGeneratedConversationTitle,
 } from "@/lib/query-hooks";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -364,7 +365,6 @@ export function AiEngineerApp(props: NativeApplicationProps) {
 
       const creationPromise = createConversationMutation
         .mutateAsync({
-          title: "AI Engineer Session",
           execution_mode: executionModeRef.current,
           selected_model_id: selectedModelId,
           initial_message: { role: "user", content: initialContent },
@@ -538,6 +538,20 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     if (!isEventForConversation(chunk.event, conversationIdRef.current)) return;
     activeStreamingRunIdRef.current = chunk.event.agent_run_id;
     appendBackendEvent(chunk.event);
+    if (chunk.event.event_type === "conversation.title.generated") {
+      const conversationId = typeof chunk.event.payload.conversation_id === "string" ? chunk.event.payload.conversation_id : null;
+      const title = typeof chunk.event.payload.title === "string" ? chunk.event.payload.title : null;
+      const titleModelId = typeof chunk.event.payload.title_model_id === "string" ? chunk.event.payload.title_model_id : null;
+      if (conversationId && title) {
+        applyAiEngineerGeneratedConversationTitle(queryClient, {
+          conversationId,
+          title,
+          titleModelId,
+          updatedAt: chunk.event.created_at,
+        });
+      }
+      return;
+    }
     if (chunk.event.event_type.startsWith("tool.")) {
       flushPendingMessageDeltasNow();
     }

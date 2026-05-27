@@ -61,7 +61,7 @@ export async function listModels(): Promise<ListAiEngineerModelsResponse> {
 }
 
 export async function createConversation(payload: {
-  title?: string;
+  title?: string | null;
   mission_id?: string;
   vehicle_id?: string;
   execution_mode?: string;

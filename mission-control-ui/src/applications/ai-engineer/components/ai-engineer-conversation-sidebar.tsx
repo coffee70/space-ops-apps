@@ -1,7 +1,7 @@
 "use client";
 
 import { MoreHorizontal, Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { AiEngineerConversationSummary } from "@/applications/ai-engineer/types";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,53 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-function getConversationTitle(conversation: AiEngineerConversationSummary) {
-  return conversation.title?.trim() || "Untitled chat";
+export const AI_ENGINEER_FALLBACK_TITLE = "AI Engineer Session";
+
+export function getConversationTitle(conversation: Pick<AiEngineerConversationSummary, "title">) {
+  return conversation.title?.trim() || AI_ENGINEER_FALLBACK_TITLE;
+}
+
+export function shouldAnimateGeneratedTitle(
+  previous: Pick<AiEngineerConversationSummary, "title" | "title_source"> | null,
+  next: Pick<AiEngineerConversationSummary, "title" | "title_source">,
+) {
+  return Boolean(
+    previous &&
+      !previous.title?.trim() &&
+      next.title?.trim() &&
+      previous.title_source !== "generated" &&
+      next.title_source === "generated",
+  );
+}
+
+function AnimatedConversationTitle({ conversation }: { conversation: AiEngineerConversationSummary }) {
+  const title = getConversationTitle(conversation);
+  const previousRef = useRef<Pick<AiEngineerConversationSummary, "title" | "title_source"> | null>(null);
+  const [displayTitle, setDisplayTitle] = useState(title);
+
+  useEffect(() => {
+    const previous = previousRef.current;
+    previousRef.current = { title: conversation.title, title_source: conversation.title_source };
+    if (!shouldAnimateGeneratedTitle(previous, conversation)) {
+      setDisplayTitle(title);
+      return;
+    }
+
+    const target = conversation.title?.trim() ?? "";
+    setDisplayTitle("");
+    let index = 0;
+    const interval = window.setInterval(() => {
+      index += 1;
+      setDisplayTitle(target.slice(0, index));
+      if (index >= target.length) {
+        window.clearInterval(interval);
+      }
+    }, 28);
+
+    return () => window.clearInterval(interval);
+  }, [conversation, title]);
+
+  return <span className="block truncate text-sm font-medium">{displayTitle}</span>;
 }
 
 function formatConversationTime(value: string) {
@@ -153,7 +198,7 @@ export function AiEngineerConversationSidebar({
                         }}
                       />
                     ) : (
-                      <span className="block truncate text-sm font-medium">{getConversationTitle(conversation)}</span>
+                      <AnimatedConversationTitle conversation={conversation} />
                     )}
                     {formattedTime ? <span className="text-muted-foreground block text-xs">{formattedTime}</span> : null}
                   </span>

@@ -6,6 +6,7 @@ import {
   useQueries,
   useQuery,
   useQueryClient,
+  type QueryClient,
   type UseQueryOptions,
 } from "@tanstack/react-query";
 import {
@@ -185,6 +186,37 @@ export interface AiEngineerModelConfigDocument {
   validation_errors: AiEngineerModelConfigValidationError[];
 }
 
+export function applyAiEngineerGeneratedConversationTitle(
+  queryClient: QueryClient,
+  input: { conversationId: string; title: string; titleModelId?: string | null; updatedAt?: string },
+) {
+  const updatedAt = input.updatedAt ?? new Date().toISOString();
+  queryClient.setQueryData<AiEngineerConversationDetail>(queryKeys.aiEngineerConversation(input.conversationId), (previous) =>
+    previous
+      ? {
+          ...previous,
+          title: input.title,
+          title_source: "generated",
+          title_model_id: input.titleModelId ?? null,
+          updated_at: updatedAt,
+        }
+      : previous,
+  );
+  queryClient.setQueryData<AiEngineerConversationSummary[]>(queryKeys.aiEngineerConversations, (previous) =>
+    (previous ?? []).map((conversation) =>
+      conversation.id === input.conversationId
+        ? {
+            ...conversation,
+            title: input.title,
+            title_source: "generated",
+            title_model_id: input.titleModelId ?? null,
+            updated_at: updatedAt,
+          }
+        : conversation,
+    ),
+  );
+}
+
 export function useAiEngineerConversationsQuery() {
   return useQuery<AiEngineerConversationSummary[]>({
     queryKey: queryKeys.aiEngineerConversations,
@@ -219,7 +251,7 @@ export function useCreateAiEngineerConversationMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: {
-      title?: string;
+      title?: string | null;
       mission_id?: string;
       vehicle_id?: string;
       execution_mode?: ExecutionMode;
