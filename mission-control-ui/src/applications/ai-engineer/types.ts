@@ -184,6 +184,9 @@ export interface AiEngineerModelOption {
 
 export interface ListAiEngineerModelsResponse {
   default_model_id: string;
+  chat_title_generation?: {
+    model_id: string | null;
+  };
   models: AiEngineerModelOption[];
   metadata: {
     registrySource: "config";

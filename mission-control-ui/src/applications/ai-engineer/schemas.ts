@@ -143,6 +143,11 @@ const ModelOptionSchema = z
 export const ListAiEngineerModelsResponseSchema = z
   .object({
     default_model_id: z.string(),
+    chat_title_generation: z
+      .object({
+        model_id: z.string().nullable(),
+      })
+      .optional(),
     models: z.array(ModelOptionSchema),
     metadata: z
       .object({
