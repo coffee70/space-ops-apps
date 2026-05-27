@@ -97,7 +97,6 @@ export function AiEngineerShell({
       <main className="bg-background md:border-border relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:border-t">
         <AiEngineerHeader
           title={title}
-          executionMode={executionMode}
           selectedModelName={selectedModelName}
           runtimeStatus={runtimeStatus}
           messages={messages}

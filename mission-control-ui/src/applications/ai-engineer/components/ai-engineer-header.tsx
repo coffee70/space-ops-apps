@@ -1,13 +1,12 @@
 "use client";
 
-import { Check, MoreHorizontal, ShieldCheck, Sparkles } from "lucide-react";
+import { Check, MoreHorizontal, Sparkles } from "lucide-react";
 import { useState } from "react";
 
 import { AiEngineerOperationStatusPill } from "@/applications/ai-engineer/components/ai-engineer-operation-status-pill";
-import { AiEngineerStatusPill } from "@/applications/ai-engineer/components/ai-engineer-status-pill";
 import { copyTextToClipboard, serializeAiEngineerTranscript } from "@/applications/ai-engineer/lib/transcript";
 import type { TranscriptMode } from "@/applications/ai-engineer/lib/transcript";
-import type { ChatEvent, ChatMessage, ExecutionMode } from "@/applications/ai-engineer/types";
+import type { ChatEvent, ChatMessage } from "@/applications/ai-engineer/types";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,23 +16,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { FrontendRuntimeStatus } from "@/lib/ui-boundary-schemas";
 
-const modeLabel: Record<ExecutionMode, string> = {
-  read_only: "Read only",
-  suggest: "Suggest",
-  execute: "Execute",
-  governed_execute: "Governed execute",
-};
-
 export function AiEngineerHeader({
   title,
-  executionMode,
   selectedModelName,
   runtimeStatus,
   messages,
   events,
 }: {
   title: string;
-  executionMode: ExecutionMode;
   selectedModelName?: string | null;
   runtimeStatus?: FrontendRuntimeStatus | null;
   messages?: ChatMessage[];
@@ -61,8 +51,6 @@ export function AiEngineerHeader({
       </div>
       <div className="flex items-center gap-2">
         <AiEngineerOperationStatusPill runtimeStatus={runtimeStatus} />
-        <ShieldCheck className="text-muted-foreground hidden size-3.5 sm:block" aria-hidden="true" />
-        <AiEngineerStatusPill status={executionMode === "execute" ? "running" : "info"} label={modeLabel[executionMode]} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

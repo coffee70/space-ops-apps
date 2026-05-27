@@ -9,7 +9,6 @@ test("AiEngineerHeader renders a single chat actions trigger instead of two copy
   const markup = renderToStaticMarkup(
     <AiEngineerHeader
       title="AI Engineer"
-      executionMode="read_only"
       messages={[]}
       events={[]}
     />,
@@ -33,21 +32,26 @@ test("AiEngineerHeader exposes all three copy options through the dropdown menu 
   assert.match(source, /useState<"messages" \| "tools" \| "debug" \| null>/);
 });
 
-test("AiEngineerHeader places chat actions last in the right-side toolbar order", () => {
+test("AiEngineerHeader keeps only the operation status pill and chat actions in the right-side toolbar", () => {
   const source = readFileSync(new URL("./ai-engineer-header.tsx", import.meta.url), "utf8");
 
   const toolbarStart = source.indexOf('<div className="flex items-center gap-2">');
   const operationIndex = source.indexOf("<AiEngineerOperationStatusPill", toolbarStart);
-  const shieldIndex = source.indexOf("<ShieldCheck", toolbarStart);
-  const statusIndex = source.indexOf("<AiEngineerStatusPill", toolbarStart);
   const dropdownIndex = source.indexOf("<DropdownMenu>", toolbarStart);
 
   assert.notEqual(toolbarStart, -1);
   assert.notEqual(operationIndex, -1);
-  assert.notEqual(shieldIndex, -1);
-  assert.notEqual(statusIndex, -1);
   assert.notEqual(dropdownIndex, -1);
-  assert.ok(operationIndex < shieldIndex);
-  assert.ok(shieldIndex < statusIndex);
-  assert.ok(statusIndex < dropdownIndex);
+  assert.ok(operationIndex < dropdownIndex);
+  assert.equal(source.indexOf("<ShieldCheck", toolbarStart), -1);
+  assert.equal(source.indexOf("<AiEngineerStatusPill", toolbarStart), -1);
+});
+
+test("AiEngineerHeader source does not include execution mode labels in the header toolbar", () => {
+  const source = readFileSync(new URL("./ai-engineer-header.tsx", import.meta.url), "utf8");
+
+  assert.doesNotMatch(source, /Read only/);
+  assert.doesNotMatch(source, /Suggest/);
+  assert.doesNotMatch(source, /Execute/);
+  assert.doesNotMatch(source, /Governed execute/);
 });
