@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, Files, ShieldCheck, Sparkles } from "lucide-react";
+import { Check, MoreHorizontal, ShieldCheck, Sparkles } from "lucide-react";
 import { useState } from "react";
 
 import { AiEngineerOperationStatusPill } from "@/applications/ai-engineer/components/ai-engineer-operation-status-pill";
@@ -8,6 +8,12 @@ import { AiEngineerStatusPill } from "@/applications/ai-engineer/components/ai-e
 import { copyTextToClipboard, serializeAiEngineerTranscript } from "@/applications/ai-engineer/lib/transcript";
 import type { ChatEvent, ChatMessage, ExecutionMode } from "@/applications/ai-engineer/types";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { FrontendRuntimeStatus } from "@/lib/ui-boundary-schemas";
 
 const modeLabel: Record<ExecutionMode, string> = {
@@ -53,14 +59,28 @@ export function AiEngineerHeader({
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Button type="button" variant="ghost" size="icon" className="size-8" title="Copy chat" onClick={() => void copyTranscript("messages-only")}>
-          {copied === "messages" ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-          <span className="sr-only">Copy chat</span>
-        </Button>
-        <Button type="button" variant="ghost" size="icon" className="size-8" title="Copy chat with tool summaries" onClick={() => void copyTranscript("include-tools")}>
-          {copied === "tools" ? <Check className="size-3.5" /> : <Files className="size-3.5" />}
-          <span className="sr-only">Copy chat with tool summaries</span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              title="Chat actions"
+              aria-label="Chat actions"
+            >
+              {copied ? <Check className="size-3.5" /> : <MoreHorizontal className="size-3.5" />}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-48">
+            <DropdownMenuItem onSelect={() => void copyTranscript("messages-only")}>
+              {copied === "messages" ? "Copied chat" : "Copy chat"}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => void copyTranscript("include-tools")}>
+              {copied === "tools" ? "Copied chat with tool summaries" : "Copy chat with tool summaries"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <AiEngineerOperationStatusPill runtimeStatus={runtimeStatus} />
         <ShieldCheck className="text-muted-foreground hidden size-3.5 sm:block" aria-hidden="true" />
         <AiEngineerStatusPill status={executionMode === "execute" ? "running" : "info"} label={modeLabel[executionMode]} />

@@ -36,6 +36,33 @@ function MessageAttachments({ message }: { message: ChatMessage }) {
   );
 }
 
+function AssistantMessageToolbar({
+  copied,
+  onCopy,
+}: {
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  return (
+    <div
+      className="mt-1 flex min-h-7 items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100"
+      data-testid="ai-engineer-assistant-message-toolbar"
+    >
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="text-muted-foreground hover:text-foreground h-7 gap-1.5 px-2 text-[11px]"
+        title="Copy assistant message"
+        onClick={onCopy}
+      >
+        {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+        <span>{copied ? "Copied" : "Copy"}</span>
+      </Button>
+    </div>
+  );
+}
+
 export interface AiEngineerMessageProps {
   message: ChatMessage;
   events?: ChatEvent[];
@@ -88,7 +115,7 @@ export function AiEngineerMessage({
         <AssistantAvatar />
         <div className="flex min-w-0 flex-1 flex-col gap-2 text-[13px] leading-[1.65]">
           <div data-testid="ai-engineer-assistant-message" className="flex flex-col gap-3">
-            <div className="group/copy relative">
+            <div className="flex flex-col gap-3" data-testid="ai-engineer-assistant-message-body">
               {message.reasoning ? <AiEngineerReasoningPanel reasoning={message.reasoning} /> : null}
 
               {isEmptyStreamingAssistant ? (
@@ -104,20 +131,8 @@ export function AiEngineerMessage({
                   <AiEngineerMarkdown content={message.content} />
                 )
               ) : null}
-              {message.content.trim().length > 0 ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  title="Copy assistant message"
-                  className="absolute -top-1 -right-8 size-7 opacity-0 transition-opacity group-hover/copy:opacity-100 focus:opacity-100"
-                  onClick={() => void copyMessage()}
-                >
-                  {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-                  <span className="sr-only">Copy assistant message</span>
-                </Button>
-              ) : null}
             </div>
+            {message.content.trim().length > 0 ? <AssistantMessageToolbar copied={copied} onCopy={() => void copyMessage()} /> : null}
             {permissionParts.map((part) => (
               <div key={part.permissionRequestId} data-testid="ai-engineer-tool-permission-message" data-permission-request-id={part.permissionRequestId}>
                 <ToolPermissionCard part={part} events={events} compact={compactPermission} />

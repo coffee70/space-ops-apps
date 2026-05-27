@@ -65,7 +65,31 @@ test("AiEngineerMessage renders streaming assistant content instead of thinking 
 
   assert.match(markup, /Runtime response/);
   assert.match(markup, /ai-engineer-streaming-assistant/);
+  assert.match(markup, /data-testid="ai-engineer-assistant-message-toolbar"/);
+  assert.match(markup, />Copy</);
   assert.doesNotMatch(markup, /Thinking\.\.\./);
+  assert.doesNotMatch(markup, /absolute -top-1 -right-8/);
+});
+
+test("AiEngineerMessage separates reasoning and response with a vertical gap container", () => {
+  const markup = renderToStaticMarkup(
+    <AiEngineerMessage
+      message={{
+        id: "m1",
+        role: "assistant",
+        content: "Final response",
+        status: "complete",
+        reasoning: {
+          content: "Investigating the issue",
+        },
+      }}
+    />,
+  );
+
+  assert.match(markup, /data-testid="ai-engineer-assistant-message-body"/);
+  assert.match(markup, /flex flex-col gap-3/);
+  assert.match(markup, /Investigating the issue/);
+  assert.match(markup, /Final response/);
 });
 
 test("AiEngineerMessage does not render generic tool-role result cards", () => {
