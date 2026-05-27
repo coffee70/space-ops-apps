@@ -12,6 +12,7 @@ type ToolCallSummary = {
   result?: unknown;
   error?: unknown;
   events: ChatEvent[];
+  representativeEventId: string;
   requestId?: string | null;
   agentRunId?: string | null;
   assistantMessageId?: string | null;
@@ -32,17 +33,10 @@ type TimelineItem =
       originalIndex: number;
     }
   | {
-      kind: "tool-summary";
-      summary: ToolCallSummary;
-      requestId?: string | null;
-      agentRunId?: string | null;
-      sequence?: number | null;
-      createdAt?: string | null;
-      originalIndex: number;
-    }
-  | {
       kind: "event";
       event: ChatEvent;
+      requestId?: string | null;
+      agentRunId?: string | null;
       sequence?: number | null;
       createdAt?: string | null;
       originalIndex: number;
@@ -134,18 +128,29 @@ function terminalRank(event: ChatEvent): number {
   return 1;
 }
 
-function compareEvents(a: ChatEvent, b: ChatEvent): number {
-  if (a.sequence !== b.sequence) return a.sequence - b.sequence;
+function sameRun(a: Pick<ChatEvent, "agent_run_id" | "request_id">, b: Pick<ChatEvent, "agent_run_id" | "request_id">): boolean {
+  return a.agent_run_id === b.agent_run_id && a.request_id === b.request_id;
+}
+
+function compareEventsWithinConversation(a: ChatEvent, b: ChatEvent): number {
+  const inSameRun = sameRun(a, b);
+  if (inSameRun && a.sequence !== b.sequence) return a.sequence - b.sequence;
   const leftTime = Date.parse(a.created_at);
   const rightTime = Date.parse(b.created_at);
   if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) {
     return leftTime - rightTime;
   }
+  if (inSameRun && a.sequence !== b.sequence) return a.sequence - b.sequence;
   return a.id.localeCompare(b.id);
 }
 
+function compareEventsWithinRun(a: ChatEvent, b: ChatEvent): number {
+  if (a.sequence !== b.sequence) return a.sequence - b.sequence;
+  return compareEventsWithinConversation(a, b);
+}
+
 function mostInformativeEvent(events: ChatEvent[]): ChatEvent {
-  return [...events].sort((a, b) => terminalRank(b) - terminalRank(a) || compareEvents(b, a))[0] ?? events[0];
+  return [...events].sort((a, b) => terminalRank(b) - terminalRank(a) || compareEventsWithinRun(b, a))[0] ?? events[0];
 }
 
 function summarizeToolEvents(events: ChatEvent[]): ToolCallSummary[] {
@@ -157,7 +162,7 @@ function summarizeToolEvents(events: ChatEvent[]): ToolCallSummary[] {
 
   return [...groups.entries()]
     .map(([toolCallId, group]) => {
-      const ordered = [...group].sort(compareEvents);
+      const ordered = [...group].sort(compareEventsWithinRun);
       const terminal = mostInformativeEvent(ordered);
       const mergedPayloads = ordered.map((event) => event.payload).filter(isRecord);
       const payload = Object.assign({}, ...mergedPayloads, terminal.payload);
@@ -178,6 +183,7 @@ function summarizeToolEvents(events: ChatEvent[]): ToolCallSummary[] {
         result: valueFromPayload(payload, ["result", "output", "response", "data"]),
         error: valueFromPayload(payload, ["error", "error_message", "exception"]),
         events: ordered,
+        representativeEventId: terminal.id,
         requestId: terminal.request_id ?? null,
         agentRunId: terminal.agent_run_id ?? null,
         assistantMessageId: assistantMessageIdFromEvent(terminal),
@@ -185,11 +191,12 @@ function summarizeToolEvents(events: ChatEvent[]): ToolCallSummary[] {
         createdAt: terminal.created_at ?? null,
       };
     })
-    .sort((a, b) => compareTimelineItems(toolSummaryItem(a, 0), toolSummaryItem(b, 0)));
+    .sort(compareSummariesAcrossConversation);
 }
 
-function compareTimelineItems(a: TimelineItem, b: TimelineItem): number {
-  if (a.sequence !== null && a.sequence !== undefined && b.sequence !== null && b.sequence !== undefined && a.sequence !== b.sequence) {
+function compareSummariesAcrossConversation(a: ToolCallSummary, b: ToolCallSummary): number {
+  const inSameRun = a.agentRunId && b.agentRunId && a.agentRunId === b.agentRunId && a.requestId && b.requestId && a.requestId === b.requestId;
+  if (inSameRun && a.sequence !== null && a.sequence !== undefined && b.sequence !== null && b.sequence !== undefined && a.sequence !== b.sequence) {
     return a.sequence - b.sequence;
   }
   const leftTime = a.createdAt ? Date.parse(a.createdAt) : Number.NaN;
@@ -197,7 +204,10 @@ function compareTimelineItems(a: TimelineItem, b: TimelineItem): number {
   if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) {
     return leftTime - rightTime;
   }
-  return a.originalIndex - b.originalIndex;
+  if (inSameRun && a.sequence !== null && a.sequence !== undefined && b.sequence !== null && b.sequence !== undefined && a.sequence !== b.sequence) {
+    return a.sequence - b.sequence;
+  }
+  return a.toolCallId.localeCompare(b.toolCallId);
 }
 
 function messageItems(messages: ChatMessage[]): TimelineItem[] {
@@ -219,18 +229,6 @@ function messageItems(messages: ChatMessage[]): TimelineItem[] {
       };
     })
     .filter((item): item is TimelineItem => Boolean(item));
-}
-
-function toolSummaryItem(summary: ToolCallSummary, originalIndex: number): TimelineItem {
-  return {
-    kind: "tool-summary",
-    summary,
-    requestId: summary.requestId ?? null,
-    agentRunId: summary.agentRunId ?? null,
-    sequence: summary.sequence ?? null,
-    createdAt: summary.createdAt ?? null,
-    originalIndex,
-  };
 }
 
 function formatJsonBlock(label: string, value: unknown, maxChars = DEFAULT_JSON_MAX_CHARS): string | null {
@@ -279,7 +277,7 @@ function serializeFromStreamedEvents(events: ChatEvent[]): string | null {
     assistantBuffer = "";
   };
 
-  [...events].sort(compareEvents).forEach((event) => {
+  [...events].sort(compareEventsWithinConversation).forEach((event) => {
     if (event.event_type === "message.delta" && typeof event.payload.text_delta === "string") {
       assistantBuffer += event.payload.text_delta;
       return;
@@ -288,7 +286,7 @@ function serializeFromStreamedEvents(events: ChatEvent[]): string | null {
     const toolCallId = event.tool_call_id ?? stringFromPayload(event.payload, ["tool_call_id", "toolCallId"]);
     if (!toolCallId || emittedToolCallIds.has(toolCallId)) return;
     const summary = summaryByToolCallId.get(toolCallId);
-    if (!summary || summary.sequence !== event.sequence) return;
+    if (!summary || summary.representativeEventId !== event.id) return;
     flushAssistant();
     sections.push(formatToolSummary(summary));
     emittedToolCallIds.add(toolCallId);
@@ -302,32 +300,108 @@ function serializeFromStreamedEvents(events: ChatEvent[]): string | null {
   return `${sections.join("\n\n")}\n`;
 }
 
-function matchesMessage(summary: ToolCallSummary, message: Extract<TimelineItem, { kind: "message" }>): boolean {
+function eventMatchesMessage(event: ChatEvent, message: ChatMessage): boolean {
+  const assistantMessageId = assistantMessageIdFromEvent(event);
   return Boolean(
-    (summary.assistantMessageId && summary.assistantMessageId === message.id) ||
-      (summary.requestId && summary.requestId === message.requestId) ||
-      (summary.agentRunId && summary.agentRunId === message.agentRunId),
+    (assistantMessageId && assistantMessageId === message.id) ||
+      (message.requestId && event.request_id === message.requestId) ||
+      (message.agentRunId && event.agent_run_id === message.agentRunId),
   );
 }
 
-function serializeWithPersistedMessages(messages: ChatMessage[], events: ChatEvent[]): string {
+function eventsForMessage(message: ChatMessage, events: ChatEvent[]): ChatEvent[] {
+  return events.filter((event) => eventMatchesMessage(event, message));
+}
+
+function summaryMatchesMessage(summary: ToolCallSummary, message: ChatMessage): boolean {
+  return Boolean(
+    (summary.assistantMessageId && summary.assistantMessageId === message.id) ||
+      (message.requestId && summary.requestId === message.requestId) ||
+      (message.agentRunId && summary.agentRunId === message.agentRunId),
+  );
+}
+
+function summariesForMessage(message: ChatMessage, summaries: ToolCallSummary[]): ToolCallSummary[] {
+  return summaries.filter((summary) => summaryMatchesMessage(summary, message)).sort(compareSummariesAcrossConversation);
+}
+
+function serializeAssistantWithScopedEvents(
+  message: ChatMessage,
+  scopedEvents: ChatEvent[],
+  scopedSummaries: ToolCallSummary[],
+): { sections: string[]; emittedToolCallIds: Set<string> } {
+  const persistedContent = message.content.trim();
+  const emittedToolCallIds = new Set<string>();
+  if (!hasUsefulMessageDeltas(scopedEvents)) {
+    return {
+      sections: [
+        persistedContent ? `## Assistant\n${persistedContent}` : null,
+        ...scopedSummaries.map((summary) => {
+          emittedToolCallIds.add(summary.toolCallId);
+          return formatToolSummary(summary);
+        }),
+      ].filter((section): section is string => Boolean(section)),
+      emittedToolCallIds,
+    };
+  }
+
+  const sections: string[] = [];
+  const summaryByToolCallId = new Map(scopedSummaries.map((summary) => [summary.toolCallId, summary]));
+  let assistantBuffer = "";
+  const flushAssistant = () => {
+    const content = assistantBuffer.trim();
+    if (content) sections.push(`## Assistant\n${content}`);
+    assistantBuffer = "";
+  };
+
+  for (const event of [...scopedEvents].sort(compareEventsWithinRun)) {
+    if (event.event_type === "message.delta" && typeof event.payload.text_delta === "string") {
+      assistantBuffer += event.payload.text_delta;
+      continue;
+    }
+    if (!isToolEvent(event)) continue;
+    const toolCallId = event.tool_call_id ?? stringFromPayload(event.payload, ["tool_call_id", "toolCallId"]);
+    if (!toolCallId || emittedToolCallIds.has(toolCallId)) continue;
+    const summary = summaryByToolCallId.get(toolCallId);
+    if (!summary || summary.representativeEventId !== event.id) continue;
+    flushAssistant();
+    sections.push(formatToolSummary(summary));
+    emittedToolCallIds.add(toolCallId);
+  }
+
+  flushAssistant();
+  for (const summary of scopedSummaries) {
+    if (emittedToolCallIds.has(summary.toolCallId)) continue;
+    sections.push(formatToolSummary(summary));
+    emittedToolCallIds.add(summary.toolCallId);
+  }
+  if (sections.length === 0 && persistedContent) sections.push(`## Assistant\n${persistedContent}`);
+  return { sections, emittedToolCallIds };
+}
+
+function serializeWithMessagesBackbone(messages: ChatMessage[], events: ChatEvent[]): string {
   const sections = ["# AI Engineer Chat"];
   const summaries = summarizeToolEvents(events);
   const emitted = new Set<string>();
-  const items = messageItems(messages).sort(compareTimelineItems);
 
-  for (const item of items) {
-    if (item.kind !== "message") continue;
-    sections.push(`## ${roleLabel(item.role)}\n${item.content}`);
-    if (item.role !== "assistant") continue;
-    for (const summary of summaries) {
-      if (emitted.has(summary.toolCallId) || !matchesMessage(summary, item)) continue;
-      sections.push(formatToolSummary(summary));
-      emitted.add(summary.toolCallId);
+  for (const message of messages) {
+    if (message.role === "tool") continue;
+    const content = message.content.trim();
+    if (message.role === "user") {
+      if (content) sections.push(`## User\n${content}`);
+      continue;
+    }
+    if (message.role !== "assistant") continue;
+    const scopedEvents = eventsForMessage(message, events);
+    const scopedSummaries = summariesForMessage(message, summaries).filter((summary) => !emitted.has(summary.toolCallId));
+    const serialized = serializeAssistantWithScopedEvents(message, scopedEvents, scopedSummaries);
+    sections.push(...serialized.sections);
+    for (const toolCallId of serialized.emittedToolCallIds) {
+      emitted.add(toolCallId);
     }
   }
 
-  const unmatched = summaries.filter((summary) => !emitted.has(summary.toolCallId));
+  const unmatched = summaries.filter((summary) => !emitted.has(summary.toolCallId)).sort(compareSummariesAcrossConversation);
   if (unmatched.length > 0) {
     sections.push(
       [
@@ -342,7 +416,7 @@ function serializeWithPersistedMessages(messages: ChatMessage[], events: ChatEve
 }
 
 function serializeWithToolSummaries(messages: ChatMessage[], events: ChatEvent[]): string {
-  return serializeFromStreamedEvents(events) ?? serializeWithPersistedMessages(messages, events);
+  return messages.length > 0 ? serializeWithMessagesBackbone(messages, events) : (serializeFromStreamedEvents(events) ?? serializeWithMessagesBackbone(messages, events));
 }
 
 function eventMetadataLines(event: ChatEvent): string[] {
@@ -365,11 +439,26 @@ function serializeDebugTrace(messages: ChatMessage[], events: ChatEvent[]): stri
     ...events.map((event, originalIndex): TimelineItem => ({
       kind: "event",
       event,
+      requestId: event.request_id,
+      agentRunId: event.agent_run_id,
       sequence: event.sequence,
       createdAt: event.created_at,
       originalIndex: messages.length + originalIndex,
     })),
-  ].sort(compareTimelineItems);
+  ].sort((a, b) => {
+    if (a.kind === "event" && b.kind === "event") return compareEventsWithinConversation(a.event, b.event);
+    const leftTime = a.createdAt ? Date.parse(a.createdAt) : Number.NaN;
+    const rightTime = b.createdAt ? Date.parse(b.createdAt) : Number.NaN;
+    if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) return leftTime - rightTime;
+    if (a.kind === "message" && b.kind === "message") return a.originalIndex - b.originalIndex;
+    if (a.kind === "event" && b.kind === "message" && a.requestId === b.requestId && a.agentRunId === b.agentRunId) {
+      return 1;
+    }
+    if (a.kind === "message" && b.kind === "event" && a.requestId === b.requestId && a.agentRunId === b.agentRunId) {
+      return -1;
+    }
+    return a.originalIndex - b.originalIndex;
+  });
 
   for (const item of items) {
     if (item.kind === "message") {

@@ -148,6 +148,196 @@ test("include-tools reconstructs streamed assistant chronology", () => {
   assert.ok(tool < after);
 });
 
+test("include-tools preserves user messages when reconstructing streamed assistant events", () => {
+  const messages: ChatMessage[] = [
+    {
+      id: "u1",
+      role: "user",
+      content: "Please inspect telemetry code.",
+      requestId: "request-1",
+      agentRunId: "run-1",
+      createdAt: "2026-05-27T12:00:00Z",
+    },
+    {
+      id: "a1",
+      role: "assistant",
+      content: "I will search.\n\nI found the file.",
+      requestId: "request-1",
+      agentRunId: "run-1",
+      createdAt: "2026-05-27T12:00:01Z",
+    },
+  ];
+  const events = [
+    event({
+      id: "e1",
+      event_type: "message.delta",
+      sequence: 1,
+      request_id: "request-1",
+      agent_run_id: "run-1",
+      tool_call_id: null,
+      payload: { text_delta: "I will search." },
+      created_at: "2026-05-27T12:00:02Z",
+    }),
+    event({
+      id: "e2",
+      event_type: "tool.completed",
+      sequence: 2,
+      request_id: "request-1",
+      agent_run_id: "run-1",
+      tool_call_id: "tool-search",
+      payload: { tool_name: "search_codebase" },
+      created_at: "2026-05-27T12:00:03Z",
+    }),
+    event({
+      id: "e3",
+      event_type: "message.delta",
+      sequence: 3,
+      request_id: "request-1",
+      agent_run_id: "run-1",
+      tool_call_id: null,
+      payload: { text_delta: "I found the file." },
+      created_at: "2026-05-27T12:00:04Z",
+    }),
+  ];
+
+  const transcript = serializeAiEngineerTranscript(messages, events, "include-tools");
+  const [user, before, tool, after] = indexes(transcript, [
+    "Please inspect telemetry code.",
+    "I will search.",
+    "### Tool: search_codebase",
+    "I found the file.",
+  ]);
+
+  assert.ok(user < before);
+  assert.ok(before < tool);
+  assert.ok(tool < after);
+});
+
+test("include-tools treats sequence as run-local across multiple turns", () => {
+  const messages: ChatMessage[] = [
+    {
+      id: "u1",
+      role: "user",
+      content: "First turn",
+      requestId: "request-1",
+      agentRunId: "run-1",
+      createdAt: "2026-05-27T12:00:00Z",
+    },
+    {
+      id: "a1",
+      role: "assistant",
+      content: "First answer.",
+      requestId: "request-1",
+      agentRunId: "run-1",
+      createdAt: "2026-05-27T12:00:01Z",
+    },
+    {
+      id: "u2",
+      role: "user",
+      content: "Second turn",
+      requestId: "request-2",
+      agentRunId: "run-2",
+      createdAt: "2026-05-27T12:01:00Z",
+    },
+    {
+      id: "a2",
+      role: "assistant",
+      content: "Second answer.",
+      requestId: "request-2",
+      agentRunId: "run-2",
+      createdAt: "2026-05-27T12:01:01Z",
+    },
+  ];
+  const events = [
+    event({
+      id: "run-1-late-tool",
+      sequence: 20,
+      request_id: "request-1",
+      agent_run_id: "run-1",
+      tool_call_id: "tool-first",
+      payload: { tool_name: "first_tool" },
+      created_at: "2026-05-27T12:00:05Z",
+    }),
+    event({
+      id: "run-2-early-tool",
+      sequence: 1,
+      request_id: "request-2",
+      agent_run_id: "run-2",
+      tool_call_id: "tool-second",
+      payload: { tool_name: "second_tool" },
+      created_at: "2026-05-27T12:01:05Z",
+    }),
+  ];
+
+  const transcript = serializeAiEngineerTranscript(messages, events, "include-tools");
+  const [firstUser, firstTool, secondUser, secondTool] = indexes(transcript, [
+    "First turn",
+    "### Tool: first_tool",
+    "Second turn",
+    "### Tool: second_tool",
+  ]);
+
+  assert.ok(firstUser < firstTool);
+  assert.ok(firstTool < secondUser);
+  assert.ok(secondUser < secondTool);
+});
+
+test("include-tools does not duplicate assistant content when persisted content and deltas both exist", () => {
+  const transcript = serializeAiEngineerTranscript(
+    [
+      { id: "u1", role: "user", content: "Search please.", requestId: "request-1", agentRunId: "run-1" },
+      { id: "a1", role: "assistant", content: "I will search.", requestId: "request-1", agentRunId: "run-1" },
+    ],
+    [
+      event({
+        id: "e1",
+        event_type: "message.delta",
+        sequence: 1,
+        tool_call_id: null,
+        payload: { text_delta: "I will search." },
+      }),
+    ],
+    "include-tools",
+  );
+
+  assert.equal(transcript.match(/I will search\./g)?.length, 1);
+});
+
+test("include-tools keeps unmatched tool actions sorted by timestamp across runs", () => {
+  const transcript = serializeAiEngineerTranscript(
+    [{ id: "u1", role: "user", content: "No assistant metadata.", requestId: "request-0", agentRunId: "run-0" }],
+    [
+      event({
+        id: "run-2-early-sequence",
+        sequence: 1,
+        request_id: "request-2",
+        agent_run_id: "run-2",
+        tool_call_id: "tool-second",
+        payload: { tool_name: "second_tool" },
+        created_at: "2026-05-27T12:01:05Z",
+      }),
+      event({
+        id: "run-1-late-sequence",
+        sequence: 20,
+        request_id: "request-1",
+        agent_run_id: "run-1",
+        tool_call_id: "tool-first",
+        payload: { tool_name: "first_tool" },
+        created_at: "2026-05-27T12:00:05Z",
+      }),
+    ],
+    "include-tools",
+  );
+
+  const [unmatched, firstTool, secondTool] = indexes(transcript, [
+    "## Unmatched Tool Actions",
+    "### Tool: first_tool",
+    "### Tool: second_tool",
+  ]);
+  assert.ok(unmatched < firstTool);
+  assert.ok(firstTool < secondTool);
+});
+
 test("include-tools redacts secret-ish keys in input and output", () => {
   const transcript = serializeAiEngineerTranscript(
     [{ id: "a1", role: "assistant", content: "I will call the tool.", requestId: "request-1", agentRunId: "run-1" }],
@@ -204,6 +394,59 @@ test("debug-trace includes raw chronological event metadata and redacted payload
   assert.match(transcript, /Emitted by: agent-runtime-service/);
   assert.match(transcript, /"api_key": "\[redacted\]"/);
   assert.doesNotMatch(transcript, /secret-key/);
+});
+
+test("debug-trace orders events across runs by conversation time, not raw sequence", () => {
+  const transcript = serializeAiEngineerTranscript(
+    [
+      {
+        id: "u1",
+        role: "user",
+        content: "First turn",
+        requestId: "request-1",
+        agentRunId: "run-1",
+        createdAt: "2026-05-27T12:00:00Z",
+      },
+      {
+        id: "u2",
+        role: "user",
+        content: "Second turn",
+        requestId: "request-2",
+        agentRunId: "run-2",
+        createdAt: "2026-05-27T12:01:00Z",
+      },
+    ],
+    [
+      event({
+        id: "run-1-late",
+        event_type: "tool.completed",
+        sequence: 20,
+        request_id: "request-1",
+        agent_run_id: "run-1",
+        tool_call_id: "tool-first",
+        payload: { tool_name: "first_tool" },
+        created_at: "2026-05-27T12:00:05Z",
+      }),
+      event({
+        id: "run-2-early",
+        event_type: "tool.completed",
+        sequence: 1,
+        request_id: "request-2",
+        agent_run_id: "run-2",
+        tool_call_id: "tool-second",
+        payload: { tool_name: "second_tool" },
+        created_at: "2026-05-27T12:01:05Z",
+      }),
+    ],
+    "debug-trace",
+  );
+
+  const [firstEvent, secondEvent] = indexes(transcript, [
+    "Tool call id: tool-first",
+    "Tool call id: tool-second",
+  ]);
+
+  assert.ok(firstEvent < secondEvent);
 });
 
 test("debug-trace does not collapse tool lifecycle events", () => {
