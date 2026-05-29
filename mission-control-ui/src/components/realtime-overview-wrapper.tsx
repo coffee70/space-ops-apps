@@ -343,19 +343,18 @@ function RealtimeOverviewContent({
 
   const handleSourceChange = useCallback(
     (newId: string) => {
-      if (pathname === "/overview") {
-        if (typeof window !== "undefined") {
-          try {
-            sessionStorage.setItem("overviewSourceId", newId);
-          } catch {
-            // ignore when storage unavailable (e.g. private browsing)
-          }
+      if (typeof window !== "undefined") {
+        try {
+          sessionStorage.setItem("overviewSourceId", newId);
+        } catch {
+          // ignore when storage unavailable (e.g. private browsing)
         }
-        const params = new URLSearchParams(window.location.search);
-        params.set("source", newId);
-        const next = params.toString();
-        router.replace(next ? `${pathname}?${next}` : pathname);
       }
+
+      const params = new URLSearchParams(window.location.search);
+      params.set("source", newId);
+      const next = params.toString();
+      router.replace(next ? `${pathname}?${next}` : pathname);
     },
     [pathname, router]
   );
