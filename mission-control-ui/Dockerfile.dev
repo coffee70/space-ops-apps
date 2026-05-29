@@ -1,0 +1,24 @@
+FROM node:20.19-alpine
+
+WORKDIR /app
+
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+
+COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
+
+RUN if [ -f package-lock.json ]; then \
+      npm ci; \
+    elif [ -f pnpm-lock.yaml ]; then \
+      corepack enable && pnpm install; \
+    elif [ -f yarn.lock ]; then \
+      corepack enable && yarn install; \
+    else \
+      npm install; \
+    fi
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0", "--port", "3000"]
