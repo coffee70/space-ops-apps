@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { WatchlistConfig } from "@/components/watchlist-config";
 import { RealtimeOverviewWrapper } from "@/components/realtime-overview-wrapper";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -196,6 +196,8 @@ async function fetchOverviewSnapshot(
 }
 
 export function OverviewContent() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const sourceFromUrl = searchParams.get("source");
   const unavailableChannel = searchParams.get("channel_unavailable");
@@ -224,6 +226,7 @@ export function OverviewContent() {
   const [desiredStreamId, setDesiredStreamId] = useState<string | null>(null);
   const [showSwitchingIndicator, setShowSwitchingIndicator] = useState(false);
   const [watchlistVersion, setWatchlistVersion] = useState(0);
+  const hasCompletedBootstrapRef = useRef(false);
 
   useEffect(() => {
     if (!unavailableChannel) return;
@@ -275,6 +278,28 @@ export function OverviewContent() {
     }
   }, [refreshCommittedSnapshot]);
 
+  const handleSourceChange = useCallback(
+    (newId: string) => {
+      setSelectedSource(newId);
+      setError(unavailableMessage);
+      setShowSwitchingIndicator(true);
+
+      if (typeof window !== "undefined") {
+        try {
+          sessionStorage.setItem(OVERVIEW_SOURCE_STORAGE_KEY, newId);
+        } catch {
+          // ignore when storage unavailable (e.g. private browsing)
+        }
+      }
+
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("source", newId);
+      params.delete("channel_unavailable");
+      router.replace(`${pathname}?${params.toString()}`);
+    },
+    [pathname, router, searchParams, unavailableMessage]
+  );
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -292,11 +317,18 @@ export function OverviewContent() {
 
     async function loadBootstrap() {
       try {
-        setBootstrapLoading(true);
+        const isInitialBootstrap = !hasCompletedBootstrapRef.current;
+
+        if (isInitialBootstrap) {
+          setBootstrapLoading(true);
+          setShowSwitchingIndicator(false);
+          setCommittedStreamId(null);
+        } else {
+          setShowSwitchingIndicator(true);
+        }
+
         setError(unavailableMessage);
-        setCommittedStreamId(null);
         setDesiredStreamId(null);
-        setShowSwitchingIndicator(false);
         setLatestSimulatorStreamId(null);
 
         const sourcesRes = await fetchWithTimeoutAndFallback("/telemetry/sources");
@@ -389,6 +421,7 @@ export function OverviewContent() {
         setLatestSimulatorStreamId(
           isSimulatorSource ? runtimeStreamId ?? streamsList[0]?.stream_id ?? null : null
         );
+        hasCompletedBootstrapRef.current = true;
         if (snapshot.hasPartialFailure) {
           setError("Some data failed to load");
         }
@@ -579,6 +612,7 @@ export function OverviewContent() {
           simulatorStatus={simulatorRuntime.status}
           isSwitchingStreams={isSwitchingStreams}
           showSwitchingIndicator={showSwitchingIndicator || isSwitchingStreams}
+          onSourceChange={handleSourceChange}
           onWatchlistChanged={handleWatchlistChanged}
           watchlistVersion={watchlistVersion}
         />

@@ -201,6 +201,7 @@ interface RealtimeOverviewWrapperProps {
   simulatorStatus?: SimulatorRuntimeStatus | null;
   isSwitchingStreams?: boolean;
   showSwitchingIndicator?: boolean;
+  onSourceChange?: (sourceId: string) => void;
   onWatchlistChanged?: () => void | Promise<void>;
   watchlistVersion?: number;
 }
@@ -258,6 +259,7 @@ function RealtimeOverviewContent({
   simulatorStatus = null,
   isSwitchingStreams = false,
   showSwitchingIndicator = false,
+  onSourceChange,
   onWatchlistChanged,
   watchlistVersion = 0,
 }: RealtimeOverviewWrapperProps) {
@@ -340,24 +342,6 @@ function RealtimeOverviewContent({
     const query = params.toString();
     router.replace(`${pathname}${query ? `?${query}` : ""}${currentHash}`);
   }, [currentHash, hashTab, pathname, requestedTab, router]);
-
-  const handleSourceChange = useCallback(
-    (newId: string) => {
-      if (typeof window !== "undefined") {
-        try {
-          sessionStorage.setItem("overviewSourceId", newId);
-        } catch {
-          // ignore when storage unavailable (e.g. private browsing)
-        }
-      }
-
-      const params = new URLSearchParams(window.location.search);
-      params.set("source", newId);
-      const next = params.toString();
-      router.replace(next ? `${pathname}?${next}` : pathname);
-    },
-    [pathname, router]
-  );
 
   const handleAlertsAndOrbit = useCallback((msg: RealtimeMessage) => {
     const streamId = activeStreamRef.current;
@@ -470,7 +454,7 @@ function RealtimeOverviewContent({
     <div className="space-y-4">
       <ContextBanner
         sourceId={sourceId}
-        onSourceChange={handleSourceChange}
+        onSourceChange={onSourceChange}
         sources={sources}
         activeAlertCount={totalAlerts}
         scrollToAlertsId="events-console"
