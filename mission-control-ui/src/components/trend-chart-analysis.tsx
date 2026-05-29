@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { RealtimeWsClient } from "@/lib/realtime-ws-client";
 import { buildTelemetryApiBase } from "@/lib/telemetry-routes";
 import {
@@ -168,6 +168,14 @@ function downsampleByWidth<T extends { timestamp: string; value: number }>(
   );
 }
 
+function sameStringArray(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+function sameTimeRange(a: [number, number], b: [number, number]): boolean {
+  return a[0] === b[0] && a[1] === b[1];
+}
+
 export function TrendChartAnalysis({
   channelName,
   vehicleId,
@@ -191,8 +199,8 @@ export function TrendChartAnalysis({
   const [compareSearch, setCompareSearch] = useState("");
   const [searchHits, setSearchHits] = useState<string[]>([]);
   const [timeRangePct, setTimeRangePct] = useState<[number, number]>([0, 100]);
-  const chartContainerRef = useRef<HTMLDivElement>(null);
-  const [chartWidth, setChartWidth] = useState(800);
+  const [chartContainer, setChartContainer] = useState<HTMLDivElement | null>(null);
+  const [chartWidth, setChartWidth] = useState(0);
 
   const [data, setData] = useState<DataPoint[]>([]);
   const [compareData, setCompareData] = useState<DataPoint[]>([]);
@@ -209,6 +217,12 @@ export function TrendChartAnalysis({
   const error = loading ? null : loadState.error;
 
   const fetchLimit = scope.mode === "latest" ? 300 : 1000;
+  const resetTimeRange = useCallback(() => {
+    setTimeRangePct((prev) => (sameTimeRange(prev, [0, 100]) ? prev : [0, 100]));
+  }, []);
+  const captureChartContainer = useCallback((node: HTMLDivElement | null) => {
+    setChartContainer((prev) => (prev === node ? prev : node));
+  }, []);
 
   const fetchData = useCallback(
     async (name: string) => {
@@ -243,7 +257,7 @@ export function TrendChartAnalysis({
           );
         });
         setCompareData(compare);
-        setTimeRangePct([0, 100]);
+        resetTimeRange();
         setLoadState({ requestKey: loadRequestKey, error: null });
       })
       .catch((e) =>
@@ -252,29 +266,35 @@ export function TrendChartAnalysis({
           error: e instanceof Error ? e.message : "Failed to load",
         })
       );
-  }, [channelName, compareChannel, fetchData, loadRequestKey]);
+  }, [channelName, compareChannel, fetchData, loadRequestKey, resetTimeRange]);
 
   useEffect(() => {
-    const el = chartContainerRef.current;
+    const el = chartContainer;
     if (!el) return;
-    const ro = new ResizeObserver(() => setChartWidth(el.clientWidth));
+    const updateChartWidth = () => {
+      const nextWidth = Math.max(0, Math.round(el.clientWidth));
+      setChartWidth((prev) => (prev === nextWidth ? prev : nextWidth));
+    };
+    const ro = new ResizeObserver(updateChartWidth);
     ro.observe(el);
-    setChartWidth(el.clientWidth);
+    updateChartWidth();
     return () => ro.disconnect();
-  }, []);
+  }, [chartContainer]);
 
   useEffect(() => {
     fetch(`${API_URL}/telemetry/list?source_id=${encodeURIComponent(vehicleId)}`, { cache: "no-store" })
       .then((r) => r.json())
-      .then((json) => setChannelList(json.names || []))
-      .catch(() => setChannelList([]));
+      .then((json) => {
+        const names = json.names || [];
+        setChannelList((prev) => (sameStringArray(prev, names) ? prev : names));
+      })
+      .catch(() => setChannelList((prev) => (prev.length === 0 ? prev : [])));
   }, [vehicleId]);
 
   useEffect(() => {
     const q = compareSearch.trim();
     if (q.length < 2) {
-      const id = window.setTimeout(() => setSearchHits([]), 0);
-      return () => window.clearTimeout(id);
+      return;
     }
     const id = window.setTimeout(() => {
       const url = `${API_URL}/telemetry/search?${new URLSearchParams({
@@ -286,9 +306,9 @@ export function TrendChartAnalysis({
         .then((r) => r.json())
         .then((json) => {
           const names = (json.results || []).map((row: { name: string }) => row.name);
-          setSearchHits(names);
+          setSearchHits((prev) => (sameStringArray(prev, names) ? prev : names));
         })
-        .catch(() => setSearchHits([]));
+        .catch(() => setSearchHits((prev) => (prev.length === 0 ? prev : [])));
     }, 250);
     return () => window.clearTimeout(id);
   }, [compareSearch, vehicleId]);
@@ -320,13 +340,13 @@ export function TrendChartAnalysis({
           }
           return merged.slice(-fetchLimit);
         });
-        setTimeRangePct([0, 100]);
+        resetTimeRange();
       }
     });
     client.connect();
     client.subscribeWatchlist([channelName], vehicleId, null);
     return () => client.disconnect();
-  }, [channelName, fetchLimit, realtimeEnabled, vehicleId]);
+  }, [channelName, fetchLimit, realtimeEnabled, resetTimeRange, vehicleId]);
 
   useEffect(() => {
     const id = setInterval(() => setNowTs(Date.now()), 1000);
@@ -418,24 +438,33 @@ export function TrendChartAnalysis({
     return vals;
   }, [displayData, p5, p95, p50, mean, minVal, maxVal, redLow, redHigh]);
 
-  const yMin = allYValues.length > 0 ? Math.min(...allYValues) : 0;
-  const yMax = allYValues.length > 0 ? Math.max(...allYValues) : 1;
-  const padding = Math.max((yMax - yMin) * 0.05, 1e-6);
-  const domain: [number, number] = [yMin - padding, yMax + padding];
+  const domain = useMemo<[number, number]>(() => {
+    const yMin = allYValues.length > 0 ? Math.min(...allYValues) : 0;
+    const yMax = allYValues.length > 0 ? Math.max(...allYValues) : 1;
+    const padding = Math.max((yMax - yMin) * 0.05, 1e-6);
+    return [yMin - padding, yMax + padding];
+  }, [allYValues]);
 
-  const compareYValues = displayData
-    .map((d) => d.compareValue)
-    .filter((v): v is number => v != null && !Number.isNaN(v));
-  const compareYMin = compareYValues.length > 0 ? Math.min(...compareYValues) : 0;
-  const compareYMax = compareYValues.length > 0 ? Math.max(...compareYValues) : 1;
-  const comparePadding = Math.max((compareYMax - compareYMin) * 0.05, 1e-6);
-  const compareDomain: [number, number] = [
-    compareYMin - comparePadding,
-    compareYMax + comparePadding,
-  ];
+  const compareYValues = useMemo(
+    () =>
+      displayData
+        .map((d) => d.compareValue)
+        .filter((v): v is number => v != null && !Number.isNaN(v)),
+    [displayData],
+  );
+  const compareDomain = useMemo<[number, number]>(() => {
+    const compareYMin =
+      compareYValues.length > 0 ? Math.min(...compareYValues) : 0;
+    const compareYMax =
+      compareYValues.length > 0 ? Math.max(...compareYValues) : 1;
+    const comparePadding = Math.max((compareYMax - compareYMin) * 0.05, 1e-6);
+    return [compareYMin - comparePadding, compareYMax + comparePadding];
+  }, [compareYValues]);
 
-  const isInNominalBand = (value: number) =>
-    p5 == null || p95 == null || (value >= p5 && value <= p95);
+  const isInNominalBand = useCallback(
+    (value: number) => p5 == null || p95 == null || (value >= p5 && value <= p95),
+    [p5, p95],
+  );
 
   const rightMargin = useMemo(() => {
     if (compareChannel) return 90;
@@ -493,6 +522,90 @@ export function TrendChartAnalysis({
       );
     },
     [channelName, units, compareChannel]
+  );
+
+  const chartMargin = useMemo(
+    () => ({
+      top: 8,
+      right: rightMargin,
+      bottom: 70,
+      left: 60,
+    }),
+    [rightMargin],
+  );
+  const xAxisTick = useMemo(() => ({ fontSize: 12 }), []);
+  const yAxisTick = useMemo(() => ({ fontSize: 12 }), []);
+  const compareYAxisTick = useMemo(() => ({ fontSize: 11 }), []);
+  const activeDot = useMemo(
+    () => (displayData.length > 150 ? false : { r: 5, fill: "var(--primary)" }),
+    [displayData.length],
+  );
+  const compareActiveDot = useMemo(() => ({ r: 4 }), []);
+  const p50Label = useMemo(
+    () => ({ value: "P50", position: "right" as const, offset: 8 }),
+    [],
+  );
+  const meanLabel = useMemo(
+    () => ({ value: "Mean", position: "right" as const, offset: 8 }),
+    [],
+  );
+  const p5Label = useMemo(
+    () => ({ value: "P5", position: "right" as const, offset: 8 }),
+    [],
+  );
+  const p95Label = useMemo(
+    () => ({ value: "P95", position: "right" as const, offset: 8 }),
+    [],
+  );
+  const nowLabel = useMemo(
+    () => ({ value: "Now", position: "top" as const, fontSize: 10 }),
+    [],
+  );
+  const tickTimeByLabel = useMemo(() => {
+    const map = new Map<string, string>();
+    displayData.forEach((point) => {
+      if (point.time) map.set(point.time, point.timestamp);
+    });
+    return map;
+  }, [displayData]);
+  const formatXAxisTick = useCallback(
+    (value: string) => {
+      const timestamp = tickTimeByLabel.get(value);
+      if (!timestamp) return value;
+      return new Date(timestamp).toLocaleString(undefined, {
+        ...timeOpts,
+        second: undefined,
+      });
+    },
+    [tickTimeByLabel, timeOpts],
+  );
+  const formatYAxisTick = useCallback(
+    (value: number) => formatWithUnits(value, units),
+    [units],
+  );
+  const renderPrimaryDot = useCallback(
+    (props: { cx?: number; cy?: number; payload?: { timestamp: string; value: number } }) => {
+      const { cx, cy, payload } = props;
+      if (cx == null || cy == null || !payload) return null;
+      if (Number.isNaN(payload.value)) return null;
+      const isLast = lastPoint && payload.timestamp === lastPoint.timestamp;
+      const inBand = hasBounds ? isInNominalBand(payload.value) : true;
+      return (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={isLast ? 6 : inBand ? 3 : 5}
+          fill={isLast ? "var(--primary)" : inBand ? "var(--primary)" : "rgb(239, 68, 68)"}
+          stroke={isLast ? "var(--background)" : undefined}
+          strokeWidth={isLast ? 2 : 0}
+        />
+      );
+    },
+    [hasBounds, isInNominalBand, lastPoint],
+  );
+  const primaryDot = useMemo(
+    () => (displayData.length > 150 ? false : renderPrimaryDot),
+    [displayData.length, renderPrimaryDot],
   );
 
   if (loading && data.length === 0) {
@@ -630,7 +743,10 @@ export function TrendChartAnalysis({
               max={100}
               step={1}
               value={timeRangePct}
-              onValueChange={(v) => setTimeRangePct([v[0] ?? 0, v[1] ?? 100])}
+              onValueChange={(v) => {
+                const next: [number, number] = [v[0] ?? 0, v[1] ?? 100];
+                setTimeRangePct((prev) => (sameTimeRange(prev, next) ? prev : next));
+              }}
               className="w-48"
               aria-label="Select time range to view"
             />
@@ -640,7 +756,7 @@ export function TrendChartAnalysis({
                   size="sm"
                   variant="ghost"
                   aria-label="Reset to full range"
-                  onClick={() => setTimeRangePct([0, 100])}
+                  onClick={resetTimeRange}
                 >
                   Reset
                 </Button>
@@ -670,7 +786,7 @@ export function TrendChartAnalysis({
       )}
 
       <div
-        ref={chartContainerRef}
+        ref={captureChartContainer}
         className="h-[380px] w-full min-w-0 overflow-visible px-8"
         role="img"
         aria-label={`Trend chart for ${channelName} over selected time range`}
@@ -683,41 +799,34 @@ export function TrendChartAnalysis({
               description="Try a different time range (e.g. 24h) or check if the channel has recent data."
             />
           </div>
+        ) : chartWidth <= 0 ? (
+          <div className="text-muted-foreground flex h-full items-center justify-center gap-2">
+            <Spinner size="sm" />
+            <span className="text-sm">Measuring chart…</span>
+          </div>
         ) : (
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <ComposedChart
             data={displayData}
-            margin={{
-              top: 8,
-              right: rightMargin,
-              bottom: 70,
-              left: 60,
-            }}
+            margin={chartMargin}
           >
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
               dataKey="time"
-              tick={{ fontSize: 12 }}
-              tickFormatter={(v) => {
-                const idx = displayData.findIndex((d) => d.time === v);
-                if (idx < 0) return v;
-                return new Date(displayData[idx].timestamp).toLocaleString(undefined, {
-                  ...timeOpts,
-                  second: undefined,
-                });
-              }}
+              tick={xAxisTick}
+              tickFormatter={formatXAxisTick}
             />
             <YAxis
               yAxisId="left"
-              tick={{ fontSize: 12 }}
+              tick={yAxisTick}
               domain={domain}
-              tickFormatter={(v) => formatWithUnits(v, units)}
+              tickFormatter={formatYAxisTick}
             />
             {compareChannel && (
               <YAxis
                 yAxisId="right"
                 orientation="right"
-                tick={{ fontSize: 11 }}
+                tick={compareYAxisTick}
                 domain={compareDomain}
                 width={70}
                 tickMargin={8}
@@ -795,7 +904,7 @@ export function TrendChartAnalysis({
                     y={p50}
                     stroke="var(--primary)"
                     strokeDasharray="4 4"
-                    label={{ value: "P50", position: "right", offset: 8 }}
+                    label={p50Label}
                   />
                 )}
                 {showMeanP50 && mean != null && p50 != null && mean !== p50 && (
@@ -804,7 +913,7 @@ export function TrendChartAnalysis({
                     y={mean}
                     stroke="var(--muted-foreground)"
                     strokeDasharray="2 2"
-                    label={{ value: "Mean", position: "right", offset: 8 }}
+                    label={meanLabel}
                   />
                 )}
                 {showP5P95 && p5 != null && p95 != null && (
@@ -814,14 +923,14 @@ export function TrendChartAnalysis({
                       y={p5}
                       stroke="var(--muted-foreground)"
                       strokeDasharray="2 2"
-                      label={{ value: "P5", position: "right", offset: 8 }}
+                      label={p5Label}
                     />
                     <ReferenceLine
                       yAxisId="left"
                       y={p95}
                       stroke="var(--muted-foreground)"
                       strokeDasharray="2 2"
-                      label={{ value: "P95", position: "right", offset: 8 }}
+                      label={p95Label}
                     />
                   </>
                 )}
@@ -834,28 +943,8 @@ export function TrendChartAnalysis({
               stroke="var(--primary)"
               strokeWidth={2}
               isAnimationActive={displayData.length <= 200}
-              dot={
-                displayData.length > 150
-                  ? false
-                  : (props) => {
-                      const { cx, cy, payload } = props;
-                      if (cx == null || cy == null) return null;
-                      if (Number.isNaN(payload.value)) return null;
-                      const isLast = lastPoint && payload.timestamp === lastPoint.timestamp;
-                      const inBand = hasBounds ? isInNominalBand(payload.value) : true;
-                      return (
-                        <circle
-                          cx={cx}
-                          cy={cy}
-                          r={isLast ? 6 : inBand ? 3 : 5}
-                          fill={isLast ? "var(--primary)" : inBand ? "var(--primary)" : "rgb(239, 68, 68)"}
-                          stroke={isLast ? "var(--background)" : undefined}
-                          strokeWidth={isLast ? 2 : 0}
-                        />
-                      );
-                    }
-              }
-              activeDot={displayData.length > 150 ? false : { r: 5, fill: "var(--primary)" }}
+              dot={primaryDot}
+              activeDot={activeDot}
               connectNulls={false}
             />
             {compareChannel && (
@@ -866,7 +955,7 @@ export function TrendChartAnalysis({
                 stroke="hsl(262, 83%, 58%)"
                 strokeWidth={2}
                 dot={false}
-                activeDot={{ r: 4 }}
+                activeDot={compareActiveDot}
                 connectNulls={false}
                 isAnimationActive={displayData.length <= 200}
               />
@@ -877,7 +966,7 @@ export function TrendChartAnalysis({
                 stroke="var(--primary)"
                 strokeDasharray="4 4"
                 strokeOpacity={0.6}
-                label={{ value: "Now", position: "top", fontSize: 10 }}
+                label={nowLabel}
               />
             )}
           </ComposedChart>

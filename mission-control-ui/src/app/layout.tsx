@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { AppProviders } from "@/components/app-providers";
+import { cookies } from "next/headers";
+import { AppProviders, type OperatorMode } from "@/components/app-providers";
 import { KeyboardShortcutsHandler } from "@/components/keyboard-shortcuts-handler";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PlatformShell } from "@/platform/shell/platform-shell";
@@ -21,25 +22,29 @@ export const metadata: Metadata = {
   description: "Search and explore spacecraft telemetry with semantic search and LLM explanations",
 };
 
-export default function RootLayout({
+function parseOperatorMode(value: string | undefined): OperatorMode {
+  return value === "high-contrast" || value === "large-type" ? value : "default";
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const initialOperatorMode = parseOperatorMode(
+    (await cookies()).get("operator_mode")?.value,
+  );
+
   return (
     <html lang="en" className="dark h-full overflow-hidden">
       <body
+        data-operator-mode={initialOperatorMode}
         className={`${geistSans.variable} ${geistMono.variable} flex h-dvh min-h-0 flex-col overflow-hidden antialiased`}
       >
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){var m=localStorage.getItem("operator_mode");if(m==="high-contrast"||m==="large-type")document.body.setAttribute("data-operator-mode",m);})();`,
-          }}
-        />
         <a href="#main-content" className="sr-only">
           Skip to main content
         </a>
-        <AppProviders>
+        <AppProviders initialOperatorMode={initialOperatorMode}>
           <TooltipProvider>
             <KeyboardShortcutsHandler />
             <PlatformShell>{children}</PlatformShell>

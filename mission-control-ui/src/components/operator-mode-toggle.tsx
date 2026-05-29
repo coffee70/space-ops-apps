@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useOperatorMode, type OperatorMode } from "@/components/app-providers";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,30 +10,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MonitorIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const STORAGE_KEY = "operator_mode";
-type OperatorMode = "default" | "high-contrast" | "large-type";
-
-function getStoredMode(): OperatorMode {
-  if (typeof window === "undefined") return "default";
-  try {
-    const v = localStorage.getItem(STORAGE_KEY);
-    if (v === "high-contrast" || v === "large-type") return v;
-    return "default";
-  } catch {
-    return "default";
-  }
-}
-
-function applyMode(mode: OperatorMode) {
-  if (typeof document === "undefined") return;
-  const body = document.body;
-  if (mode === "default") {
-    body.removeAttribute("data-operator-mode");
-  } else {
-    body.setAttribute("data-operator-mode", mode);
-  }
-}
 
 const MODE_LABELS: Record<OperatorMode, string> = {
   default: "Default",
@@ -47,21 +23,7 @@ interface OperatorModeToggleProps {
 }
 
 export function OperatorModeToggle({ className, ariaLabel }: OperatorModeToggleProps) {
-  const [mode, setMode] = useState<OperatorMode>(() => getStoredMode());
-
-  useEffect(() => {
-    applyMode(mode);
-  }, [mode]);
-
-  const setModeAndStore = (m: OperatorMode) => {
-    setMode(m);
-    if (m === "default") {
-      localStorage.removeItem(STORAGE_KEY);
-    } else {
-      localStorage.setItem(STORAGE_KEY, m);
-    }
-    applyMode(m);
-  };
+  const { mode, setMode } = useOperatorMode();
 
   return (
     <DropdownMenu>
@@ -84,7 +46,7 @@ export function OperatorModeToggle({ className, ariaLabel }: OperatorModeToggleP
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
-        <DropdownMenuRadioGroup value={mode} onValueChange={(v) => setModeAndStore(v as OperatorMode)}>
+        <DropdownMenuRadioGroup value={mode} onValueChange={(v) => setMode(v as OperatorMode)}>
           <DropdownMenuRadioItem value="default">Default</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="high-contrast">High contrast</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="large-type">Large type</DropdownMenuRadioItem>
