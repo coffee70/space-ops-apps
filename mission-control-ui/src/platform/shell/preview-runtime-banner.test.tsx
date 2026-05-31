@@ -98,6 +98,26 @@ test("PreviewRuntimeBannerView shows failed validation status", () => {
   assert.match(markup, /returned 404/);
 });
 
+test("PreviewRuntimeBannerView shows not-ready validation status", () => {
+  const markup = renderToStaticMarkup(
+    <PreviewRuntimeBannerView
+      preview={previewRuntime({
+        active: {
+          ...previewRuntime().active!,
+          validation_status: "not_ready",
+          deployment_status: "building",
+          health_status: "pending",
+        },
+      })}
+      revertState="idle"
+      onRevert={() => {}}
+    />,
+  );
+
+  assert.match(markup, /Preview not ready for validation/);
+  assert.match(markup, /not reached healthy\/passing state yet/);
+});
+
 test("PreviewRuntimeBannerView shows passed validation status", () => {
   const markup = renderToStaticMarkup(
     <PreviewRuntimeBannerView

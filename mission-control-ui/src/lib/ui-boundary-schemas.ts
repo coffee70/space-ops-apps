@@ -274,8 +274,7 @@ export const ActiveFrontendPreviewRuntimeResponseSchema = z
     preview_deployment_id: z.string().nullable().optional(),
     target_application_id: z.string().nullable().optional(),
     validation_status: z
-      .enum(["not_run", "running", "passed", "failed", "partially_validated"])
-      .optional()
+      .enum(["not_run", "not_ready", "running", "passed", "failed", "partially_validated"])
       .default("not_run"),
     success_claim_allowed: z.boolean().optional().default(false),
     validation_summary: z
@@ -316,8 +315,7 @@ export const FrontendRuntimeDeploymentSchema = z
     is_preview: z.boolean(),
     failure_reason: z.string().nullable().optional(),
     validation_status: z
-      .enum(["not_run", "running", "passed", "failed", "partially_validated"])
-      .optional()
+      .enum(["not_run", "not_ready", "running", "passed", "failed", "partially_validated"])
       .default("not_run"),
     success_claim_allowed: z.boolean().optional().default(false),
     validation_summary: z

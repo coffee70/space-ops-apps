@@ -67,6 +67,12 @@ function previewValidationCopy(active: NonNullable<FrontendRuntimeStatus["active
         "The runtime is healthy, but at least one platform integration check failed.",
     };
   }
+  if (validationStatus === "not_ready") {
+    return {
+      label: "Preview not ready for validation",
+      message: "Deployment has not reached healthy/passing state yet.",
+    };
+  }
   if (validationStatus === "partially_validated") {
     return {
       label: "Preview partially validated",
