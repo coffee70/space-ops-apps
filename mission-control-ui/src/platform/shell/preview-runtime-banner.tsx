@@ -73,6 +73,12 @@ function previewValidationCopy(active: NonNullable<FrontendRuntimeStatus["active
       message: "Deployment has not reached healthy/passing state yet.",
     };
   }
+  if (validationStatus === "running") {
+    return {
+      label: "Preview validation running",
+      message: "Runtime health is passing and platform integration checks are in progress.",
+    };
+  }
   if (validationStatus === "partially_validated") {
     return {
       label: "Preview partially validated",

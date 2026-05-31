@@ -118,6 +118,25 @@ test("PreviewRuntimeBannerView shows not-ready validation status", () => {
   assert.match(markup, /not reached healthy\/passing state yet/);
 });
 
+test("PreviewRuntimeBannerView shows running validation status", () => {
+  const markup = renderToStaticMarkup(
+    <PreviewRuntimeBannerView
+      preview={previewRuntime({
+        active: {
+          ...previewRuntime().active!,
+          validation_status: "running",
+        },
+      })}
+      revertState="idle"
+      onRevert={() => {}}
+    />,
+  );
+
+  assert.match(markup, /Preview validation running/);
+  assert.match(markup, /platform integration checks are in progress/);
+  assert.doesNotMatch(markup, /validation not run/);
+});
+
 test("PreviewRuntimeBannerView shows passed validation status", () => {
   const markup = renderToStaticMarkup(
     <PreviewRuntimeBannerView
