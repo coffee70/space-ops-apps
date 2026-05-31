@@ -50,6 +50,53 @@ function shortCommit(commitSha?: string | null) {
   return commitSha ? commitSha.slice(0, 7) : null;
 }
 
+function previewValidationCopy(active: NonNullable<FrontendRuntimeStatus["active"]>) {
+  const validationStatus = active.validation_status ?? "not_run";
+  const healthPassing = active.deployment_status === "healthy" && active.health_status === "passing";
+  if (validationStatus === "passed" && active.success_claim_allowed) {
+    return {
+      label: "Preview validated",
+      message: "Runtime health and platform integration checks passed.",
+    };
+  }
+  if (validationStatus === "failed") {
+    return {
+      label: "Preview validation failed",
+      message:
+        active.last_validation_message ||
+        "The runtime is healthy, but at least one platform integration check failed.",
+    };
+  }
+  if (validationStatus === "not_ready") {
+    return {
+      label: "Preview not ready for validation",
+      message: "Deployment has not reached healthy/passing state yet.",
+    };
+  }
+  if (validationStatus === "running") {
+    return {
+      label: "Preview validation running",
+      message: "Runtime health is passing and platform integration checks are in progress.",
+    };
+  }
+  if (validationStatus === "partially_validated") {
+    return {
+      label: "Preview partially validated",
+      message: "Some platform integration checks passed, but validation has not fully completed.",
+    };
+  }
+  if (healthPassing) {
+    return {
+      label: "Preview healthy - validation not run",
+      message: "Runtime health is passing, but capability validation has not completed.",
+    };
+  }
+  return {
+    label: "Preview deployed",
+    message: "The preview runtime is deployed, but runtime health and capability validation are not both complete.",
+  };
+}
+
 export function PreviewRuntimeBannerView({
   preview,
   revertState,
@@ -74,6 +121,7 @@ export function PreviewRuntimeBannerView({
   const branch = active.branch ?? "unknown preview branch";
   const isReverting = revertState === "reverting" || preview.effective_state === "baseline_reverting";
   const isFailed = revertState === "failed" || preview.effective_state === "baseline_revert_failed";
+  const validationCopy = previewValidationCopy(active);
 
   return (
     <section
@@ -84,14 +132,15 @@ export function PreviewRuntimeBannerView({
       <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-sm font-semibold">Preview frontend runtime active</span>
+            <span className="text-sm font-semibold">{validationCopy.label}</span>
             <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs dark:bg-amber-900/70">{branch}</code>
             {commit ? (
               <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs dark:bg-amber-900/70">{commit}</code>
             ) : null}
           </div>
           <p className="text-sm leading-5 text-amber-900 dark:text-amber-100">
-            You are viewing a deployed preview from branch {branch}, not the baseline frontend runtime. Some application surfaces may reflect AI Engineer changes.
+            Preview deployed from {branch}
+            {commit ? ` @ ${commit}` : ""}. {validationCopy.message}
           </p>
           {preview.target_application_id ? (
             <p className="text-xs text-amber-900/80 dark:text-amber-100/80">

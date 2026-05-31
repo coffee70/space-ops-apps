@@ -948,7 +948,7 @@ export function useActiveFrontendPreviewRuntimeQuery() {
       fetchJson(
         "/registry/frontend-runtime/preview-context",
         { signal, cache: "no-store", useFallback: true },
-        ActiveFrontendPreviewRuntimeResponseSchema,
+        ActiveFrontendPreviewRuntimeResponseSchema as z.ZodType<ActiveFrontendPreviewRuntimeResponse>,
       ),
   });
 }
@@ -957,7 +957,7 @@ export async function fetchFrontendRuntimeStatus(signal?: AbortSignal): Promise<
   return fetchJson(
     "/registry/frontend-runtime/status",
     { signal, cache: "no-store", useFallback: true },
-    FrontendRuntimeStatusSchema,
+    FrontendRuntimeStatusSchema as z.ZodType<FrontendRuntimeStatus>,
   );
 }
 

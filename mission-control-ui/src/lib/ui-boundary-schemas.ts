@@ -273,6 +273,20 @@ export const ActiveFrontendPreviewRuntimeResponseSchema = z
     baseline_commit_sha: z.string().nullable().optional(),
     preview_deployment_id: z.string().nullable().optional(),
     target_application_id: z.string().nullable().optional(),
+    validation_status: z
+      .enum(["not_run", "not_ready", "running", "passed", "failed", "partially_validated"])
+      .default("not_run"),
+    success_claim_allowed: z.boolean().optional().default(false),
+    validation_summary: z
+      .object({
+        passed: z.number(),
+        failed: z.number(),
+        running: z.number(),
+        skipped: z.number(),
+      })
+      .partial()
+      .optional(),
+    last_validation_message: z.string().nullable().optional(),
   })
   .passthrough();
 
@@ -300,6 +314,20 @@ export const FrontendRuntimeDeploymentSchema = z
     mode: z.enum(["baseline", "preview", "unknown"]),
     is_preview: z.boolean(),
     failure_reason: z.string().nullable().optional(),
+    validation_status: z
+      .enum(["not_run", "not_ready", "running", "passed", "failed", "partially_validated"])
+      .default("not_run"),
+    success_claim_allowed: z.boolean().optional().default(false),
+    validation_summary: z
+      .object({
+        passed: z.number(),
+        failed: z.number(),
+        running: z.number(),
+        skipped: z.number(),
+      })
+      .partial()
+      .optional(),
+    last_validation_message: z.string().nullable().optional(),
   })
   .passthrough();
 

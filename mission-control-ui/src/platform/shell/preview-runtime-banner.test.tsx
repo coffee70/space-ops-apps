@@ -24,6 +24,10 @@ function previewRuntime(
       mode: "preview",
       is_preview: true,
       failure_reason: null,
+      validation_status: "not_run",
+      validation_summary: {},
+      success_claim_allowed: false,
+      last_validation_message: null,
     },
     pending: null,
     last_terminal: null,
@@ -47,6 +51,10 @@ test("PreviewRuntimeBannerView returns nothing when runtime is baseline", () => 
           mode: "baseline",
           is_preview: false,
           failure_reason: null,
+          validation_status: "not_run",
+          validation_summary: {},
+          success_claim_allowed: false,
+          last_validation_message: null,
         },
         effective_state: "baseline_active",
       })}
@@ -64,10 +72,88 @@ test("PreviewRuntimeBannerView renders preview branch, short commit, and revert 
   );
 
   assert.match(markup, /data-testid="preview-runtime-banner"/);
-  assert.match(markup, /Preview frontend runtime active/);
+  assert.match(markup, /Preview healthy - validation not run/);
+  assert.match(markup, /capability validation has not completed/);
   assert.match(markup, /preview\/shell-banner/);
   assert.match(markup, /abcdef1/);
   assert.match(markup, /Revert to baseline/);
+});
+
+test("PreviewRuntimeBannerView shows failed validation status", () => {
+  const markup = renderToStaticMarkup(
+    <PreviewRuntimeBannerView
+      preview={previewRuntime({
+        active: {
+          ...previewRuntime().active!,
+          validation_status: "failed",
+          last_validation_message: "GET /internal/runtime-services/example/advisory returned 404",
+        },
+      })}
+      revertState="idle"
+      onRevert={() => {}}
+    />,
+  );
+
+  assert.match(markup, /Preview validation failed/);
+  assert.match(markup, /returned 404/);
+});
+
+test("PreviewRuntimeBannerView shows not-ready validation status", () => {
+  const markup = renderToStaticMarkup(
+    <PreviewRuntimeBannerView
+      preview={previewRuntime({
+        active: {
+          ...previewRuntime().active!,
+          validation_status: "not_ready",
+          deployment_status: "building",
+          health_status: "pending",
+        },
+      })}
+      revertState="idle"
+      onRevert={() => {}}
+    />,
+  );
+
+  assert.match(markup, /Preview not ready for validation/);
+  assert.match(markup, /not reached healthy\/passing state yet/);
+});
+
+test("PreviewRuntimeBannerView shows running validation status", () => {
+  const markup = renderToStaticMarkup(
+    <PreviewRuntimeBannerView
+      preview={previewRuntime({
+        active: {
+          ...previewRuntime().active!,
+          validation_status: "running",
+        },
+      })}
+      revertState="idle"
+      onRevert={() => {}}
+    />,
+  );
+
+  assert.match(markup, /Preview validation running/);
+  assert.match(markup, /platform integration checks are in progress/);
+  assert.doesNotMatch(markup, /validation not run/);
+});
+
+test("PreviewRuntimeBannerView shows passed validation status", () => {
+  const markup = renderToStaticMarkup(
+    <PreviewRuntimeBannerView
+      preview={previewRuntime({
+        active: {
+          ...previewRuntime().active!,
+          validation_status: "passed",
+          success_claim_allowed: true,
+        },
+      })}
+      revertState="idle"
+      onRevert={() => {}}
+    />,
+  );
+
+  assert.match(markup, /Preview validated/);
+  assert.match(markup, /platform integration checks passed/);
 });
 
 test("PreviewRuntimeBannerView renders optional intended target", () => {
