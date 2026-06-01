@@ -8,7 +8,7 @@ import { AiEngineerConversationSidebar } from "@/applications/ai-engineer/compon
 import { AiEngineerHeader } from "@/applications/ai-engineer/components/ai-engineer-header";
 import { AiEngineerMessages } from "@/applications/ai-engineer/components/ai-engineer-messages";
 import type { AiEngineerChangeSummary, ChangePreviewState } from "@/applications/ai-engineer/lib/change-preview-types";
-import type { AiEngineerConversationSummary, AiEngineerModelOption, AttachmentStatus, ChatEvent, ChatMessage, ExecutionMode } from "@/applications/ai-engineer/types";
+import type { AiEngineerConversationSummary, AiEngineerModelOption, AttachmentStatus, ChatEvent, ChatMessage, ExecutionMode, ModelBudgetSnapshot } from "@/applications/ai-engineer/types";
 import type { FrontendRuntimeStatus } from "@/lib/ui-boundary-schemas";
 
 export function AiEngineerShell({
@@ -28,6 +28,7 @@ export function AiEngineerShell({
   onModelSelect,
   isLoadingModels = false,
   modelLoadError,
+  modelBudgetSnapshot = null,
   selectedModelName,
   conversations,
   activeConversationId,
@@ -59,6 +60,7 @@ export function AiEngineerShell({
   onModelSelect?: (modelId: string) => void;
   isLoadingModels?: boolean;
   modelLoadError?: string | null;
+  modelBudgetSnapshot?: ModelBudgetSnapshot | null;
   selectedModelName?: string | null;
   conversations?: AiEngineerConversationSummary[];
   activeConversationId?: string | null;
@@ -129,6 +131,7 @@ export function AiEngineerShell({
             onModelSelect={onModelSelect}
             isLoadingModels={isLoadingModels}
             modelLoadError={modelLoadError ?? null}
+            modelBudgetSnapshot={modelBudgetSnapshot}
           />
         </div>
       </main>

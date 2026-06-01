@@ -98,6 +98,122 @@ const ModelProviderTypeSchema = z.enum([
 const ModelDataBoundarySchema = z.enum(["external_api", "private_cloud", "local_airgapped", "unknown"]);
 const ModelCapabilitySchema = z.enum(["text", "vision", "tool-use", "reasoning", "json", "file-input", "web-search", "code"]);
 
+export const ModelBudgetStatusSchema = z.enum(["normal", "watch", "danger", "exhausted", "throttled", "unknown"]);
+export const LanguageModelUsageSnapshotSchema = z
+  .object({
+    input_tokens: z.number().int().nonnegative().nullable(),
+    output_tokens: z.number().int().nonnegative().nullable(),
+    total_tokens: z.number().int().nonnegative().nullable(),
+    reasoning_tokens: z.number().int().nonnegative().nullable(),
+    cached_input_tokens: z.number().int().nonnegative().nullable(),
+    raw: z.unknown().nullable().optional(),
+    source: z.enum([
+      "ai_sdk_step_usage",
+      "ai_sdk_total_usage",
+      "provider_gateway",
+      "provider_count_tokens",
+      "estimated_current_step",
+      "estimated_preflight",
+    ]),
+    step_index: z.number().int().nonnegative().nullable().optional(),
+    synced_after: z.string().nullable().optional(),
+    is_actual: z.boolean(),
+  })
+  .passthrough();
+
+export const ModelBudgetSnapshotPayloadSchema = z
+  .object({
+    provider_type: z.string().min(1),
+    provider_model_id: z.string().min(1),
+    model_id: z.string().min(1).nullable().optional(),
+    source: z.enum(["estimated", "provider_headers", "provider_error", "configured", "mixed"]),
+    measured_at: z.string(),
+    usage: LanguageModelUsageSnapshotSchema.nullable().optional(),
+    context: z
+      .object({
+        limit_tokens: z.number().int().positive().nullable(),
+        used_tokens: z.number().int().nonnegative().nullable(),
+        remaining_tokens: z.number().int().nonnegative().nullable(),
+        percent_used: z.number().nonnegative().nullable(),
+        status: ModelBudgetStatusSchema.exclude(["throttled"]),
+        measurement_source: z.enum(["provider_usage", "provider_count_tokens", "estimated", "configured", "unknown"]),
+      })
+      .passthrough(),
+    throughput: z
+      .object({
+        window_seconds: z.number().int().positive().nullable(),
+        limit_tokens: z.number().int().positive().nullable(),
+        used_tokens: z.number().int().nonnegative().nullable(),
+        remaining_tokens: z.number().int().nonnegative().nullable(),
+        percent_used: z.number().nonnegative().nullable(),
+        reset_at: z.string().nullable(),
+        seconds_until_reset: z.number().nonnegative().nullable(),
+        status: ModelBudgetStatusSchema,
+        measurement_source: z.enum(["provider_usage", "provider_headers", "provider_error", "configured_rolling_window", "estimated", "mixed", "unknown"]),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
+export const ModelBudgetWarningPayloadSchema = z
+  .object({
+    kind: z.enum(["context", "throughput"]),
+    status: z.enum(["watch", "danger", "exhausted", "throttled"]),
+    message: z.string().min(1),
+    percent_used: z.number().nonnegative().nullable(),
+    remaining_tokens: z.number().int().nonnegative().nullable(),
+    reset_at: z.string().nullable().optional(),
+    provider_type: z.string().min(1),
+    provider_model_id: z.string().min(1),
+  })
+  .passthrough();
+
+export const ModelRetryScheduledPayloadSchema = z
+  .object({
+    provider_type: z.string().min(1),
+    provider_model_id: z.string().min(1),
+    category: z.enum(["rate_limited", "provider_overloaded", "network_transient"]),
+    attempt: z.number().int().positive(),
+    max_attempts: z.number().int().positive(),
+    retry_after_ms: z.number().int().nonnegative(),
+    retry_at: z.string(),
+    safe_to_retry: z.boolean(),
+  })
+  .passthrough();
+
+export const ModelRetryingPayloadSchema = z
+  .object({
+    provider_type: z.string().min(1),
+    provider_model_id: z.string().min(1),
+    attempt: z.number().int().positive(),
+    max_attempts: z.number().int().positive(),
+  })
+  .passthrough();
+
+export const ModelProviderErrorPayloadSchema = z
+  .object({
+    provider_type: z.string().min(1),
+    provider_model_id: z.string().min(1),
+    category: z.enum([
+      "rate_limited",
+      "quota_exceeded",
+      "context_length_exceeded",
+      "auth_failed",
+      "model_unavailable",
+      "provider_overloaded",
+      "network_transient",
+      "cancelled",
+      "unknown",
+    ]),
+    retryable: z.boolean(),
+    retry_after_ms: z.number().int().nonnegative().nullable(),
+    provider_error_type: z.string().nullable().optional(),
+    provider_error_code: z.string().nullable().optional(),
+    http_status: z.number().int().positive().nullable().optional(),
+    message: z.string().min(1),
+  })
+  .passthrough();
+
 const ModelOptionSchema = z
   .object({
     id: z.string(),
@@ -120,6 +236,16 @@ const ModelOptionSchema = z
       .passthrough(),
     contextWindow: z.number().nullable(),
     maxOutputTokens: z.number().nullable(),
+    runtimeBudget: z
+      .object({
+        contextWindowTokens: z.number().int().positive().nullable(),
+        maxOutputTokens: z.number().int().positive().nullable(),
+        tokensPerMinute: z.number().int().positive().nullable(),
+        requestsPerMinute: z.number().int().positive().nullable(),
+        rollingWindowSeconds: z.number().int().positive().nullable(),
+      })
+      .nullable()
+      .optional(),
     inputModalities: z.array(z.string()),
     outputModalities: z.array(z.string()),
     supportedParameters: z.array(z.string()),
@@ -166,5 +292,16 @@ export const UploadDocumentResponseSchema = z.object({
 
 export const MessageDeltaPayloadSchema = z.object({ text_delta: z.string() });
 export const MessageCompletedPayloadSchema = z.object({ message_id: z.string() });
-export const RunFailedPayloadSchema = z.object({ message: z.string().optional() }).passthrough();
+export const RunFailedPayloadSchema = z
+  .object({
+    message: z.string().optional(),
+    error_code: z.string().optional(),
+    category: z.string().optional(),
+    retryable: z.boolean().optional(),
+    can_continue: z.boolean().optional(),
+    retry_after_ms: z.number().int().nonnegative().nullable().optional(),
+    provider_type: z.string().optional(),
+    provider_model_id: z.string().optional(),
+  })
+  .passthrough();
 export const ReasoningPayloadSchema = z.object({ representation: z.string().optional() }).passthrough();

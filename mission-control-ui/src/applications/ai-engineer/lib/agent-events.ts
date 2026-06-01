@@ -131,7 +131,12 @@ export function applyAgentEventToAssistantMessage(messages: ChatMessage[], draft
 
   if (event.event_type === "run.failed") {
     const payload = RunFailedPayloadSchema.safeParse(event.payload);
-    const message = payload.success && payload.data.message ? payload.data.message : "Agent runtime failed.";
+    const message =
+      payload.success && payload.data.error_code === "model_provider_rate_limited"
+        ? "The selected model hit a provider throughput limit. Completed tool actions were preserved. You can continue after the provider window clears."
+        : payload.success && payload.data.message
+          ? payload.data.message
+          : "Agent runtime failed.";
     return messages.map((item) =>
       item.id === draftAssistantId
         ? {

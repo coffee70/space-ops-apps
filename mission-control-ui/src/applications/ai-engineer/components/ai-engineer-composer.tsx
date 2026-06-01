@@ -3,8 +3,9 @@
 import { ArrowUp, Square } from "lucide-react";
 import { useRef, useState } from "react";
 
+import { AiEngineerModelBudgetMeter } from "@/applications/ai-engineer/components/ai-engineer-model-budget-meter";
 import { AiEngineerModelPicker } from "@/applications/ai-engineer/components/model-picker/ai-engineer-model-picker";
-import type { AiEngineerModelOption, ExecutionMode } from "@/applications/ai-engineer/types";
+import type { AiEngineerModelOption, ExecutionMode, ModelBudgetSnapshot } from "@/applications/ai-engineer/types";
 import { cn } from "@/lib/utils";
 
 const modes: Array<{ value: ExecutionMode; label: string; title: string }> = [
@@ -27,6 +28,7 @@ export function AiEngineerComposer({
   onModelSelect,
   isLoadingModels = false,
   modelLoadError = null,
+  modelBudgetSnapshot = null,
 }: {
   input: string;
   onInputChange: (value: string) => void;
@@ -41,6 +43,7 @@ export function AiEngineerComposer({
   onModelSelect?: (modelId: string) => void;
   isLoadingModels?: boolean;
   modelLoadError?: string | null;
+  modelBudgetSnapshot?: ModelBudgetSnapshot | null;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -107,29 +110,32 @@ export function AiEngineerComposer({
               ))}
             </div>
           </div>
-          {isStreaming && onStop ? (
-            <button
-              type="button"
-              aria-label="Stop response"
-              onClick={onStop}
-              className="bg-foreground text-background flex h-7 w-7 items-center justify-center rounded-xl transition-all duration-200 hover:opacity-85 active:scale-95"
-            >
-              <Square className="size-3" fill="currentColor" strokeWidth={0} />
-            </button>
-          ) : (
-            <button
-              type="submit"
-              data-testid="ai-engineer-send-button"
-              aria-label="Send message"
-              disabled={!canSubmit}
-              className={cn(
-                "flex h-7 w-7 items-center justify-center rounded-xl transition-all duration-200",
-                canSubmit ? "bg-foreground text-background hover:opacity-85 active:scale-95" : "cursor-not-allowed bg-muted text-muted-foreground/25",
-              )}
-            >
-              <ArrowUp className="size-4" />
-            </button>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            <AiEngineerModelBudgetMeter snapshot={modelBudgetSnapshot} isStreaming={isStreaming} />
+            {isStreaming && onStop ? (
+              <button
+                type="button"
+                aria-label="Stop response"
+                onClick={onStop}
+                className="bg-foreground text-background flex h-7 w-7 items-center justify-center rounded-xl transition-all duration-200 hover:opacity-85 active:scale-95"
+              >
+                <Square className="size-3" fill="currentColor" strokeWidth={0} />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                data-testid="ai-engineer-send-button"
+                aria-label="Send message"
+                disabled={!canSubmit}
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-xl transition-all duration-200",
+                  canSubmit ? "bg-foreground text-background hover:opacity-85 active:scale-95" : "cursor-not-allowed bg-muted text-muted-foreground/25",
+                )}
+              >
+                <ArrowUp className="size-4" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </form>

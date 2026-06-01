@@ -1,3 +1,21 @@
+import type { z } from "zod";
+
+import type {
+  ModelBudgetSnapshotPayloadSchema,
+  ModelBudgetStatusSchema,
+  ModelBudgetWarningPayloadSchema,
+  ModelProviderErrorPayloadSchema,
+  ModelRetryingPayloadSchema,
+  ModelRetryScheduledPayloadSchema,
+} from "@/applications/ai-engineer/schemas";
+
+export type ModelBudgetStatus = z.infer<typeof ModelBudgetStatusSchema>;
+export type ModelBudgetSnapshot = z.infer<typeof ModelBudgetSnapshotPayloadSchema>;
+export type ModelBudgetWarningPayload = z.infer<typeof ModelBudgetWarningPayloadSchema>;
+export type ModelRetryScheduledPayload = z.infer<typeof ModelRetryScheduledPayloadSchema>;
+export type ModelRetryingPayload = z.infer<typeof ModelRetryingPayloadSchema>;
+export type ModelProviderErrorPayload = z.infer<typeof ModelProviderErrorPayloadSchema>;
+
 export interface AgentEvent {
   id: string;
   event_type: string;
@@ -168,6 +186,13 @@ export interface AiEngineerModelOption {
   };
   contextWindow: number | null;
   maxOutputTokens: number | null;
+  runtimeBudget?: {
+    contextWindowTokens: number | null;
+    maxOutputTokens: number | null;
+    tokensPerMinute: number | null;
+    requestsPerMinute: number | null;
+    rollingWindowSeconds: number | null;
+  } | null;
   inputModalities: string[];
   outputModalities: string[];
   supportedParameters: string[];

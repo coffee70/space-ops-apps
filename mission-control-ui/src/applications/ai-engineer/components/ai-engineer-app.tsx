@@ -7,6 +7,7 @@ import { AiEngineerShell } from "@/applications/ai-engineer/components/ai-engine
 import { applyAgentEventToAssistantMessage } from "@/applications/ai-engineer/lib/agent-events";
 import { sendChatMessage } from "@/applications/ai-engineer/lib/ai-engineer-client";
 import type { AiEngineerChangeSummary } from "@/applications/ai-engineer/lib/change-preview-types";
+import { latestModelBudgetSnapshotFromEvents } from "@/applications/ai-engineer/lib/model-budget";
 import { useChangePreviewFlow } from "@/applications/ai-engineer/lib/use-change-preview-flow";
 import type {
   AiEngineerConversationDetail,
@@ -694,6 +695,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
     if (!selectedModelId) return null;
     return models.find((m) => m.id === selectedModelId)?.name ?? null;
   }, [models, selectedModelId]);
+  const modelBudgetSnapshot = useMemo(() => latestModelBudgetSnapshotFromEvents(events), [events]);
 
   return (
     <AiEngineerShell
@@ -713,6 +715,7 @@ export function AiEngineerApp(props: NativeApplicationProps) {
       onModelSelect={handleModelSelect}
       isLoadingModels={modelsQuery.isPending}
       modelLoadError={modelsQuery.isError ? (modelsQuery.error instanceof Error ? modelsQuery.error.message : "Failed to load models") : null}
+      modelBudgetSnapshot={modelBudgetSnapshot}
       selectedModelName={selectedModelName}
       conversations={conversations}
       activeConversationId={activeConversationId}
