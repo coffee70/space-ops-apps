@@ -1,4 +1,9 @@
 import type { AttachmentStatus, ChatEvent } from "@/applications/ai-engineer/types";
+import {
+  ModelProviderErrorPayloadSchema,
+  ModelRetryingPayloadSchema,
+  ModelRetryScheduledPayloadSchema,
+} from "@/applications/ai-engineer/schemas";
 
 export type ActivityStatus = "pending" | "running" | "success" | "failed" | "info";
 export type EventIconKind = "run" | "context" | "tool" | "document" | "code" | "navigation" | "message" | "deployment" | "error";
@@ -41,6 +46,9 @@ export function getEventDisplayTitle(event: ChatEvent): string {
     "code.index_failed": "Code index failed",
     "navigation.requested": "Navigation requested",
     "message.completed": "Message completed",
+    "model.provider_error": "Model provider issue",
+    "model.retry_scheduled": "Retry scheduled",
+    "model.retrying": "Retrying model request",
     "change.summary": "Change preview ready",
     "deployment.requested": "Deploying preview",
     "deployment.submitted": "Deployment submitted",
@@ -102,6 +110,34 @@ export function getEventDisplayDescription(event: ChatEvent): string {
   const chunkCount = readNumber(payload, "chunk_count");
   const fileCount = readNumber(payload, "file_count");
 
+  if (event.event_type === "model.retry_scheduled") {
+    const parsed = ModelRetryScheduledPayloadSchema.safeParse(payload);
+    if (parsed.success) {
+      const seconds = Math.max(0, Math.round(parsed.data.retry_after_ms / 1000));
+      const label =
+        parsed.data.category === "rate_limited"
+          ? "Provider rate limit hit"
+          : parsed.data.category === "provider_overloaded"
+            ? "Provider overloaded"
+            : "Transient provider issue";
+      return `${label}. Retrying in ${seconds}s.`;
+    }
+  }
+
+  if (event.event_type === "model.retrying") {
+    const parsed = ModelRetryingPayloadSchema.safeParse(payload);
+    if (parsed.success) {
+      return "Retrying model request.";
+    }
+  }
+
+  if (event.event_type === "model.provider_error") {
+    const parsed = ModelProviderErrorPayloadSchema.safeParse(payload);
+    if (parsed.success) {
+      return parsed.data.message;
+    }
+  }
+
   if (event.event_type === "change.summary") {
     const branch = readString(payload, "branch");
     const target = readString(payload, "target_unit_id") ?? readString(payload, "target_application_id");
@@ -143,6 +179,8 @@ export function getEventDisplayStatus(event: ChatEvent): ActivityStatus {
     return "running";
   }
   if (event.event_type === "change.summary") return "info";
+  if (event.event_type === "model.retry_scheduled" || event.event_type === "model.retrying") return "running";
+  if (event.event_type === "model.provider_error") return "failed";
   if (event.event_type === "message.delta") return "info";
   return "info";
 }
@@ -156,6 +194,7 @@ export function getEventDisplayIcon(event: ChatEvent): EventIconKind {
   if (event.event_type.startsWith("code.")) return "code";
   if (event.event_type.startsWith("navigation.")) return "navigation";
   if (event.event_type.startsWith("message.")) return "message";
+  if (event.event_type.startsWith("model.")) return event.event_type === "model.provider_error" ? "error" : "run";
   if (
     event.event_type.startsWith("deployment.") ||
     event.event_type.startsWith("preview.") ||
