@@ -2,6 +2,9 @@
 
 Next.js operator surface for the Space Ops split stack: overview, watchlists, anomalies, live status, integrated search, channel detail, simulator controls, embedded applications, and related workflows.
 
+For indexed developer documentation, use `space-ops-apps/docs/`.
+This package README is local development orientation only.
+
 ## Read this with the split checkout
 
 Mission Control is one piece of **three siblings** (`space-ops-kernel`, `space-ops-platform`, `space-ops-apps`). Prefer the **parent** docs for full-stack test instructions:

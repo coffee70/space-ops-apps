@@ -10,6 +10,12 @@
 
 If you validate the UI in a browser, read the kernel Playwright section first so you attach to the Compose network correctly.
 
+## Indexed documentation
+
+For platform behavior, implementation workflows, deployment procedures, runbooks, and AI Engineer retrieval, use the curated docs under `docs/`.
+
+This AGENTS.md file is local repo guidance and should not be indexed as the canonical AI Engineer knowledge corpus.
+
 ## Repo role (Layer 3)
 
 Keep changes scoped to Mission Control UI, app scripts, browser tests, and operator workflow documentation. The simulator runtime, SatNOGS adapter, and concrete vehicle configuration resources are Layer 2 managed capabilities in `space-ops-platform`.

@@ -4,6 +4,12 @@ Layer 3 applications, app scripts, browser tests, and operator workflow docs.
 
 Extraction baseline: `c2-infra` commit `7b4f15ace9895c440ad89a9a460566c78135c57b` (`phase1-layer-split-baseline-2026-04-20`).
 
+## Documentation
+
+The curated documentation corpus for AI Engineer retrieval lives under this repository's `docs/` directory.
+
+This README is repo-local orientation and is not intended to be indexed as the canonical AI Engineer knowledge source.
+
 ## Documentation map (split checkout)
 
 | Area | Humans | Agents / automation |
@@ -29,7 +35,7 @@ telemetry_catalog/             Copied Layer 2 schema package source for app help
 tools/playwright/              Browser smoke tests
 scripts/                       App/sample telemetry helper scripts
 docs/SITUATIONAL_AWARENESS_QA.md
-docs/API_TELEMETRY_CONTRACTS.md
+docs/API_TELEMETRY_CONTRACTS.md    Pointer to the Layer 2 canonical contract
 ```
 
 ## Running tests from this repo
