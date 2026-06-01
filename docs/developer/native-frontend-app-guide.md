@@ -83,4 +83,4 @@ Loader key mismatches, stale generated manifests, or validating only through `lo
 
 - [Application Loader Manifest](./application-loader-manifest.md)
 - [Frontend Fetching and Gateway Routes](./frontend-fetching-and-gateway-routes.md)
-- [Validation Gates](../../../space-ops-kernel/docs/platform/validation-gates.md)
+- Related canonical doc: `space-ops-kernel/docs/platform/validation-gates.md`

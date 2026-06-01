@@ -108,4 +108,4 @@ Confirm the selected source ID, active stream, simulator runtime state, and the 
 ## Related Docs
 
 - [Quick Start](./quick-start.md)
-- [Telemetry API Contracts](../../../space-ops-platform/docs/developer/telemetry-api-contracts.md)
+- Related canonical doc: `space-ops-platform/docs/developer/telemetry-api-contracts.md`
