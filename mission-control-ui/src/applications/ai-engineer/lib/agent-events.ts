@@ -37,6 +37,28 @@ function contentWithToolBoundary(content: string, textDelta: string, hasPendingT
   return `${content}${content.endsWith("\n\n") || textDelta.startsWith("\n\n") ? "" : "\n\n"}${textDelta}`;
 }
 
+function friendlyRunFailureMessage(payload: Record<string, unknown>): string {
+  const parsed = RunFailedPayloadSchema.safeParse(payload);
+  if (!parsed.success) {
+    return typeof payload.message === "string" && payload.message.length > 0 ? payload.message : "Agent runtime failed.";
+  }
+
+  const errorCode = parsed.data.error_code;
+  if (errorCode === "model_provider_rate_limited") {
+    return "The selected model hit a provider throughput limit. Completed tool actions were preserved. You can continue after the provider window clears.";
+  }
+  if (errorCode === "model_provider_overloaded") {
+    return "The selected model provider is temporarily overloaded. Completed tool actions were preserved. You can continue once the provider recovers.";
+  }
+  if (errorCode === "model_provider_network_transient") {
+    return "The model connection was interrupted by a transient network/provider issue. Completed tool actions were preserved. You can continue the conversation.";
+  }
+  if (errorCode === "model_context_length_exceeded") {
+    return "The selected model could not continue because the request exceeded its context limit. Completed tool actions were preserved, but the next message may need a smaller scope or summarized context.";
+  }
+  return parsed.data.message || "Agent runtime failed.";
+}
+
 export function applyAgentEventToAssistantMessage(messages: ChatMessage[], draftAssistantId: string, event: AgentEvent): ChatMessage[] {
   if (event.event_type === "message.reasoning.started") {
     const payload = ReasoningPayloadSchema.safeParse(event.payload);
@@ -130,8 +152,7 @@ export function applyAgentEventToAssistantMessage(messages: ChatMessage[], draft
   }
 
   if (event.event_type === "run.failed") {
-    const payload = RunFailedPayloadSchema.safeParse(event.payload);
-    const message = payload.success && payload.data.message ? payload.data.message : "Agent runtime failed.";
+    const message = friendlyRunFailureMessage(event.payload);
     return messages.map((item) =>
       item.id === draftAssistantId
         ? {

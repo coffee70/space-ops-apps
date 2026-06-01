@@ -72,3 +72,41 @@ test("ActionTimeline hides streamed message and reasoning deltas without hiding 
   assert.match(markup, /Message Reasoning Started/);
   assert.match(markup, /Message Reasoning Completed/);
 });
+
+test("ActionTimeline renders provider retry activity as runtime events", () => {
+  const markup = renderToStaticMarkup(
+    <ActionTimeline
+      events={[
+        buildEvent({
+          id: "retry-scheduled",
+          event_type: "model.retry_scheduled",
+          sequence: 1,
+          payload: {
+            provider_type: "openai",
+            provider_model_id: "gpt-5.5",
+            category: "rate_limited",
+            attempt: 1,
+            max_attempts: 3,
+            retry_after_ms: 8173,
+            retry_at: "2026-06-01T00:00:08.173Z",
+            safe_to_retry: true,
+          },
+        }),
+        buildEvent({
+          id: "retrying",
+          event_type: "model.retrying",
+          sequence: 2,
+          payload: {
+            provider_type: "openai",
+            provider_model_id: "gpt-5.5",
+            attempt: 2,
+            max_attempts: 3,
+          },
+        }),
+      ]}
+    />,
+  );
+
+  assert.match(markup, /Provider rate limit hit\. Retrying in 8s\./);
+  assert.match(markup, /Retrying model request\./);
+});

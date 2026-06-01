@@ -1,3 +1,19 @@
+import type { z } from "zod";
+
+import type {
+  EnrichedRunFailedPayloadSchema,
+  ModelProviderErrorCategorySchema,
+  ModelProviderErrorPayloadSchema,
+  ModelRetryingPayloadSchema,
+  ModelRetryScheduledPayloadSchema,
+} from "@/applications/ai-engineer/schemas";
+
+export type ModelProviderErrorCategory = z.infer<typeof ModelProviderErrorCategorySchema>;
+export type ModelRetryScheduledPayload = z.infer<typeof ModelRetryScheduledPayloadSchema>;
+export type ModelRetryingPayload = z.infer<typeof ModelRetryingPayloadSchema>;
+export type ModelProviderErrorPayload = z.infer<typeof ModelProviderErrorPayloadSchema>;
+export type EnrichedRunFailedPayload = z.infer<typeof EnrichedRunFailedPayloadSchema>;
+
 export interface AgentEvent {
   id: string;
   event_type: string;

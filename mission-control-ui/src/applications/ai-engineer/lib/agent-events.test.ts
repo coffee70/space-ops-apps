@@ -110,6 +110,55 @@ test("run.failed displays backend error payload", () => {
   assert.equal(failed[0].status, "complete");
 });
 
+test("run.failed displays friendly provider interruption messages for empty assistant content", () => {
+  const cases = [
+    {
+      error_code: "model_provider_rate_limited",
+      expected: "provider throughput limit",
+    },
+    {
+      error_code: "model_provider_overloaded",
+      expected: "temporarily overloaded",
+    },
+    {
+      error_code: "model_provider_network_transient",
+      expected: "transient network/provider issue",
+    },
+    {
+      error_code: "model_context_length_exceeded",
+      expected: "context limit",
+    },
+  ];
+
+  for (const { error_code, expected } of cases) {
+    const draft: ChatMessage[] = [{ id: "draft", role: "assistant", content: "", status: "streaming" }];
+    const failed = applyAgentEventToAssistantMessage(
+      draft,
+      "draft",
+      event({
+        event_type: "run.failed",
+        payload: {
+          error_code,
+          category: error_code === "model_context_length_exceeded" ? "context_length_exceeded" : "rate_limited",
+          retryable: error_code !== "model_context_length_exceeded",
+          message: "raw provider detail",
+        },
+      }),
+    );
+    assert.match(failed[0].content, new RegExp(expected));
+  }
+});
+
+test("malformed enriched run.failed falls back without breaking streaming state", () => {
+  const draft: ChatMessage[] = [{ id: "draft", role: "assistant", content: "", status: "streaming" }];
+  const failed = applyAgentEventToAssistantMessage(
+    draft,
+    "draft",
+    event({ event_type: "run.failed", payload: { error_code: 123, message: "generic fallback" } }),
+  );
+  assert.equal(failed[0].content, "generic fallback");
+  assert.equal(failed[0].status, "complete");
+});
 
 test("run.cancelled preserves partial assistant output and finalizes reasoning state", () => {
   const draft: ChatMessage[] = [

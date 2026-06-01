@@ -166,5 +166,73 @@ export const UploadDocumentResponseSchema = z.object({
 
 export const MessageDeltaPayloadSchema = z.object({ text_delta: z.string() });
 export const MessageCompletedPayloadSchema = z.object({ message_id: z.string() });
-export const RunFailedPayloadSchema = z.object({ message: z.string().optional() }).passthrough();
+export const ModelProviderErrorCategorySchema = z.enum([
+  "rate_limited",
+  "quota_exceeded",
+  "context_length_exceeded",
+  "auth_failed",
+  "model_unavailable",
+  "provider_overloaded",
+  "network_transient",
+  "cancelled",
+  "unknown",
+]);
+export const RetryableModelProviderCategorySchema = z.enum([
+  "rate_limited",
+  "provider_overloaded",
+  "network_transient",
+]);
+export const ModelRetryScheduledPayloadSchema = z
+  .object({
+    provider_type: z.string().min(1),
+    provider_model_id: z.string().min(1),
+    category: RetryableModelProviderCategorySchema,
+    attempt: z.number().int().positive(),
+    max_attempts: z.number().int().positive(),
+    retry_after_ms: z.number().int().nonnegative(),
+    retry_at: z.string().datetime(),
+    safe_to_retry: z.boolean(),
+  })
+  .passthrough();
+export const ModelRetryingPayloadSchema = z
+  .object({
+    provider_type: z.string().min(1),
+    provider_model_id: z.string().min(1),
+    attempt: z.number().int().positive(),
+    max_attempts: z.number().int().positive(),
+  })
+  .passthrough();
+export const ModelProviderErrorPayloadSchema = z
+  .object({
+    provider_type: z.string().min(1),
+    provider_model_id: z.string().min(1),
+    category: ModelProviderErrorCategorySchema,
+    retryable: z.boolean(),
+    retry_after_ms: z.number().int().nonnegative().nullable(),
+    provider_error_type: z.string().nullable().optional(),
+    provider_error_code: z.string().nullable().optional(),
+    http_status: z.number().int().positive().nullable().optional(),
+    message: z.string().min(1),
+  })
+  .passthrough();
+export const EnrichedRunFailedPayloadSchema = z
+  .object({
+    error_code: z.string().min(1),
+    category: ModelProviderErrorCategorySchema.optional(),
+    retryable: z.boolean().optional(),
+    can_continue: z.boolean().optional(),
+    retry_after_ms: z.number().int().nonnegative().nullable().optional(),
+    provider_type: z.string().min(1).optional(),
+    provider_model_id: z.string().min(1).optional(),
+    provider_error_type: z.string().nullable().optional(),
+    provider_error_code: z.string().nullable().optional(),
+    http_status: z.number().int().positive().nullable().optional(),
+    message: z.string().optional(),
+    context_packet_id: z.string().nullable().optional(),
+    tool_call_count: z.number().int().nonnegative().optional(),
+    assistant_text_length: z.number().int().nonnegative().optional(),
+    reasoning_text_length: z.number().int().nonnegative().optional(),
+  })
+  .passthrough();
+export const RunFailedPayloadSchema = EnrichedRunFailedPayloadSchema;
 export const ReasoningPayloadSchema = z.object({ representation: z.string().optional() }).passthrough();
